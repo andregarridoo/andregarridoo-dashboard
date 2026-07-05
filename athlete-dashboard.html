@@ -1,0 +1,2539 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Andre → UTA100 2027 · Athlete Dashboard</title>
+<style>
+  :root{
+    --night:#0C1116; --ridge:#151C23; --ridge2:#1B242D; --contour:#2A3540;
+    --chalk:#E8EDF1; --mist:#93A4B1; --dim:#5C6B77;
+    --teal:#5FA8A0; --amber:#DCA95C; --violet:#8E86C3; --slate:#4A5866; --rose:#D0708B;
+    --paper:#FAF9F5; --ink:#1B1F24; --paperline:#D8D5CC; --papersub:#5A6470;
+    --mono:ui-monospace,'SF Mono','Cascadia Mono',Menlo,Consolas,monospace;
+    --sans:ui-sans-serif,-apple-system,'Segoe UI',Roboto,Helvetica,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--night);color:var(--chalk);font-family:var(--sans);-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1120px;margin:0 auto;padding:22px 16px 70px}
+  .eyebrow{font-family:var(--mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--dim)}
+  .card{background:var(--ridge);border:1px solid var(--contour);border-radius:10px;padding:16px}
+  .grid{display:grid;gap:14px}
+  .cols2{display:grid;gap:14px;grid-template-columns:1fr}
+  .cols3{display:grid;gap:14px;grid-template-columns:1fr}
+  .cols4{display:grid;gap:14px;grid-template-columns:1fr 1fr}
+  @media(min-width:760px){.cols2{grid-template-columns:1fr 1fr}.cols3{grid-template-columns:1fr 1fr 1fr}.cols4{grid-template-columns:repeat(4,1fr)}}
+  .empty{font-family:var(--mono);font-size:11px;color:var(--dim);padding:14px 0;line-height:1.7}
+  button{font-family:var(--mono);cursor:pointer}
+  .btn{font-size:11px;letter-spacing:.06em;padding:7px 12px;border-radius:7px;background:transparent;color:var(--mist);border:1px solid var(--contour)}
+  .btn.solid{background:var(--teal);color:var(--night);border-color:var(--teal)}
+  .btn.danger{color:var(--rose);border-color:var(--rose)}
+  .btn:disabled{opacity:.4;cursor:default}
+  .pill{font-size:10px;letter-spacing:.1em;padding:4px 10px;border-radius:999px;border:1px solid var(--contour);background:transparent;color:var(--mist)}
+  .pill.on{background:var(--teal);color:var(--night);border-color:var(--teal)}
+  .tabbar{display:flex;gap:2px;margin:20px 0 16px;border-bottom:1px solid var(--contour);overflow-x:auto}
+  .tab{font-size:11px;letter-spacing:.08em;padding:9px 14px;background:transparent;border:none;color:var(--dim);border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap;text-transform:uppercase}
+  .tab.on{color:var(--chalk);border-bottom-color:var(--teal)}
+  input,select,textarea{background:var(--night);border:1px solid var(--contour);border-radius:6px;color:var(--chalk);font-family:var(--mono);font-size:12px;padding:6px 8px;outline:none}
+  label.f{display:flex;flex-direction:column;gap:4px}
+  label.f span{font-family:var(--mono);font-size:9px;letter-spacing:.12em;color:var(--dim);text-transform:uppercase}
+  .row{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}
+  .scroll{overflow-x:auto}
+  .note{font-family:var(--mono);font-size:9.5px;color:var(--dim);line-height:1.7}
+  .flash{font-family:var(--mono);font-size:11px;color:var(--teal);min-height:16px}
+  .tip{position:absolute;pointer-events:none;background:var(--ridge2);border:1px solid var(--contour);border-radius:8px;padding:10px 12px;max-width:240px;z-index:9;display:none}
+  table{width:100%;border-collapse:collapse}
+  td{border-bottom:1px solid var(--contour);padding:7px 0}
+  a{color:var(--teal)}
+  body.clinical{background:var(--paper);color:var(--ink)}
+  body.clinical .card{background:#fff;border-color:var(--paperline)}
+  body.clinical .eyebrow{color:var(--papersub)}
+  body.clinical td{border-color:var(--paperline)}
+  body.clinical input,body.clinical select{background:#fff;color:var(--ink);border-color:var(--paperline)}
+  @media print{.no-print{display:none!important}body{background:#fff}}
+  .lens-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-top:12px}
+  .lens-day{border:1px solid var(--contour);border-radius:8px;padding:6px 5px;display:flex;flex-direction:column;gap:5px;min-width:0}
+  .lens-dh{font-family:var(--mono);font-size:10px;color:var(--mist);display:flex;align-items:center;gap:4px}
+  .lens-chip{font-family:var(--mono);font-size:9.5px;line-height:1.25;padding:4px 5px;border-radius:5px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .lens-rest{border:1px dashed var(--contour);color:var(--dim)}
+  .lens-dot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-left:auto}
+  @media(max-width:560px){.lens-grid{grid-template-columns:repeat(7,minmax(56px,1fr));overflow-x:auto}.lens-chip{font-size:8.5px}}
+</style>
+</head>
+<body>
+<div class="wrap" id="app"></div>
+<div class="tip" id="tip"></div>
+
+<script>
+"use strict";
+/* ══════════════════════════════════════════════════════════════
+   ANDRE · ATHLETE DASHBOARD — self-contained, zero dependencies.
+   Convention: dashboards ship as single-file HTML (shareable).
+   Data: lives in storage (Claude window.storage → browser
+   localStorage → in-memory fallback). The file itself carries the
+   PLAN only. To bake a data snapshot into a share-copy, paste an
+   exported state object into EMBEDDED_STATE below.
+══════════════════════════════════════════════════════════════ */
+/* ── MAINTAINER CONTRACT — for any assistant/model editing this file ──
+   Read OPERATING_BRIEF.md in project knowledge BEFORE changing anything.
+   INVARIANTS (do not break):
+   1. Single file, ZERO external BUILD-time dependencies — no CDN scripts, no
+      frameworks, no fetched fonts. Charts stay hand-rolled SVG. AMENDED
+      5 Jul 2026 (Andre's explicit sign-off): one narrow runtime exception —
+      the Data tab's Sync button may call a small external relay (Cloudflare
+      Worker, Andre-deployed and Andre-controlled) to pull fresh intervals.icu
+      data. No other network calls, no other external dependency, ever. The
+      relay holds the API key as its own secret — never in this file, never
+      in chat, never in Andre's browser storage.
+   2. STORE_KEY stays 'andre-athlete-dash-v1' — changing it orphans
+      Andre's stored data.
+   3. Storage order stays: window.storage (Claude) → localStorage
+      (standalone browser) → memory (+ visible warning). Never assume
+      localStorage exists; never make it the only path.
+   4. PLAN / PHASES arrays = the LOCKED macro (RUNNING_PLAN.md). Edits
+      require Andre's explicit sign-off — never "improve" them silently.
+      Planned km are DERIVED from the hours-native plan (road ≈6:15/km,
+      trail ≈8:00/km); keep them labelled as derived in the UI.
+   5. No invented/demo data in the REAL record, ever. Real seeds only (body
+      03/07/26 = 67.79 kg / 16.4%). Empty states stay honest and explanatory.
+      AMENDED 4 Jul 2026 (Andre's explicit sign-off): an explicit DEMO MODE
+      may exist — synthetic, deterministic, banner-labelled, read-only,
+      never persisted, never exported, toggle-only. Does not relax this
+      invariant for the real record.
+   6. esc() every interpolated string · two-tap reset stays · clinical
+      view keeps the not-a-medical-document disclaimer · shared copies
+      carry data ONLY via a deliberate EMBEDDED_STATE snapshot.
+   7. Extending = add to registries (MARKERS, KEY_LIFTS, SEGMENTS,
+      metric cards), not new architecture. Trends > absolutes stays.
+   8. Before shipping any edit: add a CHANGELOG line below and
+      syntax-check the embedded JS (extract &lt;script&gt; → node --check).
+   CHANGELOG
+   v1.0  02/07/26  first HTML build (ported from React artifact)
+   (v1.0–v1.6 archived — full history in OPERATING_BRIEF.md CHANGELOG)
+   v1.23  05/07/26 Projection continuity fix: bias-correct the dashed
+                   projection line so it starts seamlessly from the last real
+                   FFF data point (eliminates the visual step-change at the
+                   real→projected join). Method: compute offset Δ=(actual−proj)
+                   at the last real week; apply to all projection-only weeks.
+                   Applied in both the Overview chart (panels 2 + 3) and the
+                   Running tab FFF chart (daily resolution). FFF_PROJ constant
+                   unchanged — it remains the raw calibration reference.
+                   node --check + render harness: clean.
+   v1.22  05/07/26 5 UI changes: (1) Ph12 W47–49 now renders — wEnd cap
+                   fixed (46→49) in slider callback, crosshair, IIFE, loop,
+                   and area-close; Week Lens cap corrected. (2) Overview SVG
+                   width="100%" (fills card). (3) Scorecard replaced with
+                   perfRadarSVG() hex radar (6 axes) + compact pills. (4)
+                   Boardroom card moved above chart. (5) Changelog tab added;
+                   stray post-&lt;/html&gt; text removed. node --check + harness clean.
+   v1.21  05/07/26 8 changes: (1) High Risk TSB band: dark red → pastel red
+                   (#FFCDD2 fill, #c0392b label) so it reads lighter on dark bg.
+                   (2) FFF_PROJ upgraded to PLAN-hours×IF model (v1.20 logic now
+                   in project folder first time) — down weeks W36/W39 visible.
+                   (3) Race names: Kosci100→UTK 2026 · Sydney Marathon→Sydney
+                   Marathon 2026 (PLAN, PHASES, RACES, WEEK_OVERRIDES all swept).
+                   (4) Post-UTA recovery added: Ph12 Recover (W47–49, 16 May–
+                   14 Jun 2027) in PHASES + PLAN; PLAN-wknext/bounds extended to
+                   W49; FFF_PROJ byWeek extended to 49; future slider max 52.
+                   (5) Header layout: KM/HRS pills + sliders moved to top-right
+                   corner of the plan card; subheader split into 2 lines.
+                   (6) Legend note "dashed = plan projection…" removed.
+                   node --check + render harness clean.
+   v1.19  05/07/26 FFF plan projection overlay: FFF_PROJ constant (Bannister
+                   CTL τ=42/ATL τ=7, seed 14.6/4.2 on 05/07/26, 320 daily rows
+                   through UTA100 15 May 2027). Appears as dashed lines (same
+                   colour, 0.45 opacity, stroke-dasharray 5 4) on Overview panels
+                   2 (CTL/ATL load) and 3 (TSB form), and on Running tab FFF chart.
+                   Race TSB gate bands (taper weeks only): Sydney +5–20 (rose),
+                   UTK +10–25 (amber), UTA +10–30 (teal). "Plan projection" toggle
+                   button added to FFF legend (data-act=fffToggle, v=proj). Tooltip
+                   shows proj CTL/ATL/TSB + Δ vs real when both exist. chartSVGdash()
+                   helper added (dash/opacity/width per series). No state change,
+                   no STORE_KEY change. node --check clean.
+   v1.18  05/07/26 Weight panel: MacroFactor-style EWMA trend line (α=0.1,
+                   linear interp for gaps, daily resolution from state.body,
+                   sampled weekly for the chart). Raw weight = dim amber thin
+                   line; EWMA trend = solid amber bright line. No markers.
+   v1.17  05/07/26 syncICU() weight: icu_weight from activities upserted
+                   into state.body {d,kg}; never overwrites bf%; body sorted;
+                   flash reports weight points. BF% manual-only (ICU chain
+                   carries no composition data).
+   v1.16  05/07/26 (1) Historic pre-plan volume: switched from vertical bars
+                   to connected solid line (slate 1.5px 65% opacity); zero
+                   weeks anchor line to baseline so UTK2025 peak reads in
+                   context. (2) Auto-sync on open: boot now calls syncICU()
+                   if WORKER_URL set — no manual tap needed each session.
+   v1.15  05/07/26 Historic run bars: (1) dimmed from mist@0.8 to slate@0.7
+                   — no longer dominates the plan panel; (2) zero-volume
+                   weeks now show a stub dot at baseline so eye reads
+                   "week existed, was zero" rather than a cliff-jump to
+                   adjacent peaks (UTK2025 context fix); (3) loop covers
+                   all pre-plan weeks in window including zeros, not just
+                   weeks with data.
+   v1.14  05/07/26 syncICU() ROOT FIX: ICU live API uses start_date_local
+                   not date/Date — all activities silently skipped (empty
+                   d, early return, 0 runs merged). start_date_local now
+                   primary date lookup. Hardened: type||Type||sport_type,
+                   icu_distance fallback, elapsed_time fallback.
+   v1.13  05/07/26 syncICU() field-name fix: distance + moving_time
+                   lowercase. WORKER_URL baked in.
+   v1.9.1 05/07/26 FFF readiness bands (ICU-style TSB zones): High Risk
+                   (dark red <-30), Optimal (-30 to -10), Grey Zone (-10
+                   to 5), Fresh (5 to 25), Transition (>25) — clipped to
+                   visible y-range, labels at right edge. Gap between
+                   panels increased (gapH 6→18, H 480→500, planH 60%→58%)
+                   for breathing room. X-axis: week labels now horizontal;
+                   only w/c date remains rotated -90°.
+   v1.9  05/07/26  overviewSVG: two stacked panels sharing one x-axis.
+                   Plan panel (top 60%): planned area + line + executed line
+                   + historic run bars (slate, pre-plan weeks from
+                   sessions.runs — now includes negative weeks). FFF panel
+                   (bottom 40%): CTL/ATL/TSB lines, no markers. Phase bands
+                   span both panels. Single crosshair full height. X-axis:
+                   every week gets W-N label (rotated vertical); w/c date
+                   at odd weeks only (also rotated); adaptive step-thinning
+                   at very wide windows (>80 wk span → every 4th).
+                   Historic bar data: sessions.runs now aggregated for all
+                   w<1 (pre-plan) weeks — if runs.json imported, bars appear
+                   in negative-week region. Pb=60 for vertical label room.
+                   moveCross updated to Pl=50/Pr=14 to match new layout.
+   v1.8  05/07/26  Merged Plan + FFF into single overviewSVG: dual y-axes
+                   (left = plan volume, right = CTL/ATL/TSB), one shared
+                   x-axis, one crosshair (overviewX), one scroll div
+                   (overviewWrap). Pre-plan x-axis: W-N labels every 2
+                   weeks + w/c date. FFF lines have no dot markers.
+                   overviewTipHTML replaces heroTipHTML — crash-guarded for
+                   negative/pre-plan weeks (PLAN[w-1] never called when w<1).
+                   sessions.runs aggregated by week and merged into executed
+                   line as fallback when actualWeeks[w] is null.
+                   Combined legend (phase bands + FFF colour swatches).
+                   bindCharts wired to single overviewWrap. STORE_KEY
+                   unchanged. node --check clean.
+   v1.7.3 05/07/26 Pre-plan history: removed Math.max(1) clamp on wStart
+                   throughout — wS/wS2/moveCross/heroSVG/fffSVG all now allow
+                   negative week numbers (pre-plan dates). Past slider max
+                   extended to 156 wk (3 years). heroSVG: plan region still
+                   starts at W1, pre-plan region blank with date labels every
+                   4 weeks + violet "plan start" marker. fffSVG: FFF data
+                   renders for any week in window including pre-plan, phase
+                   bands only where W1+, same date labels on x-axis.
+   v1.7.2 05/07/26 Shared crosshair + combined tooltip: hovering either chart
+                   (plan or FFF) moves a vertical crosshair line in both SVGs
+                   simultaneously and shows a single tooltip with plan data
+                   (week, phase, plan/done volume, race flag) plus CTL/ATL/TSB
+                   for that week. heroTipHTML extended with FFF section.
+                   fffSVG gains id="fffSvg", hit zones (rect[data-w]), and
+                   fffX crosshair line. heroSVG gains heroX crosshair line.
+                   bind() rewritten to wire both wraps via shared bindCharts().
+                   FFF x-axis already correctly followed sliders (confirmed —
+                   no functional change needed there).
+   v1.7.1 05/07/26 Slider drag fix: oninput → onchange so full re-render fires
+                   on release only, not on every drag pixel. Step remains 1.
+   v1.7  05/07/26  Linked date-range view: plan chart + FFF panel now share a
+                   windowed x-axis (wStart/wEnd computed from today). Two range
+                   sliders (past: 4–46 wk, future: 2–46 wk, defaults 12/8) in
+                   the plan card header drive both charts simultaneously.
+                   heroSVG() refactored to accept wStart/wEnd; fffSVG() added
+                   (week-bucketed CTL/ATL/TSB, same coordinate system). FFF
+                   panel added to Overview tab directly under the plan chart.
+                   ovRange={past,future} on App instance (transient, not
+                   persisted). STORE_KEY unchanged.
+   v1.6  05/07/26  intervals.icu integration: (1) FFF_DATA embedded constant
+                   (Fitness/Fatigue/Form — CTL/ATL/TSB daily series, 1324
+                   rows, 2022-11-20→2026-07-05, from Wellness CSV export);
+                   (2) importFFF() — paste-in wellness JSON merge by date,
+                   same pattern as importSessions(); (3) Cloudflare Worker
+                   Sync button in Data tab — calls WORKER_URL, ingests
+                   {activities, wellness} response, merges into sessions +
+                   fff state; (4) Fitness/Fatigue/Form panel in Running tab
+                   — CTL/ATL/TSB chart (90-day trailing window) + current
+                   readiness card; state shape: s.fff=[] {date,ctl,atl,tsb,
+                   rampRate}, norm()-defaulted, STORE_KEY unchanged.
+── */
+const EMBEDDED_STATE = null; // ← share-copies get the exported JSON here
+
+/* ── tokens (mirror CSS) ── */
+const C = { teal:"#5FA8A0", amber:"#DCA95C", violet:"#8E86C3", slate:"#4A5866",
+  rose:"#D0708B", chalk:"#E8EDF1", mist:"#93A4B1", dim:"#5C6B77", contour:"#2A3540",
+  night:"#0C1116", ink:"#1B1F24", papersub:"#5A6470", paperline:"#D8D5CC" };
+const LEAD_COLOR = { hyp:C.amber, end:C.teal, taper:C.violet, rec:C.slate };
+const LEAD_LABEL = { hyp:"hypertrophy lead", end:"endurance lead", taper:"taper / race", rec:"recover" };
+
+/* ── THE PLAN — locked 2 Jul 2026 · W1 = w/c Mon 29/06/26.
+     km/h DERIVED from hours-native plan (road ≈6:15/km, trail ≈8:00/km),
+     recalibrated per block. Race weeks include race distance. ── */
+const PHASES = [
+  {id:1,name:"Reintroduction",lead:"hyp",w1:1,w2:3},
+  {id:2,name:"Sydney build",lead:"end",w1:4,w2:7},
+  {id:3,name:"Taper · Sydney",lead:"taper",w1:8,w2:9},
+  {id:4,name:"Recover",lead:"rec",w1:10,w2:11},
+  {id:5,name:"Hybrid hypertrophy",lead:"hyp",w1:12,w2:17},
+  {id:6,name:"UTK specific",lead:"end",w1:18,w2:20},
+  {id:7,name:"Taper · UTK 2026",lead:"taper",w1:21,w2:22},
+  {id:8,name:"Recover",lead:"rec",w1:23,w2:25},
+  {id:9,name:"Hypertrophy 2",lead:"hyp",w1:26,w2:31},
+  {id:10,name:"UTA specific",lead:"end",w1:32,w2:43},
+  {id:11,name:"Taper · UTA100",lead:"taper",w1:44,w2:46},
+  {id:12,name:"Recover · post-UTA",lead:"rec",w1:47,w2:49},
+];
+const phaseOf = w => PHASES.find(p => w>=p.w1 && w<=p.w2);
+
+const PLAN = [
+ [1,"29/06",20,2.2,"3 short easy runs from Thu 02/07"],
+ [2,"06/07",28,3.0,""],
+ [3,"13/07",34,3.7,"AeT drift test → zones set"],
+ [4,"20/07",45,4.8,"MP power established"],
+ [5,"27/07",52,5.5,""],
+ [6,"03/08",46,4.9,"down week · 30′ TT → LTHR + rFTP"],
+ [7,"10/08",60,6.3,"peak · 32 km long, 10–12 km @MP power"],
+ [8,"17/08",40,4.2,"taper begins Thu"],
+ [9,"24/08",67,6.5,"race week",{name:"Sydney Marathon 2026",km:42.2}],
+ [10,"31/08",5,0.5,"nothing meaningful"],
+ [11,"07/09",20,2.2,"easy re-entry · lifting resumes"],
+ [12,"14/09",38,4.7,"Nippard wk1 deload"],
+ [13,"21/09",42,5.3,""],
+ [14,"28/09",46,5.8,"descent exposure begins"],
+ [15,"05/10",40,5.0,"down week"],
+ [16,"12/10",50,6.3,"long 3:30"],
+ [17,"19/10",54,6.9,"long 4:00 · >3 h rule active"],
+ [18,"26/10",62,8.0,"race-sim #1 · B2B 4:00 + 2:00"],
+ [19,"02/11",68,8.8,"race-sim #2 · 4:30–5:00 + kit"],
+ [20,"09/11",50,6.4,"consolidate · descent reps"],
+ [21,"16/11",35,4.4,"taper from 18/11"],
+ [22,"23/11",122,15.5,"race week",{name:"UTK 2026",km:102}],
+ [23,"30/11",0,0.0,"week off"],
+ [24,"07/12",15,1.7,"legs decide"],
+ [25,"14/12",25,2.9,""],
+ [26,"21/12",30,3.6,"Nippard restart wk1 deload"],
+ [27,"28/12",34,4.1,""],
+ [28,"04/01",38,4.6,""],
+ [29,"11/01",40,4.8,""],
+ [30,"18/01",34,4.1,"down week"],
+ [31,"25/01",44,5.4,"benchmark 30 km / 1,107 m"],
+ [32,"01/02",55,7.1,"UTA build opens"],
+ [33,"08/02",62,8.0,""],
+ [34,"15/02",66,8.6,""],
+ [35,"22/02",70,9.2,"race-sim #1 · long 5:00"],
+ [36,"01/03",50,6.5,"down week"],
+ [37,"08/03",66,8.6,""],
+ [38,"15/03",72,9.5,"race-sim #2 · B2B 5:30 + 2:00"],
+ [39,"22/03",52,6.8,"down week"],
+ [40,"29/03",70,9.2,""],
+ [41,"05/04",74,9.8,"peak week · long 6:00"],
+ [42,"12/04",72,9.5,"race-sim #3 · dress rehearsal"],
+ [43,"19/04",55,7.2,"consolidate"],
+ [44,"26/04",50,6.5,"taper −30%"],
+ [45,"03/05",36,4.7,"taper −50%"],
+ [46,"10/05",113,14.0,"race week",{name:"UTA100",km:101}],
+ [47,"17/05",0,0.0,"week off — nothing meaningful"],
+ [48,"24/05",12,1.3,"walk + easy 20–30’ if legs allow"],
+ [49,"31/05",20,2.2,"easy re-entry · lifting resumes light"],
+].map(r => ({w:r[0], wc:r[1], km:r[2], h:r[3], note:r[4], race:r[5]||null}));
+
+const RACES = [
+  {name:"Sydney Marathon 2026", date:"2026-08-30", w:9},
+  {name:"UTK 2026", date:"2026-11-27", w:22},
+  {name:"UTA100 2027", date:"2027-05-15", w:46},
+];
+
+/* ── FFF_PROJ — plan-derived CTL/ATL/TSB projection (Bannister impulse-response)
+   Method v2 (05/07/26): TSS/day derived from PLAN hours × per-week IF. Every down
+   week, race-sim, and recovery week in PLAN is reflected automatically. Race weeks:
+   pre-race days 32 TSS/day, race day = explicit race TSS, post-race days 5/day.
+   STATIC — never synced, never persisted. Divergence from state.fff = calibration
+   signal; log monthly in FFF_PROJECTION_BASELINE.md §4.
+   Extend only with Andre's explicit sign-off on RUNNING_PLAN.md. ── */
+const FFF_PROJ = (()=>{
+  const W1proj=new Date(2026,5,29);
+  const IF_W={
+    1:0.65,2:0.65,3:0.65,
+    4:0.72,5:0.72,6:0.72,7:0.72,
+    8:0.48,
+    10:0.50,11:0.55,
+    12:0.65,13:0.67,14:0.67,15:0.65,16:0.68,17:0.68,
+    18:0.78,19:0.78,20:0.75,
+    21:0.58,
+    23:0.45,24:0.50,25:0.52,
+    26:0.62,27:0.63,28:0.63,29:0.63,30:0.62,31:0.65,
+    32:0.75,33:0.77,34:0.77,
+    35:0.80,36:0.70,37:0.78,38:0.80,39:0.70,
+    40:0.80,41:0.82,42:0.82,43:0.76,
+    44:0.72,45:0.68,
+    47:0.45,48:0.50,49:0.55,
+  };
+  const RACE_TSS={9:120,22:420,46:800};
+  const RACE_DATE={9:"2026-08-30",22:"2026-11-27",46:"2027-05-15"};
+  const daily={};
+  PLAN.forEach(p=>{
+    const w=p.w,h=p.h;
+    const isRace=RACE_TSS[w]!=null;
+    if(isRace){
+      const rdStr=RACE_DATE[w];
+      const rd=new Date(rdStr+"T00:00:00");
+      for(let d=0;d<7;d++){
+        const dt=new Date(W1proj.getTime()+(w-1)*7*864e5+d*864e5);
+        const iso=dt.getFullYear()+"-"+String(dt.getMonth()+1).padStart(2,"0")+"-"+String(dt.getDate()).padStart(2,"0");
+        daily[iso]=iso===rdStr?RACE_TSS[w]:dt<rd?32:5;
+      }
+    } else {
+      const iF=IF_W[w]||0.70;
+      const dTSS=Math.round(h*iF*100/7*10)/10;
+      for(let d=0;d<7;d++){
+        const dt=new Date(W1proj.getTime()+(w-1)*7*864e5+d*864e5);
+        const iso=dt.getFullYear()+"-"+String(dt.getMonth()+1).padStart(2,"0")+"-"+String(dt.getDate()).padStart(2,"0");
+        daily[iso]=dTSS;
+      }
+    }
+  });
+  const kCTL=1-Math.exp(-1/42),kATL=1-Math.exp(-1/7);
+  let ctl=14.6,atl=4.2;
+  const rows=[];
+  Object.keys(daily).sort().forEach(iso=>{
+    const tss=daily[iso];
+    ctl=ctl+kCTL*(tss-ctl); atl=atl+kATL*(tss-atl);
+    rows.push({date:iso,tss:Math.round(tss*10)/10,ctl:Math.round(ctl*10)/10,atl:Math.round(atl*10)/10,tsb:Math.round((ctl-atl)*10)/10});
+  });
+  const idx={};
+  rows.forEach(r=>{ idx[r.date]=r; });
+  const byWeek={};
+  rows.forEach(r=>{
+    const d=new Date(r.date+"T00:00:00");
+    const w=Math.floor((d-W1proj)/864e5/7)+1;
+    if(w>=1&&w<=49) byWeek[w]=r;
+  });
+  return {rows,idx,byWeek};
+})();
+
+/* ── per-phase weekly pattern (Mon–Sun) + week-specific overrides.
+     PATTERN-LEVEL by design: daily durations are ranges from the locked
+     macro; each phase's weekly sheet (built at phase start) firms them.
+     r = run session · g = gym session · L = legs loaded · H = hard leg day ── */
+const DAYS=["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+const WEEK_TEMPLATES={
+ 1:[{r:"Easy 30–40′",g:"Upper (strength)"},{r:"Easy 30–40′ (wk 3+)",g:"Pull (hypertrophy)"},{g:"Lower (strength)",L:1},{r:"Easy 30–40′",g:"Push (hypertrophy)"},{r:"Rest (opt. 4th easy)"},{r:"Long easy — build duration"},{g:"Legs (hypertrophy)",L:1}],
+ 2:[{r:"Easy 40–50′",g:"Upper — failure protocol"},{r:"Threshold 4×8′→3×12′ (power-target, HR ceiling)"},{g:"Lower — 1–2 RIR",L:1},{r:"Easy 40–60′",g:"Push"},{r:"Rest"},{r:"Long 24→32 km — MP-power segments"},{r:"Easy 40–60′ (optional)",g:"Pull"}],
+ 3:[{r:"Easy 40′",g:"Upper (light)"},{r:"MP touch — 2×2 km @ MP power"},{r:"Easy 30′"},{r:"Rest"},{r:"Rest"},{r:"Easy 25′ + strides"},{r:"Rest"}],
+ 4:[{r:"Rest / walk"},{r:"Easy 30–40′ (wk 2 only)"},{r:"Rest",g:"Light full-body (wk 2, RPE 7–8)"},{r:"Easy 30–40′ (wk 2 only)"},{r:"Rest"},{r:"Easy 30–40′ (wk 2 only)"},{r:"Rest"}],
+ 5:[{r:"Easy 40–60′",g:"Upper (strength)"},{r:"Easy 40–60′",g:"Pull"},{g:"Lower (strength)",L:1},{r:"Easy 40–60′",g:"Push"},{r:"Rest"},{r:"Trail long — 2:30→4:00, steady vert"},{g:"Legs — 1–2 RIR if long >3 h",L:1}],
+ 6:[{r:"Easy 40′",g:"Lower (sub-failure)",L:1},{r:"Steady 60′ @ AeT-power ceiling",g:"Upper (maintenance)"},{r:"Descent reps ⇄ ME carry ~6.5 kg (alt. weeks)",H:1},{r:"Easy 45′"},{r:"Rest"},{r:"Long 4:00–5:00 — race-sim protocol"},{r:"B2B 90′–2:00 (sim weeks) / rest"}],
+ 7:[{r:"Easy 40′",g:"Upper light (wk 21 only)"},{r:"Touches — 4×3′ @ steady power"},{r:"Easy 30′ + short descents"},{r:"Rest"},{r:"Rest"},{r:"Easy 25′ + strides"},{r:"Rest"}],
+ 8:[{r:"Rest"},{r:"Walk / easy 20–30′ (late weeks)"},{r:"Rest",g:"Light re-entry (wk 25)"},{r:"Easy 30–40′ (wk 25)"},{r:"Rest"},{r:"Easy 30–40′ (wk 25)"},{r:"Rest"}],
+ 9:[{r:"Easy 40–50′",g:"Upper (strength)"},{r:"Easy 40–50′",g:"Pull"},{g:"Lower (strength)",L:1},{r:"Easy 40–50′",g:"Push"},{r:"Rest"},{r:"Hilly long 2:00–2:30"},{g:"Legs (hypertrophy)",L:1}],
+ 10:[{r:"Easy 45–60′",g:"Lower (sub-failure)",L:1},{r:"Steady 60–75′ @ AeT-power target (final 6 wk: climb reps)"},{r:"ME carry →13 kg ⇄ descent session (every 7–10 d)",H:1},{r:"Easy 45–60′",g:"Upper (maintenance)"},{r:"Rest"},{r:"Long 4:30→6:00 — durability channels logged"},{r:"Easy 60′ / B2B 2:00–2:30 (big weekends)"}],
+ 11:[{r:"Easy 40′",g:"Upper light (wk 44 only)"},{r:"Touches — 4×3′ climbs"},{r:"Easy 30–35′ + short descents"},{r:"Rest"},{r:"Rest"},{r:"Long 2:00 (wk 44) / 75′ (wk 45)"},{r:"Easy 40′ (wk 44)"}],
+};
+const WEEK_OVERRIDES={
+ 1:{note:"Ramp week: 4 of 5 lift days, 3 runs, ≥2 RPE shy of failure"},
+ 2:{note:"Full 5 lift days, 3 runs, 1–2 RIR"},
+ 3:{5:{r:"AeT DRIFT TEST — 15′ wu + 60′ steady @ ~150 bpm probe"},note:"Add Tue run (4/wk) · test sets the zones"},
+ 6:{1:{r:"30′ TT — LTHR + threshold power (one session, two anchors)"}},
+ 7:{5:{r:"Long 32 km — 10–12 km continuous @ MP power (pacing gate)"}},
+ 9:{4:{r:"Rest + carb-load"},5:{r:"20′ shakeout + strides"},6:{r:"RACE — Sydney Marathon 2026 · 42.2 km"}},
+ 12:{note:"Nippard wk-1 deload — clean re-entry"},
+ 17:{5:{r:"Trail long 4:00 — Sunday Legs at 1–2 RIR"}},
+ 18:{5:{r:"RACE-SIM #1 — 4:00 trail, full fuel/aid protocol"},6:{r:"B2B 2:00 easy trail"}},
+ 19:{5:{r:"RACE-SIM #2 — 4:30–5:00, full protocol + full mandatory kit"},6:{r:"B2B 90′"}},
+ 20:{5:{r:"Long 3:00 — consolidate · descent focus"}},
+ 22:{3:{r:"Travel / rest"},4:{r:"Kit check + 20′ shakeout"},5:{r:"RACE — UTK 2026 · Kosci100 · Fri 27 Nov"},note:"Race Fri 27 Nov; 12-day taper runs through W21"},
+ 26:{note:"Nippard restart — wk-1 deload, post-race-friendly"},
+ 31:{5:{r:"BENCHMARK — 30 km / 1,107 m, HR + power logged"}},
+ 35:{5:{r:"RACE-SIM #1 — long 5:00, full protocol"}},
+ 38:{5:{r:"RACE-SIM #2 — 5:30"},6:{r:"B2B 2:00"}},
+ 41:{5:{r:"Peak long 6:00"}},
+ 42:{5:{r:"RACE-SIM #3 — dress rehearsal, full protocol + kit"}},
+ 44:{note:"Taper −30%"},
+ 45:{note:"Taper −50% · no lifting from here"},
+ 46:{0:{r:"Easy 30′"},1:{r:"20′ + strides"},2:{r:"Rest"},3:{r:"Travel / 20′ shakeout"},4:{r:"Rest + kit + carb-load"},5:{r:"RACE — UTA100 · 101 km · Sat 15 May"},6:{r:"—"},note:"Race week −70%"},
+};
+
+/* Reference anchors — real values only (stale flagged). No invented baselines. */
+const ANCHORS = [
+  {k:"LTHR", v:"174 bpm", n:"stale · pre-UTA100 2026 · refresh wk ~6"},
+  {k:"Benchmark 30 km / 1,107 m", v:"7:00 /km", n:"pre-UTA100 2026 · no HR logged"},
+  {k:"Uphill jog", v:"7:17/km · 150 bpm · 264 W", n:"stale anchor"},
+  {k:"Power hike", v:"8:32/km · 135 bpm · 215 W", n:"stale anchor"},
+  {k:"UTA100 2026 fade", v:"199→100 W · step −9% · VI 1.17→1.67", n:"race reference — the four channels"},
+];
+
+/* Health marker registry — comprehensive AU panel. Extensible: add a row here
+   AND the matching row in HEALTH_EXAMS.md (parity rule). lo/hi may be one-sided. */
+const MARKERS = [
+  {id:"ferritin",name:"Ferritin",unit:"ng/mL",lo:50,hi:300,why:"iron stores — athlete floor ~50"},
+  {id:"tsat",name:"Transferrin sat.",unit:"%",lo:20,hi:50,why:"iron availability"},
+  {id:"hb",name:"Haemoglobin",unit:"g/L",lo:130,hi:170,why:"O₂ carriage"},
+  {id:"b12",name:"B12",unit:"pmol/L",lo:200,hi:600,why:"energy metabolism"},
+  {id:"folate",name:"Folate (serum)",unit:"nmol/L",lo:10,hi:45,why:"B-vitamin partner to B12 — RBC production"},
+  {id:"vitd",name:"Vitamin D",unit:"nmol/L",lo:75,hi:150,why:"bone · muscle · immunity"},
+  {id:"crp",name:"CRP (hs)",unit:"mg/L",lo:null,hi:3,why:"inflammation — transiently raised by hard sessions; draw at rest"},
+  {id:"ck",name:"CK",unit:"U/L",lo:40,hi:320,why:"muscle damage — read vs training context"},
+  {id:"alt",name:"ALT",unit:"U/L",lo:5,hi:40,why:"liver — can bump after heavy blocks"},
+  {id:"creat",name:"Creatinine",unit:"µmol/L",lo:60,hi:110,why:"kidney — relevant on high protein; hydration-sensitive"},
+  {id:"glucose",name:"Fasting glucose",unit:"mmol/L",lo:4.0,hi:5.4,why:"metabolic baseline"},
+  {id:"hba1c",name:"HbA1c",unit:"%",lo:null,hi:5.7,why:"3-month glucose picture"},
+  {id:"tc",name:"Total cholesterol",unit:"mmol/L",lo:null,hi:5.5,why:"lipid panel headline"},
+  {id:"ldl",name:"LDL-C",unit:"mmol/L",lo:null,hi:3.5,why:"lipids — lab/GP risk targets override"},
+  {id:"hdl",name:"HDL-C",unit:"mmol/L",lo:1.0,hi:null,why:"lipids — higher is protective"},
+  {id:"trig",name:"Triglycerides",unit:"mmol/L",lo:null,hi:2.0,why:"lipids · fasting"},
+  {id:"test",name:"Testosterone (total)",unit:"nmol/L",lo:10,hi:35,why:"recovery · hypertrophy · RED-S signal"},
+  {id:"tsh",name:"TSH",unit:"mIU/L",lo:0.4,hi:4.0,why:"thyroid"},
+  {id:"mg",name:"Magnesium",unit:"mmol/L",lo:0.7,hi:1.0,why:"cramp history relevance"},
+  {id:"rhr",name:"Resting HR",unit:"bpm",lo:40,hi:55,why:"recovery / overreach signal"},
+  {id:"hrv",name:"HRV (overnight)",unit:"ms",lo:null,hi:null,why:"vs own rolling baseline only"},
+];
+
+const KEY_LIFTS = ["Smith squat","Bulgarian split squat","Barbell RDL","Leg extension (slow ecc.)","Standing calf raise"];
+const LIFT_COLORS = [C.teal, C.amber, C.violet, C.chalk, C.rose];
+
+/* GIRTHS registry — Renpho tape measure sites (cm), monthly cadence.
+   λ = muscle-drive coefficient (1=fully muscle-driven, 0=structural/fat-driven).
+   Target model: girth ∝ √(λ·lean_ratio·1.193 + (1−λ)·fat_ratio·0.842)
+   Heuristic v1 — switches to measured per-site slopes once ≥3 monthly entries exist.
+   Device rule: Renpho tape = girth trend · Withings = total weight · never mix. */
+const GIRTHS = [
+  {id:"shoulder",   name:"Shoulder",        λ:0.90, target:131.7},
+  {id:"chest",      name:"Chest",           λ:0.85, target:95.1},
+  {id:"waist",      name:"Waist",           λ:0.20, target:75.1},
+  {id:"abdomen",    name:"Abdomen",         λ:0.20, target:78.5},
+  {id:"hip",        name:"Hip",             λ:0.50, target:96.7},
+  {id:"bicepL",     name:"Bicep L",         λ:0.95, target:36.2},
+  {id:"bicepR",     name:"Bicep R",         λ:0.95, target:36.3},
+  {id:"forearmL",   name:"Forearm L",       λ:0.90, target:26.2},
+  {id:"forearmR",   name:"Forearm R",       λ:0.90, target:26.6},
+  {id:"upThighL",   name:"Upper Thigh L",   λ:0.85, target:60.6},
+  {id:"upThighR",   name:"Upper Thigh R",   λ:0.85, target:60.4},
+  {id:"loThighL",   name:"Lower Thigh L",   λ:0.80, target:null},
+  {id:"loThighR",   name:"Lower Thigh R",   λ:0.80, target:null},
+  {id:"calfL",      name:"Calf L",          λ:0.80, target:36.4},
+  {id:"calfR",      name:"Calf R",          λ:0.80, target:37.6},
+  // neck: excluded pending re-measure (20.7 cm implausible for adult male)
+];
+
+/* ── RUN TAXONOMY (v1.5) — the standard session language. Locked registry;
+   period-specific focus lives in state.taxNotes (dated data, not code).
+   Rx is HR+power language; absolute numbers arrive only from the wk-3 AeT
+   test and wk-6 TT — until then Rx reads symbolically. ── */
+const RUN_TYPES = [
+ {id:"rec",  grp:"Easy", name:"Recovery",      purpose:"absorb load, restore movement",
+  rx:"Z1 — well below AeT, truly conversational; power not prescribed",
+  structure:"20–40′ flat, no watch-chasing", log:"easy schema (duration + niggle status)"},
+ {id:"easy", grp:"Easy", name:"Easy aerobic",  purpose:"aerobic base volume — the bulk of all running",
+  rx:"HR ≤ AeT cap (pre-test: conversational feel) · pace/GAP = outcome only",
+  structure:"30–60′ continuous · optional strides after", log:"easy schema"},
+ {id:"steady",grp:"Easy", name:"Steady / AeT", purpose:"press the aerobic ceiling without crossing it",
+  rx:"AeT power target · HR ceiling = AeT", structure:"45–75′ continuous, or embedded long-run blocks", log:"quality schema"},
+ {id:"strides",grp:"Easy",name:"Strides",      purpose:"neuromuscular touch, form",
+  rx:"6–8 × 20″ relaxed-fast, full recovery", structure:"appended to easy days — not a session", log:"—"},
+ {id:"thr",  grp:"Quality", name:"Threshold",  purpose:"raise LTHR / rFTP",
+  rx:"power-target intervals with HR ceiling ≈ LTHR (anchored after wk-6 TT)",
+  structure:"4×8′ → 3×12′, jog recoveries", log:"quality schema (per-rep)"},
+ {id:"mp",   grp:"Quality", name:"MP power",   purpose:"Sydney race-power calibration + confidence",
+  rx:"segments at marathon power (established wk 4) · HR observed, not capped",
+  structure:"2×2 km touches → 10–12 km continuous inside the long run", log:"quality schema"},
+ {id:"touch",grp:"Quality", name:"Touches",    purpose:"keep intensity awake through taper",
+  rx:"short blocks at steady power", structure:"4×3′, full recoveries", log:"quality schema"},
+ {id:"hill", grp:"Quality", name:"Climb reps", purpose:"climbing strength-endurance under control",
+  rx:"power-capped climbs (cap derived from AeT power)", structure:"4–8 × 3–6′ up, easy down", log:"quality schema"},
+ {id:"desc", grp:"Quality", name:"Descent reps", purpose:"eccentric durability — the UTA100 lever",
+  rx:"controlled hard downhills · form over speed · quad tolerance is the target",
+  structure:"4–8 reps on sustained grade · counts as a hard-leg day", log:"quality schema"},
+ {id:"me",   grp:"Quality", name:"ME carry",   purpose:"muscular endurance (UA layer)",
+  rx:"weighted uphill hike · HR irrelevant — legs are the limiter",
+  structure:"~6.5 kg → 13 kg across blocks · hard-leg day · UTK/UTA blocks only", log:"quality schema"},
+ {id:"longE",grp:"Long", name:"Long easy",     purpose:"duration + the durability dataset",
+  rx:"≤ AeT throughout · every run ≥2 h logs all four durability channels",
+  structure:"phase-progressive 2:30 → 6:00", log:"long schema (comprehensive)"},
+ {id:"sim",  grp:"Long", name:"Race-sim",      purpose:"full-protocol rehearsal",
+  rx:"race fuelling, kit and pacing executed as written · channels primary",
+  structure:"4:00 → 5:30 per plan · pairs with a B2B", log:"long schema"},
+ {id:"b2b",  grp:"Long", name:"Back-to-back",  purpose:"fatigue resistance on pre-tired legs",
+  rx:"day-2 long, easy-capped", structure:"90′–2:30 the day after the sim/long", log:"long schema"},
+ {id:"t_aet",grp:"Test", name:"AeT drift test", purpose:"anchor AeT HR + AeT power — sets every zone",
+  rx:"15′ wu + 60′ steady @ ~150 bpm probe · Pa:HR drift <5% = at/below AeT",
+  structure:"wk 3 · zones translate to Garmin only from this", log:"test protocol"},
+ {id:"t_tt", grp:"Test", name:"30′ TT",        purpose:"anchor LTHR + threshold power",
+  rx:"30′ max sustainable · avg HR of final 20′ = LTHR · avg power ≈ rFTP",
+  structure:"Phase 2 wk 6 · one session, two anchors", log:"test protocol"},
+ {id:"t_bm", grp:"Test", name:"Benchmark",     purpose:"repeatable field check",
+  rx:"fixed route (30 km / 1,107 m) at prescribed effort · compare EF + decoupling",
+  structure:"W31 anchor point", log:"long schema"},
+ {id:"race", grp:"Race", name:"Race",          purpose:"execute the plan",
+  rx:"per race plan — Sydney by MP power · ultras by power caps",
+  structure:"Sydney W9 · UTK W22 · UTA100 W46", log:"race analysis"},
+];
+const TYPE_BY_ID = Object.fromEntries(RUN_TYPES.map(t=>[t.id,t]));
+function typeFor(str){ if(!str||str==="—") return null; const t=str.toLowerCase();
+  if(t.includes("race-sim")) return "sim";
+  if(t.includes("b2b")) return "b2b";
+  if(/\brace\b/.test(t)) return "race";
+  if(t.includes("benchmark")) return "t_bm";
+  if(t.includes("drift test")) return "t_aet";
+  if(/\btt\b/.test(t)) return "t_tt";
+  if(t.includes("threshold")) return "thr";
+  if(t.includes("mp touch")||t.includes("mp power")||/\bmp\b/.test(t)) return "mp";
+  if(t.includes("touches")) return "touch";
+  if(t.includes("climb rep")) return "hill";
+  if(t.includes("descent")) return "desc";
+  if(t.includes("me carry")) return "me";
+  if(t.includes("steady")) return "steady";
+  if(t.includes("long")) return "longE";
+  if(/^rest|travel|kit check|nothing/.test(t)&&!t.includes("shakeout")) return null;
+  return "easy"; }
+
+/* ── GYM_SESSIONS (v1.5) — from Andre's Nippard sheet (Foundation wk-1 canonical
+   list). Names, working-set RPE and rest extracted; the sheet's rep-range cells
+   were corrupted in the text-dump conversion, so reps read "per sheet" — never
+   guessed. wk 1 of a block = intro; wk 2+ last set to failure. On-ramp rule
+   (this cycle): 1–2 RIR everywhere for ~2–3 wks. ── */
+const GYM_SESSIONS = {
+ "Upper":{name:"Upper (Strength Focus)", watch:"SHOULDER WATCH — incline + overhead pressing is the flagged niggle's test bench; keep last sets shy until proven.",
+  ex:[["45° Incline Barbell Press","6-7→7-8","3–5′"],["Cable Crossover Ladder","7-8→8-9","1–2′"],["Wide-Grip Pull-Up","6-7→7-8","2–3′"],["High-Cable Lateral Raise","7-8→8-9","1–2′"],["Pendlay Deficit Row","7-8→8-9","2–3′"],["Overhead Cable Triceps Ext.","7-8→8-9","1–2′"],["Bayesian Cable Curl","7-8→8-9","1–2′"]]},
+ "Lower":{name:"Lower (Strength Focus)", watch:"KNEE + RIGHT-SIDE WATCH — lateral-knee flag (UTA100) and the right-side cluster live here; progress right-leg eccentric load deliberately. Legs-loaded day: 48 h rule applies.",
+  ex:[["Lying Leg Curl","7-8→8-9","1–2′"],["Smith Machine Squat","6-7→7-8","3–5′"],["Barbell RDL","6-7→7-8","2–3′"],["Leg Extension (slow ecc.)","7-8→8-9","1–2′"],["Standing Calf Raise","7-8→8-9","1–2′"],["Cable Crunch","7-8→8-9","1–2′"]]},
+ "Pull":{name:"Pull (Hypertrophy Focus)", watch:null,
+  ex:[["Neutral-Grip Lat Pulldown","6-7→7-8","2–3′"],["Chest-Supported Machine Row","6-7→7-8","2–3′"],["Neutral-Grip Seated Cable Row","7-8→8-9","2–3′"],["1-Arm 45° Cable Rear-Delt Flye","7-8→8-9","1–2′"],["Machine Shrug","7-8→8-9","1–2′"],["EZ-Bar Cable Curl","7-8→8-9","1–2′"],["Machine Preacher Curl","→8-9","1–2′"]]},
+ "Push":{name:"Push (Hypertrophy Focus)", watch:"Shoulder watch applies to pressing here too.",
+  ex:[["Barbell Bench Press","6-7→7-8","3–5′"],["Machine Shoulder Press","6-7→7-8","2–3′"],["Bottom-Half DB Flye","7-8→8-9","1–2′"],["High-Cable Lateral Raise","7-8→8-9","1–2′"],["Overhead Cable Triceps Ext.","7-8→8-9","1–2′"],["Cable Triceps Kickback","→8-9","1–2′"],["Roman Chair Leg Raise","7-8→8-9","1–2′"]]},
+ "Legs":{name:"Legs (Hypertrophy Focus)", watch:"KNEE + RIGHT-SIDE WATCH · hard/loaded-leg rules apply (never before long/quality runs; 1–2 RIR when the week's long run >3 h).",
+  ex:[["Leg Press","6-7→7-8","2–3′"],["Seated Leg Curl","7-8→8-9","1–2′"],["DB Bulgarian Split Squat","6-7→7-8","2–3′"],["Leg Extension (slow ecc.)","7-8→8-9","1–2′"],["Machine Hip Adduction","7-8→8-9","1–2′"],["Machine Hip Abduction","7-8→8-9","1–2′"],["Standing Calf Raise","7-8→8-9","1–2′"]]},
+ "Full":{name:"Light full-body / re-entry", watch:"Recovery-phase only — RPE 7–8, nothing to failure.", ex:[]},
+ "Gym":{name:"Gym (see plan note)", watch:null, ex:[]},
+};
+
+/* ── BOARD (v1.5) — charter personas. Seed notes coach-authored 04/07/26 from
+   the record on file. ── */
+const BOARD = [
+ {id:"ceo", role:"Chairman & CEO"},{id:"run", role:"Running Coach"},{id:"snc", role:"S&C Director"},
+ {id:"phys",role:"Physiotherapist"},{id:"cmo", role:"Chief Medical Officer"},{id:"diet",role:"Performance Dietitian"},
+ {id:"coo", role:"Lifestyle COO"},{id:"data",role:"Data Analyst"},{id:"crew",role:"Crew Chief"},{id:"mind",role:"Mindset Coach"},
+];
+const BOARD_SEED = [
+ {d:"2026-07-04",m:"ceo", note:"Consolidated ask: discipline over enthusiasm. Durability — not VO2 — decides UTA100, and lean mass is a multi-season project. This block: run W1–3 genuinely easy (run #1 ran hot), land the wk-3 AeT test so every zone is anchored, on-ramp the gym at 1–2 RIR, close the right-side injury file (upload the reports), and instrument sleep. Everything else is noise until those five are done."},
+ {d:"2026-07-04",m:"run", note:"Intensity discipline: run #1 was moderate-hard on an easy day. Until the wk-3 test, cap easy runs at conversational; after it, by AeT HR. Long-run duration is the only progression that matters this block."},
+ {d:"2026-07-04",m:"snc", note:"First 2–3 wks: 1–2 RIR everywhere the sheet says failure — tissue lags strength after a layoff. Incline/overhead pressing is the shoulder's test bench. Engine-room mass first: quads, hams, calves."},
+ {d:"2026-07-04",m:"phys",note:"The right-side cluster (femur BSR · ITB · metatarsals · sesamoid) is one pattern until proven otherwise — upload the MRI + podiatrist reports so it can be ruled on. Progress right-leg eccentric load deliberately; report the knee after the first loaded leg day."},
+ {d:"2026-07-04",m:"cmo", note:"Ferritin before the UTK load — mid-Oct draw. Time CRP ≥48 h after hard sessions or it reads as noise. Watch energy availability once volume climbs against the surplus."},
+ {d:"2026-07-04",m:"diet",note:"130–140 g/d protein while hypertrophy leads; surplus gated to +0.2–0.25% BW/wk in lifting blocks only. Gut training toward 90–120 g CHO/h starts with the first ≥2 h long runs — practise, don't improvise."},
+ {d:"2026-07-04",m:"coo", note:"Sleep is the hypertrophy lever a full-time job squeezes first. The weekly check-in is now on the dashboard — three taps. If stress slides two weeks running, we cut volume before adaptation fails, not after."},
+ {d:"2026-07-04",m:"data",note:"Chest-strap HR is the clean series from 3 Jul — never trend across the break. Zones come from the wk-3 and wk-6 tests, not Garmin's auto-LT. Upload the account history so baseline load is measured, not guessed."},
+ {d:"2026-07-04",m:"crew",note:"W18–19 race-sims are protocol rehearsals, not fitness tests: full mandatory kit, real aid timing, fuelling as written. UTK 2026 is the dress rehearsal — checkpoint drills count as training."},
+ {d:"2026-07-04",m:"mind",note:"The hard rep this month is running slow on purpose. Anchor to the 46-week arc: July pace numbers are noise; the athlete who wins May 2027 is built by boring Tuesdays."},
+];
+const TAX_SEED = [
+ {d:"2026-07-04",type:"easy",phase:1,note:"P1 focus: easy is genuinely easy. Run #1 ran moderate-hard — the correction is behavioural, not planned. Conversational until the wk-3 test gives the AeT cap."},
+ {d:"2026-07-04",type:"longE",phase:1,note:"P1 longs progress by duration only — no pace/power goals. The first ≥2 h run starts the durability-channel series and gut-training practice."},
+];
+
+/* Back-compat: keep SEGMENTS for any stored segmental muscle data */
+const SEGMENTS = [
+  {id:"la", name:"L arm",  cx:60,  y:56,  h:96,  w:9},
+  {id:"ra", name:"R arm",  cx:140, y:56,  h:96,  w:9},
+  {id:"tr", name:"Trunk",  cx:100, y:50,  h:112, w:26},
+  {id:"ll", name:"L leg",  cx:86,  y:166, h:134, w:12},
+  {id:"rl", name:"R leg",  cx:114, y:166, h:134, w:12},
+];
+
+const STORE_KEY = "andre-athlete-dash-v1";
+
+/* ── intervals.icu Cloudflare Worker relay (v1.6) ──────────────────────────
+   Replace the placeholder below with your deployed Worker URL.
+   The Worker holds the API key as a secret — it never lives here.
+   Set WORKER_URL = "" to disable live sync; import-only path still works.
+   ─────────────────────────────────────────────────────────────────────── */
+const WORKER_URL = "https://icu-relay.andregarridoo.workers.dev"; // deployed 05/07/26
+const GIRTH_SEED = {  // real measure 04/07/26 — Renpho tape, AM, fasted
+  d:"2026-07-04",
+  shoulder:126.3, chest:91.2, waist:79.4, abdomen:83.0, hip:95.8,
+  bicepL:33.6, bicepR:33.7, forearmL:24.5, forearmR:24.9,
+  upThighL:56.7, upThighR:56.6, loThighL:42.0, loThighR:43.7,
+  calfL:34.1, calfR:35.2
+  // neck excluded (20.7 cm implausible — re-measure next monthly session)
+};
+const EMPTY = {
+  version:1,
+  actualWeeks:{},                                   // {w:{km,h,vert,desc,longH,decoup,ef,z12}}
+  body:[{d:"2026-07-03",kg:67.79,bf:16.4}],          // real seed — Withings 3 Jul 19:40, trend-grade
+  labs:[], lifts:[], protein:[],
+  protocol:[],                                      // {d, by, change, reason?}
+  segmental:[],                                     // {d, la, ra, tr, ll, rl} muscle kg (back-compat)
+  girths:[GIRTH_SEED],                              // {d, shoulder, chest, waist, ...} cm — Renpho tape
+  target:{kg:73, bf:15},                            // long-horizon physique goal (formally adopted 04/07/26)
+  sessions:{runs:[], gym:[]},                       // IMPORT-ONLY: runs ← runs.json · gym ← MacroFactor-derived JSON
+  taxNotes:[...TAX_SEED],                           // period focus notes per run type (dated)
+  boardNotes:[...BOARD_SEED],                       // board member notes (attributed, dated)
+  checkins:[],                                      // weekly mind check-in {d, sleep, stress, mot} 1–5
+  fff:[],                                           // Fitness/Fatigue/Form — import-only from intervals.icu Wellness CSV or Sync
+};
+const norm = s => {
+  s.protocol=s.protocol||[]; s.segmental=s.segmental||[];
+  s.girths=s.girths||[GIRTH_SEED];
+  s.actualWeeks=s.actualWeeks||{}; s.body=s.body||[]; s.labs=s.labs||[];
+  s.lifts=s.lifts||[]; s.protein=s.protein||[];
+  if(!("target" in s)||s.target==null) s.target={kg:73,bf:15};
+  s.sessions=s.sessions||{}; s.sessions.runs=s.sessions.runs||[]; s.sessions.gym=s.sessions.gym||[];
+  s.fff=s.fff||[];
+  if(!s.taxNotes||!s.taxNotes.length) s.taxNotes=[...TAX_SEED];
+  if(!s.boardNotes||!s.boardNotes.length) s.boardNotes=[...BOARD_SEED];
+  s.checkins=s.checkins||[];
+  return s;
+};
+
+/* ── helpers ── */
+const todayWeek = () => { const w1=new Date(2026,5,29); const d=Math.floor((Date.now()-w1.getTime())/864e5); return Math.min(46,Math.max(1,Math.floor(d/7)+1)); };
+const daysTo = iso => Math.ceil((new Date(iso+"T00:00:00").getTime()-Date.now())/864e5);
+const fmt = (n,d=1) => (n==null||isNaN(n)) ? "—" : Number(n).toFixed(d).replace(/\.0$/,"");
+const num = s => { const v=parseFloat(s); return isNaN(v)?null:v; };
+const esc = s => String(s==null?"":s).replace(/[&<>"']/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
+const qs = id => document.getElementById(id);
+const refText = m => (m.lo!=null&&m.hi!=null) ? ` · ref ${m.lo}–${m.hi} ${m.unit}`
+  : m.hi!=null ? ` · ref < ${m.hi} ${m.unit}` : m.lo!=null ? ` · ref > ${m.lo} ${m.unit}` : "";
+
+/* ── storage adapter: Claude → localStorage → memory ── */
+const Store = {
+  mode:"memory",
+  init(){
+    if (typeof window!=="undefined" && window.storage && window.storage.get) { this.mode="claude"; return; }
+    try { localStorage.setItem("__t","1"); localStorage.removeItem("__t"); this.mode="local"; }
+    catch(e){ this.mode="memory"; }
+  },
+  async load(){
+    try{
+      if(this.mode==="claude"){ const r=await window.storage.get(STORE_KEY); return (r&&r.value)?JSON.parse(r.value):null; }
+      if(this.mode==="local"){ const v=localStorage.getItem(STORE_KEY); return v?JSON.parse(v):null; }
+    }catch(e){}
+    return null;
+  },
+  async save(s){
+    try{
+      const v=JSON.stringify(s);
+      if(this.mode==="claude"){ await window.storage.set(STORE_KEY,v); }
+      else if(this.mode==="local"){ localStorage.setItem(STORE_KEY,v); }
+    }catch(e){ console.error("save failed",e); }
+  },
+};
+
+/* ── SVG chart helpers ── */
+function niceMax(v){ if(v<=0) return 1; const p=Math.pow(10,Math.floor(Math.log10(v))); const n=v/p; const m=n<=1?1:n<=2?2:n<=2.5?2.5:n<=5?5:10; return m*p; }
+
+function chartSVG(o){
+  const W=o.w||460, H=o.h||200, P={l:44,r:12,t:14,b:26};
+  const iw=W-P.l-P.r, ih=H-P.t-P.b, n=o.cats.length;
+  let vals=[];
+  o.series.forEach(s=>s.data.forEach(v=>{ if(v!=null) vals.push(v); }));
+  (o.refs||[]).forEach(r=>vals.push(r.y));
+  if(o.band){ vals.push(o.band.lo, o.band.hi); }
+  if(!vals.length) vals=[0,1];
+  let lo = o.yMin!=null ? o.yMin : Math.min(...vals), hi = o.yMax!=null ? o.yMax : Math.max(...vals);
+  if(lo===hi){ lo-=1; hi+=1; }
+  const pad=(hi-lo)*0.12; if(o.yMin==null) lo-=pad; if(o.yMax==null) hi+=pad;
+  const sx = i => n<=1 ? P.l+iw/2 : P.l + i*(iw/(n-1));
+  const sy = v => P.t + ih - (v-lo)/(hi-lo)*ih;
+  let g="";
+  if(o.band) g+=`<rect x="${P.l}" y="${sy(o.band.hi)}" width="${iw}" height="${Math.max(0,sy(o.band.lo)-sy(o.band.hi))}" fill="${o.band.color||C.teal}" opacity="0.1"/>`;
+  for(let i=0;i<=3;i++){ const v=lo+(hi-lo)*i/3, y=sy(v);
+    g+=`<line x1="${P.l}" x2="${W-P.r}" y1="${y}" y2="${y}" stroke="${o.line||C.contour}" stroke-opacity="0.35"/>`;
+    g+=`<text x="${P.l-6}" y="${y+3}" text-anchor="end" font-family="var(--mono)" font-size="9" fill="${o.sub||C.dim}">${fmt(v)}${o.yUnit?" "+o.yUnit:""}</text>`; }
+  const step=Math.ceil(n/8);
+  o.cats.forEach((c,i)=>{ if(i%step===0||i===n-1) g+=`<text x="${sx(i)}" y="${H-8}" text-anchor="middle" font-family="var(--mono)" font-size="9" fill="${o.sub||C.dim}">${esc(c)}</text>`; });
+  (o.refs||[]).forEach(r=>{ const y=sy(r.y);
+    g+=`<line x1="${P.l}" x2="${W-P.r}" y1="${y}" y2="${y}" stroke="${r.color}" stroke-dasharray="4 3"/>`;
+    g+=`<text x="${W-P.r}" y="${y-4}" text-anchor="end" font-family="var(--mono)" font-size="8.5" fill="${r.color}">${esc(r.label)}</text>`; });
+  const bars = o.series.filter(s=>s.type==="bar"), bw = bars.length ? Math.max(3,(iw/Math.max(1,n))/(bars.length+1.2)) : 0;
+  o.series.forEach((s)=>{
+    if(s.type==="bar"){
+      const bi=bars.indexOf(s);
+      s.data.forEach((v,i)=>{ if(v==null) return; const x=sx(i)-(bars.length*bw)/2+bi*bw, y=sy(Math.max(0,v)), h=Math.abs(sy(0)-sy(v));
+        g+=`<rect x="${x}" y="${Math.min(y,sy(0))}" width="${bw-1}" height="${Math.max(1,h)}" fill="${s.color}" rx="1.5"><title>${esc(o.cats[i])} · ${esc(s.name)}: ${fmt(v)}</title></rect>`; });
+    } else {
+      let path="", started=false;
+      s.data.forEach((v,i)=>{ if(v==null){ return; } const x=sx(i),y=sy(v); path+=(started?"L":"M")+x+" "+y; started=true; });
+      if(path) g+=`<path d="${path}" fill="none" stroke="${s.color}" stroke-width="1.6"/>`;
+      s.data.forEach((v,i)=>{ if(v==null) return;
+        g+=`<circle cx="${sx(i)}" cy="${sy(v)}" r="3" fill="${s.color}"><title>${esc(o.cats[i])} · ${esc(s.name)}: ${fmt(v)}${o.yUnit?" "+o.yUnit:""}</title></circle>`; });
+    }
+  });
+  const legend = o.series.length>1 ? `<div style="display:flex;gap:14px;margin-top:6px;flex-wrap:wrap">${o.series.map(s=>`<span class="note" style="display:flex;align-items:center;gap:6px"><i style="width:8px;height:8px;border-radius:2px;background:${s.color};display:inline-block"></i>${esc(s.name)}</span>`).join("")}</div>` : "";
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="display:block">${g}</svg>${legend}`;
+}
+
+/* chartSVGdash — like chartSVG but supports per-series stroke-dasharray/opacity/width.
+   Series entries may have: dash (string), opacity (0-1), width (px). */
+function chartSVGdash(o){
+  const W=o.w||460, H=o.h||200, P={l:44,r:12,t:14,b:26};
+  const iw=W-P.l-P.r, ih=H-P.t-P.b, n=o.cats.length;
+  let vals=[];
+  o.series.forEach(s=>s.data.forEach(v=>{ if(v!=null) vals.push(v); }));
+  (o.refs||[]).forEach(r=>vals.push(r.y));
+  if(!vals.length) vals=[0,1];
+  let lo=o.yMin!=null?o.yMin:Math.min(...vals), hi=o.yMax!=null?o.yMax:Math.max(...vals);
+  if(lo===hi){lo-=1;hi+=1;}
+  const pad=(hi-lo)*0.12; if(o.yMin==null) lo-=pad; if(o.yMax==null) hi+=pad;
+  const sx=i=>n<=1?P.l+iw/2:P.l+i*(iw/(n-1));
+  const sy=v=>P.t+ih-(v-lo)/(hi-lo)*ih;
+  let g="";
+  for(let i=0;i<=3;i++){const v=lo+(hi-lo)*i/3,y=sy(v);
+    g+=`<line x1="${P.l}" x2="${W-P.r}" y1="${y}" y2="${y}" stroke="${o.line||C.contour}" stroke-opacity="0.35"/>`;
+    g+=`<text x="${P.l-6}" y="${y+3}" text-anchor="end" font-family="var(--mono)" font-size="9" fill="${o.sub||C.dim}">${fmt(v)}${o.yUnit?" "+o.yUnit:""}</text>`;}
+  const step=Math.ceil(n/8);
+  o.cats.forEach((c,i)=>{if(i%step===0||i===n-1) g+=`<text x="${sx(i)}" y="${H-8}" text-anchor="middle" font-family="var(--mono)" font-size="9" fill="${o.sub||C.dim}">${esc(c)}</text>`;});
+  (o.refs||[]).forEach(r=>{const y=sy(r.y);
+    g+=`<line x1="${P.l}" x2="${W-P.r}" y1="${y}" y2="${y}" stroke="${r.color}" stroke-dasharray="4 3"/>`;
+    g+=`<text x="${W-P.r}" y="${y-4}" text-anchor="end" font-family="var(--mono)" font-size="8.5" fill="${r.color}">${esc(r.label)}</text>`;});
+  o.series.forEach(s=>{
+    const da=s.dash||null, op=s.opacity!=null?s.opacity:1, sw=s.width!=null?s.width:1.6;
+    let path="",started=false;
+    s.data.forEach((v,i)=>{if(v==null)return;const x=sx(i),y=sy(v);path+=(started?"L":"M")+x+" "+y;started=true;});
+    if(path) g+=`<path d="${path}" fill="none" stroke="${s.color}" stroke-width="${sw}" opacity="${op}"${da?` stroke-dasharray="${da}"`:""}/>`;
+  });
+  const solidSeries=o.series.filter(s=>!s.dash);
+  const legend=solidSeries.length>1?`<div style="display:flex;gap:14px;margin-top:6px;flex-wrap:wrap">${solidSeries.map(s=>`<span class="note" style="display:flex;align-items:center;gap:6px"><i style="width:8px;height:8px;border-radius:2px;background:${s.color};display:inline-block"></i>${esc(s.name)}</span>`).join("")}</div>`:"";
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="display:block">${g}</svg>${legend}`;
+}
+
+function sparkSVG(series,color){
+  if(series.length<2) return "";
+  const W=160,H=42,vals=series.map(p=>p.v);
+  let lo=Math.min(...vals),hi=Math.max(...vals); if(lo===hi){lo-=1;hi+=1;}
+  const sx=i=>i*(W/(series.length-1)), sy=v=>H-3-((v-lo)/(hi-lo))*(H-6);
+  let p=""; series.forEach((pt,i)=>{ p+=(i?"L":"M")+sx(i)+" "+sy(pt.v); });
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" height="42" preserveAspectRatio="none"><path d="${p}" fill="none" stroke="${color}" stroke-width="1.4"/></svg>`;
+}
+
+/* ── girthSVG v2 (v1.5): silhouette rebuilt from Andre's 04/07/26 baseline
+   photos. METHOD (honest split): waist/shoulder width ratio (0.57) and the
+   crotch line (~0.53 of stature → legs ≈47%) were MEASURED from the front
+   photo via colour-mask silhouette analysis; remaining widths are girth-
+   proportioned within that frame; vertical landmarks are standard-male
+   anthropometry, consistent with the photo where measurable. Arms included
+   (biceps/forearm girth-driven). Girth deltas amplified ×3 around the
+   04/07/26 seed so monthly change is visible. Dual outline: today (teal
+   solid) vs target (amber dashed). ── */
+function girthSVG(todayG, targetG){
+  const Hf=380, Wf=280, cx=Wf/2, top=14, BH=Hf-2*top;   // body height in px
+  // vertical landmarks (fraction of stature)
+  const Y={headT:0,headB:.105,neck:.135,sho:.18,chest:.245,waist:.36,abd:.415,hip:.475,crotch:.53,
+           upTh:.585,loTh:.665,knee:.72,calf:.795,ankle:.955};
+  // base half-widths (px) — shoulder anchored, waist/shoulder = 0.57 photo-measured
+  const K=54;
+  const BASEW={sho:1.00,chest:.90,waist:.57,abd:.60,hip:.68,upTh:.295,loTh:.235,calf:.185,ankle:.085,
+               neck:.155,headR:.30,armU:.115,armF:.095,wrist:.055};
+  const AMP=3;
+  const seedOf=id=>GIRTH_SEED[id];
+  const scale=(g,id)=>{ if(!g||g[id]==null||seedOf(id)==null) return 1;
+    return 1 + AMP*((g[id]-seedOf(id))/seedOf(id)); };
+  const py=f=>top+f*BH;
+  function outline(g){
+    const sho=K*BASEW.sho*scale(g,"shoulder"), che=K*BASEW.chest*scale(g,"chest"),
+          wai=K*BASEW.waist*scale(g,"waist"), abd=K*BASEW.abd*scale(g,"abdomen"),
+          hip=K*BASEW.hip*scale(g,"hip");
+    const legC=hip*0.52;
+    const leg=(side,idU,idL,idC)=>{ const sgn=side; const c=cx+sgn*legC;
+      const uT=K*BASEW.upTh*scale(g,idU), lT=K*BASEW.loTh*scale(g,idL), ca=K*BASEW.calf*scale(g,idC), an=K*BASEW.ankle;
+      return {c,uT,lT,ca,an}; };
+    const L=leg(-1,"upThighL","loThighL","calfL"), R=leg(1,"upThighR","loThighR","calfR");
+    // torso path (right side down, left side up)
+    const P=[[cx+K*BASEW.neck,py(Y.neck)],[cx+sho,py(Y.sho)],[cx+che,py(Y.chest)],[cx+wai,py(Y.waist)],
+             [cx+abd,py(Y.abd)],[cx+hip,py(Y.hip)],[R.c+R.uT*0.9,py(Y.crotch)],
+             [cx+2,py(Y.crotch)],[cx-2,py(Y.crotch)],[L.c-L.uT*0.9,py(Y.crotch)],
+             [cx-hip,py(Y.hip)],[cx-abd,py(Y.abd)],[cx-wai,py(Y.waist)],[cx-che,py(Y.chest)],
+             [cx-sho,py(Y.sho)],[cx-K*BASEW.neck,py(Y.neck)]];
+    const torso="M"+P.map(p=>fmt(p[0],1)+","+fmt(p[1],1)).join(" L ")+" Z";
+    const legPath=X=>{ const q=[[X.c-X.uT,py(Y.upTh)],[X.c-X.lT,py(Y.loTh)],[X.c-X.lT*0.92,py(Y.knee)],
+      [X.c-X.ca,py(Y.calf)],[X.c-X.an,py(Y.ankle)],[X.c+X.an,py(Y.ankle)],[X.c+X.ca,py(Y.calf)],
+      [X.c+X.lT*0.92,py(Y.knee)],[X.c+X.lT,py(Y.loTh)],[X.c+X.uT,py(Y.upTh)],
+      [X.c+X.uT*0.95,py(Y.crotch)],[X.c-X.uT*0.95,py(Y.crotch)]];
+      return "M"+q.map(p=>fmt(p[0],1)+","+fmt(p[1],1)).join(" L ")+" Z"; };
+    // arms: shoulder joint → wrist, girth-driven, hanging slightly out
+    const arm=(sgn,idB,idF)=>{ const x0=cx+sgn*sho*0.94, x1=cx+sgn*(sho*0.94+8);
+      const aU=K*BASEW.armU*scale(g,idB), aF=K*BASEW.armF*scale(g,idF), wr=K*BASEW.wrist;
+      const q=[[x0-sgn*aU*0.4,py(Y.sho)],[x1+sgn*aU,py(.30)],[x1+sgn*aF,py(.44)],[x1+sgn*wr,py(.565)],
+               [x1-sgn*wr,py(.565)],[x1-sgn*aF,py(.44)],[x1-sgn*aU,py(.30)]];
+      return "M"+q.map(p=>fmt(p[0],1)+","+fmt(p[1],1)).join(" L ")+" Z"; };
+    return {torso, legL:legPath(L), legR:legPath(R), armL:arm(-1,"bicepL","forearmL"), armR:arm(1,"bicepR","forearmR"),
+            head:`<ellipse cx="${cx}" cy="${fmt(py(Y.headB/2+Y.headT/2)+3,1)}" rx="${fmt(K*BASEW.headR,1)}" ry="${fmt(BH*(Y.headB-Y.headT)/2,1)}"/>`};
+  }
+  const render=(g,color,dash,fill)=>{ if(!g) return "";
+    const o=outline(g);
+    const st=`stroke="${color}" stroke-width="1.6" ${dash?`stroke-dasharray="5 4"`:""} fill="${fill||"none"}"`;
+    return `<g ${st}>${o.head}<path d="${o.torso}"/><path d="${o.legL}"/><path d="${o.legR}"/><path d="${o.armL}"/><path d="${o.armR}"/></g>`; };
+  return `<svg viewBox="0 0 ${Wf} ${Hf}" width="${Wf}" height="${Hf}" style="max-width:100%">
+    ${render(targetG,C.amber,true)}
+    ${render(todayG,C.teal,false,"rgba(94,234,212,.06)")}
+    <text x="${cx}" y="${Hf-1}" text-anchor="middle" font-size="8.5" fill="var(--dim)" font-family="var(--mono)">today (teal) vs target (amber) · widths photo+girth-calibrated · Δ×3 amplified</text>
+  </svg>`;
+}
+
+/* ── radarSVG (v1.5): 15-axis girth radar, current vs target.
+   Direction-aware: waist/abdomen plot target/current (inside 100 = still over
+   target); all others current/target. 100% ring = target. ── */
+function radarSVG(cur, tgt){
+  const N=GIRTHS.length, S=330, c=S/2, Rmax=c-46;
+  const pctOf=g=>{ const cv=cur?cur[g.id]:null, tv=tgt?tgt[g.id]:null;
+    if(cv==null||tv==null||tv===0) return null;
+    const down=(g.id==="waist"||g.id==="abdomen");
+    return Math.round((down? tv/cv : cv/tv)*100); };
+  const rOf=p=>{ const cl=Math.min(112,Math.max(78,p)); return Rmax*((cl-78)/(112-78))*0.82+Rmax*0.18; };
+  const r100=rOf(100);
+  const ang=i=>(-90+i*360/N)*Math.PI/180;
+  const pt=(i,r)=>[c+r*Math.cos(ang(i)), c+r*Math.sin(ang(i))];
+  const rings=[85,92,100,108].map(p=>{ const r=rOf(p);
+    return `<circle cx="${c}" cy="${c}" r="${fmt(r,1)}" fill="none" stroke="${p===100?C.amber:"var(--contour)"}" stroke-width="${p===100?1.4:0.6}" ${p===100?`stroke-dasharray="5 4"`:""} opacity="${p===100?0.9:0.6}"/>`; }).join("");
+  const spokes=GIRTHS.map((g,i)=>{ const [x,y]=pt(i,Rmax); const [lx,ly]=pt(i,Rmax+18);
+    const short=g.name.replace("Upper Thigh","U.Thigh").replace("Lower Thigh","L.Thigh").replace("Forearm","F.arm").replace("Bicep ","Bi ");
+    return `<line x1="${c}" y1="${c}" x2="${fmt(x,1)}" y2="${fmt(y,1)}" stroke="var(--contour)" stroke-width="0.5" opacity="0.5"/>
+      <text x="${fmt(lx,1)}" y="${fmt(ly,1)}" text-anchor="middle" dominant-baseline="middle" font-size="7.5" fill="var(--mist)" font-family="var(--mono)">${esc(short)}</text>`; }).join("");
+  const pts=GIRTHS.map((g,i)=>{ const p=pctOf(g); return p==null?null:pt(i,rOf(p)); });
+  const have=pts.filter(Boolean).length;
+  const poly = have>=3 ? "M"+pts.map((p,i)=>p?fmt(p[0],1)+","+fmt(p[1],1):null).filter(Boolean).join(" L ")+" Z" : null;
+  return `<svg viewBox="0 0 ${S} ${S}" width="${S}" height="${S}" style="max-width:100%">
+    ${rings}${spokes}
+    ${poly?`<path d="${poly}" fill="rgba(94,234,212,.14)" stroke="${C.teal}" stroke-width="1.8" stroke-linejoin="round"/>`:""}
+    <text x="${c}" y="${S-4}" text-anchor="middle" font-size="8.5" fill="var(--dim)" font-family="var(--mono)">amber ring = target (100%) · teal = current · waist/abdomen inverted</text>
+  </svg>`;
+}
+
+function bodySVG(vals, ref, selected, opts){
+  const o=opts||{}; const W=200, H=316, AMP=4;
+  let g=`<circle cx="100" cy="26" r="15" fill="none" stroke="${C.contour}" stroke-width="1.5"/>`;
+  SEGMENTS.forEach(s=>{
+    let w=s.w, fill="none", stroke=C.contour, dash=' stroke-dasharray="4 3"', op=1;
+    if(vals && vals[s.id]!=null){
+      dash=""; const base=ref&&ref[s.id]!=null?ref[s.id]:vals[s.id];
+      const r=Math.sqrt(Math.max(0.01,vals[s.id]/base));
+      w=s.w*Math.min(1.4,Math.max(0.75,1+AMP*(r-1)));
+      const d=vals[s.id]-base;
+      fill=Math.abs(d)<0.05?C.slate:d>0?C.teal:C.rose; op=0.55;
+      stroke=s.id===selected?C.chalk:"none";
+    } else if(s.id===selected){ stroke=C.chalk; }
+    g+=`<rect data-seg="${s.id}" x="${(s.cx-w).toFixed(1)}" y="${s.y}" width="${(2*w).toFixed(1)}" height="${s.h}" rx="${Math.min(10,w)}" fill="${fill}" fill-opacity="${op}" stroke="${stroke}" stroke-width="1.5"${dash} style="cursor:pointer"></rect>`;
+  });
+  if(o.label) g+=`<text x="100" y="${H-2}" text-anchor="middle" font-family="var(--mono)" font-size="10" fill="${C.mist}">${esc(o.label)}</text>`;
+  return `<svg viewBox="0 0 ${W} ${H}" width="150" style="display:block;margin:0 auto">${g}</svg>`;
+}
+
+/* ── Performance radar (Overview tab): 6 axes from scorecard data ── */
+function perfRadarSVG(sc){
+  const S=260, c=S/2, Rmax=c-52;
+  const axes=[
+    {id:"adh",  label:"Run adherence",  v:sc.adh==null?null:Math.min(sc.adh,120)/100},
+    {id:"runW", label:"Run this wk",    v:sc.runOK},
+    {id:"gymW", label:"Gym this wk",    v:sc.gymOK},
+    {id:"prot", label:"Protein days",   v:sc.protOK},
+    {id:"hlth", label:"Health",         v:sc.seen?(1-(sc.seen>0?sc.flags/sc.seen:0)):null},
+    {id:"mind", label:"Mind",           v:sc.mind==null?null:sc.mind/100},
+  ];
+  const N=axes.length;
+  const ang=i=>(-90+i*360/N)*Math.PI/180;
+  const pt=(i,r)=>[c+r*Math.cos(ang(i)), c+r*Math.sin(ang(i))];
+  // rings
+  let rings="";
+  [0.5,0.75,1.0].forEach(f=>{
+    const r=Rmax*f;
+    rings+=`<circle cx="${c}" cy="${c}" r="${fmt(r,1)}" fill="none" stroke="var(--contour)" stroke-width="${f===1?1.2:0.5}" opacity="${f===1?0.7:0.4}"/>`;
+  });
+  // spokes + labels
+  let spokes=axes.map((a,i)=>{
+    const [x,y]=pt(i,Rmax), [lx,ly]=pt(i,Rmax+20);
+    return `<line x1="${c}" y1="${c}" x2="${fmt(x,1)}" y2="${fmt(y,1)}" stroke="var(--contour)" stroke-width="0.5" opacity="0.5"/>
+      <text x="${fmt(lx,1)}" y="${fmt(ly,1)}" text-anchor="middle" dominant-baseline="middle" font-size="8" fill="var(--mist)" font-family="var(--mono)">${esc(a.label)}</text>`;
+  }).join("");
+  // polygon
+  const pts=axes.map((a,i)=>{ const r=Rmax*(a.v==null?0:Math.min(1,Math.max(0,a.v))); return pt(i,r); });
+  const poly="M"+pts.map(p=>fmt(p[0],1)+","+fmt(p[1],1)).join(" L ")+" Z";
+  // dots
+  const dots=axes.map((a,i)=>{
+    const v=a.v==null?0:Math.min(1,Math.max(0,a.v));
+    const r=Rmax*v, [x,y]=pt(i,r);
+    const col=v>=0.85?C.teal:v>=0.6?C.amber:C.rose;
+    return a.v==null?"":`<circle cx="${fmt(x,1)}" cy="${fmt(y,1)}" r="3" fill="${col}" stroke="var(--night)" stroke-width="0.8"/>`;
+  }).join("");
+  return `<svg viewBox="0 0 ${S} ${S}" width="${S}" height="${S}" style="max-width:100%;display:block">
+    ${rings}${spokes}
+    <path d="${poly}" fill="rgba(94,234,212,.12)" stroke="${C.teal}" stroke-width="1.6" stroke-linejoin="round"/>
+    ${dots}
+  </svg>`;
+}
+
+/* ── HERO: the plan chart ── */
+function overviewSVG(wStart, wEnd){
+  /* Four stacked panels sharing one x-axis:
+     1. Plan (top): plan area/line + historic run volume (bar-style solid).
+     2. Fitness/Fatigue: CTL (teal) + ATL (rose) lines, own y-axis.
+     3. Form: TSB (violet) line + readiness bands, own y-axis.
+     4. Weight: kg line from state.body, own y-axis.
+     wStart may be negative (pre-plan). wEnd capped at 46. */
+  if(wStart==null) wStart=1; if(wEnd==null) wEnd=46;
+  wEnd=Math.min(49,wEnd);
+  const unit=App.unit, pk=unit, ak=unit==="km"?"akm":"ah";
+
+  // ── Plan data ────────────────────────────────────────────────────────────
+  const planData=PLAN.map(p=>{ const a=App.state.actualWeeks[p.w];
+    return {...p, akm:a&&a.km!=null?a.km:null, ah:a&&a.h!=null?a.h:null}; });
+
+  const runsByWeek={};
+  const W1d=new Date(2026,5,29);
+  (App.state.sessions.runs||[]).forEach(r=>{
+    if(!r.d) return;
+    const delta=Math.floor((new Date(r.d+"T00:00:00")-W1d)/864e5);
+    const w=Math.floor(delta/7)+1;
+    if(!runsByWeek[w]) runsByWeek[w]={km:0,h:0,n:0};
+    if(r.km!=null) runsByWeek[w].km+=r.km;
+    if(r.h!=null)  runsByWeek[w].h +=r.h;
+    runsByWeek[w].n++;
+  });
+
+  const data=planData.map(p=>{
+    const rb=runsByWeek[p.w];
+    return {...p,
+      akm:p.akm!=null?p.akm:(rb&&rb.km>0?Math.round(rb.km*10)/10:null),
+      ah: p.ah!=null ?p.ah :(rb&&rb.h >0?Math.round(rb.h*100)/100:null)};
+  });
+  const hasActual=data.some(d=>d.akm!=null);
+
+  const preWeeks=Object.keys(runsByWeek).map(Number).filter(w=>w<1).sort((a,b)=>a-b);
+  const hasHist=preWeeks.length>0;
+
+  // ── FFF data ─────────────────────────────────────────────────────────────
+  const dateToW=iso=>{const d=new Date(iso+"T00:00:00");return Math.floor((d-W1d)/864e5/7)+1;};
+  const fff=(App.state.fff||[]).slice().sort((a,b)=>a.date.localeCompare(b.date));
+  const byWeek={};
+  fff.forEach(r=>{const w=dateToW(r.date);if(w>=wStart&&w<=wEnd)byWeek[w]=r;});
+  const fffWeeks=Object.keys(byWeek).map(Number).sort((a,b)=>a-b);
+  const hasFFF=fffWeeks.length>0;
+  // ── FFF projection by week (FFF_PROJ constant, plan-derived) ─────────────
+  const projByWeek={};
+  for(let w=Math.max(1,wStart);w<=Math.min(49,wEnd);w++){
+    if(FFF_PROJ.byWeek[w]) projByWeek[w]=FFF_PROJ.byWeek[w];
+  }
+  const projWeeks=Object.keys(projByWeek).map(Number).sort((a,b)=>a-b);
+  const hasProj=projWeeks.length>0;
+
+  // ── Weight data (from state.body — same series as the Body tab) ───────────
+  const bodyByWeek={};
+  (App.state.body||[]).forEach(b=>{
+    if(!b.d||b.kg==null) return;
+    const w=dateToW(b.d);
+    if(w>=wStart&&w<=wEnd) bodyByWeek[w]=b.kg; // last reading in the week wins
+  });
+  const wtWeeks=Object.keys(bodyByWeek).map(Number).sort((a,b)=>a-b);
+  const hasWt=wtWeeks.length>0;
+
+  // ── Layout: four panels + shared x-axis ──────────────────────────────────
+  const W=920, Pl=52, Pr=14, Pt=24, Pb=52;
+  const iw=W-Pl-Pr;
+  // Panel heights (px) — plan biggest, then load, form, weight
+  const hPlan=150, hLoad=90, hForm=100, hWt=64, gap=16;
+  const H = Pt + hPlan + gap + hLoad + gap + hForm + gap + hWt + Pb;
+  const xAxisY = H - Pb;
+  // Panel y-bounds
+  const planT=Pt,               planB=planT+hPlan;
+  const loadT=planB+gap,        loadB=loadT+hLoad;
+  const formT=loadB+gap,        formB=formT+hForm;
+  const wtT  =formB+gap,        wtB  =wtT+hWt;
+
+  const span=wEnd-wStart; if(span<=0) return "";
+  const sx=w=>Pl+((w-wStart)/span)*iw;
+  const cw=todayWeek();
+
+  // ── Y-scales ─────────────────────────────────────────────────────────────
+  // Plan panel
+  const planVals=data.filter(d=>d.w>=Math.max(1,wStart)&&d.w<=wEnd).map(d=>Math.max(d[pk]||0,d[ak]||0));
+  if(hasHist) preWeeks.filter(w=>w>=wStart).forEach(w=>{const v=unit==="km"?runsByWeek[w].km:runsByWeek[w].h; if(v>0) planVals.push(v);});
+  const planHi=niceMax(Math.max(1,...planVals)*1.06);
+  const syPlan=v=>planB-(v/planHi)*hPlan;
+
+  // Load panel (CTL + ATL) — y-scale includes projection values so both fit
+  let loadLo=0, loadHi=1;
+  {
+    const lv=[];
+    if(hasFFF) fffWeeks.forEach(w=>{ if(byWeek[w].ctl!=null) lv.push(byWeek[w].ctl); if(byWeek[w].atl!=null) lv.push(byWeek[w].atl); });
+    if(hasProj) projWeeks.forEach(w=>{ lv.push(projByWeek[w].ctl, projByWeek[w].atl); });
+    if(lv.length){ loadHi=Math.max(...lv)*1.08; loadLo=Math.max(0,Math.min(...lv)-3); }
+  }
+  const syLoad=v=>loadB-((v-loadLo)/(loadHi-loadLo))*hLoad;
+
+  // Form panel (TSB) — y-scale includes projection
+  let formLo=-10, formHi=10;
+  {
+    const tv=[];
+    if(hasFFF) fffWeeks.forEach(w=>{ if(byWeek[w].tsb!=null) tv.push(byWeek[w].tsb); });
+    if(hasProj) projWeeks.forEach(w=>{ tv.push(projByWeek[w].tsb); });
+    if(tv.length){ formHi=Math.max(...tv)+4; formLo=Math.min(...tv)-Math.max(3,(Math.max(...tv)-Math.min(...tv))*0.05); }
+  }
+  const syForm=v=>formB-((v-formLo)/(formHi-formLo))*hForm;
+
+  // Weight panel
+  let wtLo=60, wtHi=75;
+  if(hasWt){
+    const wv=wtWeeks.map(w=>bodyByWeek[w]);
+    wtLo=Math.floor(Math.min(...wv))-1; wtHi=Math.ceil(Math.max(...wv))+1;
+    if(wtLo===wtHi){wtLo-=2;wtHi+=2;}
+  }
+  const syWt=v=>wtB-((v-wtLo)/(wtHi-wtLo))*hWt;
+
+  let g=`<defs><linearGradient id="pf2" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${C.teal}" stop-opacity="0.18"/><stop offset="100%" stop-color="${C.teal}" stop-opacity="0.02"/></linearGradient></defs>`;
+
+  // ── Phase bands — span all four panels ───────────────────────────────────
+  PHASES.forEach(p=>{
+    const x1=sx(Math.max(p.w1-0.5,Math.max(1,wStart)-0.5)),x2=sx(Math.min(p.w2+0.5,wEnd+0.5));
+    if(x2<=x1)return;
+    g+=`<rect x="${x1}" y="${planT}" width="${x2-x1}" height="${wtB-planT}" fill="${LEAD_COLOR[p.lead]}" opacity="0.05"/>`;
+    g+=`<rect x="${x1+1}" y="${planT-11}" width="${Math.max(0,x2-x1-2)}" height="4" rx="2" fill="${LEAD_COLOR[p.lead]}" opacity="0.85"><title>${esc(p.name)}</title></rect>`;});
+
+  // Plan-start marker
+  if(wStart<1){const px1=sx(1);
+    g+=`<line x1="${px1}" x2="${px1}" y1="${planT}" y2="${wtB}" stroke="${C.violet}" stroke-opacity="0.18" stroke-dasharray="3 3"/>`;
+    g+=`<text x="${px1+3}" y="${planT+10}" font-family="var(--mono)" font-size="8" fill="${C.violet}" opacity="0.6">plan↑</text>`;}
+
+  // Panel divider lines
+  [[planB,loadT],[loadB,formT],[formB,wtT]].forEach(([b,t])=>{
+    const my=(b+t)/2;
+    g+=`<line x1="${Pl}" x2="${W-Pr}" y1="${my}" y2="${my}" stroke="${C.contour}" stroke-opacity="0.35"/>`;});
+
+  // ═══ PANEL 1: PLAN ═══════════════════════════════════════════════════════
+  for(let i=0;i<=2;i++){const v=planHi*i/2,y=syPlan(v);
+    g+=`<line x1="${Pl}" x2="${W-Pr}" y1="${y}" y2="${y}" stroke="${C.contour}" stroke-opacity="0.2"/>`;
+    g+=`<text x="${Pl-6}" y="${y+3}" text-anchor="end" font-family="var(--mono)" font-size="8.5" fill="${C.dim}">${fmt(v,0)}</text>`;}
+  g+=`<text x="14" y="${planT+hPlan/2}" font-family="var(--mono)" font-size="8.5" fill="${C.dim}" transform="rotate(-90 14 ${planT+hPlan/2})" text-anchor="middle">${unit==="km"?"km/wk":"h/wk"}</text>`;
+
+  // Historic run volume — connected solid line (dim, no markers).
+  // Reads as continuous volume history; zero weeks anchor the line to baseline
+  // so peaks like UTK2025 don't appear to spring from nothing.
+  if(hasHist){
+    const histStart=Math.max(wStart, Math.min(...preWeeks));
+    const histEnd=Math.min(0,wEnd);
+    // build point array covering every week in window (zero for missing weeks)
+    const hPts=[];
+    for(let w=histStart;w<=histEnd;w++){
+      const rb=runsByWeek[w];
+      const v=rb?(unit==="km"?rb.km:rb.h):0;
+      hPts.push({w,v});
+    }
+    if(hPts.length>1){
+      let path="";
+      hPts.forEach((p,i)=>{ const x=sx(p.w), y=syPlan(p.v); path+=(i?"L":"M")+x+" "+y; });
+      g+=`<path d="${path}" fill="none" stroke="${C.slate}" stroke-width="1.5" opacity="0.65"/>`;
+    } else if(hPts.length===1){
+      // single point — just a dot
+      const p=hPts[0];
+      g+=`<circle cx="${sx(p.w)}" cy="${syPlan(p.v)}" r="2" fill="${C.slate}" opacity="0.65"/>`;
+    }
+  }
+
+  // Plan area + lines
+  const vdata=data.filter(d=>d.w>=Math.max(1,wStart)&&d.w<=wEnd);
+  if(vdata.length){
+    const planStartX=sx(Math.max(1,wStart));
+    let area=`M ${planStartX} ${syPlan(0)}`;
+    vdata.forEach(d=>{area+=` L ${sx(d.w)} ${syPlan(d[pk])}`;});
+    area+=` L ${sx(Math.min(wEnd,49))} ${syPlan(0)} Z`;
+    g+=`<path d="${area}" fill="url(#pf2)"/>`;
+    const pastPlan=vdata.filter(d=>d.w<=cw), futurePlan=vdata.filter(d=>d.w>=cw);
+    if(pastPlan.length){let pp="";pastPlan.forEach((d,i)=>{pp+=(i?"L":"M")+sx(d.w)+" "+syPlan(d[pk]);});
+      g+=`<path d="${pp}" fill="none" stroke="${C.teal}" stroke-width="1.8" opacity="0.85"/>`;}
+    if(futurePlan.length){let fp="";futurePlan.forEach((d,i)=>{fp+=(i?"L":"M")+sx(d.w)+" "+syPlan(d[pk]);});
+      g+=`<path d="${fp}" fill="none" stroke="${C.teal}" stroke-width="1.3" stroke-dasharray="5 4" opacity="0.7"/>`;}
+    if(hasActual){let ep="",st=false;
+      vdata.forEach(d=>{if(d[ak]==null)return;ep+=(st?"L":"M")+sx(d.w)+" "+syPlan(d[ak]);st=true;});
+      g+=`<path d="${ep}" fill="none" stroke="${C.chalk}" stroke-width="1.8"/>`;
+      vdata.forEach(d=>{if(d[ak]!=null)g+=`<circle cx="${sx(d.w)}" cy="${syPlan(d[ak])}" r="2.2" fill="${C.chalk}"/>`;});}
+  }
+  // Race markers (plan panel)
+  RACES.forEach(r=>{if(r.w<Math.max(1,wStart)||r.w>wEnd)return;
+    const row=data[r.w-1],x=sx(r.w),y=syPlan(row[pk]);
+    g+=`<circle cx="${x}" cy="${y}" r="3" fill="${C.rose}" stroke="${C.night}"/>`;
+    const anc=r.w>40?"end":"middle";
+    g+=`<text x="${x}" y="${y-8}" text-anchor="${anc}" font-family="var(--mono)" font-size="8.5" fill="${C.rose}">▲ ${esc(r.name)}</text>`;});
+
+  // ═══ PANEL 2: FITNESS / FATIGUE (CTL + ATL) ══════════════════════════════
+  for(let i=0;i<=2;i++){const v=loadLo+(loadHi-loadLo)*i/2,y=syLoad(v);
+    g+=`<line x1="${Pl}" x2="${W-Pr}" y1="${y}" y2="${y}" stroke="${C.contour}" stroke-opacity="0.18"/>`;
+    g+=`<text x="${Pl-6}" y="${y+3}" text-anchor="end" font-family="var(--mono)" font-size="8.5" fill="${C.dim}">${Math.round(v)}</text>`;}
+  const fv=App.fffViz||{ctl:true,atl:true,tsb:true,proj:true};
+  // Bias-correct the projection so it starts from the last real data point
+  // (eliminates the visual step-change at the real→projected join).
+  // The offset is purely a display shift — FFF_PROJ constant is unchanged.
+  const lastRealW = hasFFF ? Math.max(...fffWeeks) : null;
+  const joinOffset = {};
+  if(hasFFF && hasProj && lastRealW!=null && projByWeek[lastRealW]){
+    const real=byWeek[lastRealW], proj=projByWeek[lastRealW];
+    joinOffset.ctl = (real.ctl!=null&&proj.ctl!=null) ? real.ctl-proj.ctl : 0;
+    joinOffset.atl = (real.atl!=null&&proj.atl!=null) ? real.atl-proj.atl : 0;
+    joinOffset.tsb = (real.tsb!=null&&proj.tsb!=null) ? real.tsb-proj.tsb : 0;
+  } else {
+    joinOffset.ctl=0; joinOffset.atl=0; joinOffset.tsb=0;
+  }
+  const adjProj=(w,key)=>{
+    const v=projByWeek[w]?projByWeek[w][key]:null; if(v==null) return null;
+    // apply offset only for weeks beyond last real data
+    return (hasFFF&&lastRealW!=null&&w>lastRealW) ? v+(joinOffset[key]||0) : v;
+  };
+  // Projection dashed lines (drawn first so real lines sit on top)
+  if(hasProj&&fv.proj){
+    const drawProj=(key,col)=>{let p="",ok=false;
+      projWeeks.forEach(w=>{const v=adjProj(w,key);if(v==null)return;const x=sx(w+0.5),y=syLoad(v);p+=(ok?"L":"M")+x+" "+y;ok=true;});
+      if(p)g+=`<path d="${p}" fill="none" stroke="${col}" stroke-width="1.1" stroke-dasharray="5 4" opacity="0.45"/>`;};
+    if(fv.atl) drawProj("atl",C.rose);
+    if(fv.ctl) drawProj("ctl",C.teal);
+  }
+  // Real FFF lines (solid, on top)
+  if(hasFFF){
+    const drawL=(vals,col)=>{let p="",ok=false;
+      fffWeeks.forEach((w,i)=>{if(vals[i]==null)return;const x=sx(w+0.5),y=syLoad(vals[i]);p+=(ok?"L":"M")+x+" "+y;ok=true;});
+      if(p)g+=`<path d="${p}" fill="none" stroke="${col}" stroke-width="1.7" opacity="0.9"/>`;};
+    if(fv.atl) drawL(fffWeeks.map(w=>byWeek[w].atl),C.rose);
+    if(fv.ctl) drawL(fffWeeks.map(w=>byWeek[w].ctl),C.teal);
+  }
+  if(!hasFFF&&!hasProj){
+    g+=`<text x="${Pl+iw/2}" y="${loadT+hLoad/2}" text-anchor="middle" font-family="var(--mono)" font-size="9" fill="${C.dim}">import wellness JSON (Data tab) for live Fitness/Fatigue</text>`;
+  } else if(!hasFFF){
+    g+=`<text x="${Pl+iw/2}" y="${loadT+10}" text-anchor="middle" font-family="var(--mono)" font-size="9" fill="${C.dim}" opacity="0.5">dashed = plan projection · sync for live data</text>`;
+  }
+  g+=`<text x="14" y="${loadT+hLoad/2}" font-family="var(--mono)" font-size="8.5" fill="${C.dim}" transform="rotate(-90 14 ${loadT+hLoad/2})" text-anchor="middle">load/day</text>`;
+
+  // ═══ PANEL 3: FORM (TSB + readiness bands) ═══════════════════════════════
+  const tsbBands=[
+    {lo:-67.8, hi:-30, color:"#8B0000", label:"High Risk", lc:"#e07070"},
+    {lo:-30,   hi:-10, color:"#4A7C59", label:"Optimal",   lc:"#6fbf8a"},
+    {lo:-10,   hi:5,   color:"#2A3A2A", label:"Grey Zone", lc:"#8a9a8a"},
+    {lo:5,     hi:25,  color:"#0A2535", label:"Fresh",     lc:"#5BB8D4"},
+    {lo:25,    hi:50,  color:"#2A2A1A", label:"Transition",lc:"#c0b060"},
+  ];
+  tsbBands.forEach(b=>{
+    if(b.hi<formLo||b.lo>formHi) return;
+    const y1=syForm(Math.min(b.hi,formHi)), y2=syForm(Math.max(b.lo,formLo));
+    if(y2<=y1) return;
+    g+=`<rect x="${Pl}" y="${y1}" width="${iw}" height="${y2-y1}" fill="${b.color}" opacity="0.5"/>`;
+    const midY=(y1+y2)/2;
+    if(midY>formT&&midY<formB)
+      g+=`<text x="${W-Pr-3}" y="${midY+3}" text-anchor="end" font-family="var(--mono)" font-size="7.5" fill="${b.lc}" opacity="0.8">${b.label}</text>`;
+  });
+  for(let i=0;i<=2;i++){const v=formLo+(formHi-formLo)*i/2,y=syForm(v);
+    g+=`<text x="${Pl-6}" y="${y+3}" text-anchor="end" font-family="var(--mono)" font-size="8.5" fill="${C.dim}">${Math.round(v)}</text>`;}
+  if(formLo<=0&&formHi>=0)g+=`<line x1="${Pl}" x2="${W-Pr}" y1="${syForm(0)}" y2="${syForm(0)}" stroke="${C.chalk}" stroke-dasharray="3 3" opacity="0.3"/>`;
+  // Race TSB gate bands — optimal freshness window shown only in taper weeks for each race
+  // [{race, taperW1, taperW2, tsbFloor, tsbCeil}]
+  const raceTaperGates=[
+    {name:"Sydney",  tw1:8,  tw2:9,  lo:5,  hi:20, col:C.rose},
+    {name:"UTK",     tw1:21, tw2:22, lo:10, hi:25, col:C.amber},
+    {name:"UTA",     tw1:44, tw2:46, lo:10, hi:30, col:C.teal},
+  ];
+  raceTaperGates.forEach(g2=>{
+    const x1=sx(Math.max(g2.tw1-0.5,Math.max(1,wStart)-0.5));
+    const x2=sx(Math.min(g2.tw2+0.5,wEnd+0.5));
+    if(x2<=x1) return;
+    const yLo=syForm(Math.min(g2.hi,formHi)), yHi=syForm(Math.max(g2.lo,formLo));
+    if(yHi<=yLo) return;
+    g+=`<rect x="${x1}" y="${yLo}" width="${x2-x1}" height="${yHi-yLo}" fill="${g2.col}" opacity="0.12"/>`;
+    // floor and ceiling dashed lines
+    if(g2.lo>=formLo&&g2.lo<=formHi)
+      g+=`<line x1="${x1}" x2="${x2}" y1="${syForm(g2.lo)}" y2="${syForm(g2.lo)}" stroke="${g2.col}" stroke-width="1" stroke-dasharray="3 3" opacity="0.6"/>`;
+    if(g2.hi>=formLo&&g2.hi<=formHi)
+      g+=`<line x1="${x1}" x2="${x2}" y1="${syForm(g2.hi)}" y2="${syForm(g2.hi)}" stroke="${g2.col}" stroke-width="1" stroke-dasharray="3 3" opacity="0.35"/>`;
+    // label at right edge of band
+    const labelY=Math.min(Math.max(syForm((g2.lo+g2.hi)/2),formT+8),formB-4);
+    if(x2>Pl+30)
+      g+=`<text x="${x2-2}" y="${labelY}" text-anchor="end" font-family="var(--mono)" font-size="7.5" fill="${g2.col}" opacity="0.7">${g2.name} gate</text>`;
+  });
+  // Projection TSB dashed line (bias-corrected to join real data seamlessly)
+  if(hasProj&&fv.proj&&fv.tsb){
+    let p="",ok=false;
+    projWeeks.forEach(w=>{const v=adjProj(w,"tsb");if(v==null)return;const x=sx(w+0.5),y=syForm(v);p+=(ok?"L":"M")+x+" "+y;ok=true;});
+    if(p)g+=`<path d="${p}" fill="none" stroke="${C.violet}" stroke-width="1.1" stroke-dasharray="5 4" opacity="0.45"/>`;
+  }
+  // Real TSB solid line (on top)
+  if(hasFFF&&fv.tsb){
+    let p="",ok=false;
+    fffWeeks.forEach(w=>{const v=byWeek[w].tsb;if(v==null)return;const x=sx(w+0.5),y=syForm(v);p+=(ok?"L":"M")+x+" "+y;ok=true;});
+    if(p)g+=`<path d="${p}" fill="none" stroke="${C.violet}" stroke-width="1.7" opacity="0.95"/>`;
+  }
+  if(!hasFFF&&!hasProj){
+    g+=`<text x="${Pl+iw/2}" y="${formT+hForm/2}" text-anchor="middle" font-family="var(--mono)" font-size="9" fill="${C.dim}">import wellness JSON for live Form</text>`;
+  }
+  g+=`<text x="14" y="${formT+hForm/2}" font-family="var(--mono)" font-size="8.5" fill="${C.dim}" transform="rotate(-90 14 ${formT+hForm/2})" text-anchor="middle">Form</text>`;
+
+  // ═══ PANEL 4: WEIGHT ═════════════════════════════════════════════════════
+  if(hasWt){
+    for(let i=0;i<=1;i++){const v=wtLo+(wtHi-wtLo)*i,y=syWt(v);
+      g+=`<line x1="${Pl}" x2="${W-Pr}" y1="${y}" y2="${y}" stroke="${C.contour}" stroke-opacity="0.15"/>`;
+      g+=`<text x="${Pl-6}" y="${y+3}" text-anchor="end" font-family="var(--mono)" font-size="8.5" fill="${C.dim}">${fmt(v,0)}</text>`;}
+    // Raw weight line — dim amber, thin
+    let p="",ok=false;
+    wtWeeks.forEach(w=>{const x=sx(w),y=syWt(bodyByWeek[w]);p+=(ok?"L":"M")+x+" "+y;ok=true;});
+    if(p)g+=`<path d="${p}" fill="none" stroke="${C.amber}" stroke-width="1" opacity="0.4"/>`;
+
+    // EWMA trend line — MacroFactor-style smoothing (α=0.1, linear interp for gaps)
+    // Built from daily state.body entries, then sampled at each week in the window.
+    const bodyByDay={};
+    (App.state.body||[]).forEach(b=>{ if(b.d&&b.kg!=null) bodyByDay[b.d]=b.kg; });
+    const bodyDays=Object.keys(bodyByDay).sort();
+    if(bodyDays.length>=2){
+      // Build daily series with linear interpolation for gaps
+      const allDays=[];
+      for(let i=0;i<bodyDays.length-1;i++){
+        const d0=new Date(bodyDays[i]+"T00:00:00"), d1=new Date(bodyDays[i+1]+"T00:00:00");
+        const v0=bodyByDay[bodyDays[i]], v1=bodyByDay[bodyDays[i+1]];
+        const nDays=Math.round((d1-d0)/864e5);
+        for(let j=0;j<nDays;j++){
+          const dd=new Date(d0.getTime()+j*864e5);
+          const iso=dd.getFullYear()+"-"+String(dd.getMonth()+1).padStart(2,"0")+"-"+String(dd.getDate()).padStart(2,"0");
+          allDays.push({iso, kg:v0+(v1-v0)*(j/nDays)});
+        }
+      }
+      allDays.push({iso:bodyDays[bodyDays.length-1], kg:bodyByDay[bodyDays[bodyDays.length-1]]});
+      // EWMA pass (α=0.1)
+      const alpha=0.1;
+      let ewma=allDays[0].kg;
+      const ewmaByDay={};
+      allDays.forEach(pt=>{ ewma=alpha*pt.kg+(1-alpha)*ewma; ewmaByDay[pt.iso]=ewma; });
+      // Sample at each week in window and draw
+      let tp="",tok=false;
+      for(let w=wStart;w<=wEnd;w++){
+        // pick the last EWMA value within this week
+        const wDate=new Date(W1d.getTime()+(w-1)*7*864e5);
+        let bestV=null;
+        for(let d=0;d<7;d++){
+          const dd=new Date(wDate.getTime()+d*864e5);
+          const iso=dd.getFullYear()+"-"+String(dd.getMonth()+1).padStart(2,"0")+"-"+String(dd.getDate()).padStart(2,"0");
+          if(ewmaByDay[iso]!=null) bestV=ewmaByDay[iso];
+        }
+        if(bestV==null){tok=false;continue;}
+        const x=sx(w),y=syWt(bestV);
+        tp+=(tok?"L":"M")+x+" "+y; tok=true;
+      }
+      if(tp)g+=`<path d="${tp}" fill="none" stroke="${C.amber}" stroke-width="2" opacity="0.95"/>`;
+    }
+  } else {
+    g+=`<text x="${Pl+iw/2}" y="${wtT+hWt/2}" text-anchor="middle" font-family="var(--mono)" font-size="9" fill="${C.dim}">add weight points in the Body tab</text>`;
+  }
+  g+=`<text x="14" y="${wtT+hWt/2}" font-family="var(--mono)" font-size="8.5" fill="${C.dim}" transform="rotate(-90 14 ${wtT+hWt/2})" text-anchor="middle">Weight</text>`;
+
+  // ── Now marker — full height ─────────────────────────────────────────────
+  const nwx=sx(cw);
+  g+=`<line x1="${nwx}" x2="${nwx}" y1="${planT-4}" y2="${wtB}" stroke="${C.chalk}" stroke-opacity="0.3" stroke-dasharray="2 3"/>`;
+  g+=`<text x="${nwx}" y="${planT-10}" text-anchor="middle" font-family="var(--mono)" font-size="8" fill="${C.mist}">now</text>`;
+
+  // ── X-axis ────────────────────────────────────────────────────────────────
+  g+=`<line x1="${Pl}" x2="${W-Pr}" y1="${xAxisY}" y2="${xAxisY}" stroke="${C.contour}" stroke-opacity="0.5"/>`;
+  const stepLabel=span>100?6:span>60?4:span>30?2:1;
+  let tickCount=0;
+  for(let w=wStart;w<=wEnd;w++){
+    if((w-wStart)%stepLabel!==0) continue;
+    const x=sx(w); if(x<Pl||x>W-Pr+2){tickCount++;continue;}
+    const isPlanW=w>=1&&w<=49;
+    g+=`<text x="${x}" y="${xAxisY+12}" text-anchor="middle" font-family="var(--mono)" font-size="8.5" fill="${isPlanW?C.mist:C.slate}">W${w}</text>`;
+    if(tickCount%2===0){
+      const d=new Date(W1d.getTime()+(w-1)*7*864e5);
+      const lbl=String(d.getDate()).padStart(2,"0")+"/"+String(d.getMonth()+1).padStart(2,"0");
+      g+=`<text transform="rotate(-90,${x},${xAxisY+40})" x="${x}" y="${xAxisY+40}" text-anchor="start" font-family="var(--mono)" font-size="8" fill="${C.dim}">${lbl}</text>`;
+    }
+    tickCount++;
+  }
+
+  // ── Hit zones (full height) + crosshair ──────────────────────────────────
+  for(let w=wStart;w<=wEnd;w++){
+    const isPlan=w>=1&&w<=49;
+    g+=`<rect data-w="${w}" data-plan="${isPlan?1:0}" x="${sx(w-0.5)}" y="${planT}" width="${Math.max(2,iw/span)}" height="${wtB-planT}" fill="transparent" style="cursor:${isPlan?"pointer":"default"}" pointer-events="all"/>`;
+  }
+  g+=`<line id="overviewX" x1="-999" x2="-999" y1="${planT}" y2="${wtB}" stroke="${C.chalk}" stroke-opacity="0.5" stroke-width="1" pointer-events="none"/>`;
+
+  return `<svg id="overviewSvg" viewBox="0 0 ${W} ${H}" width="100%" style="display:block">${g}</svg>`;
+}
+function overviewTipHTML(w){
+  // Guard: pre-plan weeks (w<1) and post-plan (w>46) have no PLAN data
+  const isPlan=w>=1&&w<=46;
+  const p=isPlan?PLAN[w-1]:null;
+  const ph=isPlan?phaseOf(w):null;
+  const a=isPlan?(App.state.actualWeeks[w]||{}):null;
+  const done=a?(App.unit==="km"?a.km:a.h):null;
+  // w/c date for any week (works for negative weeks too)
+  const W1=new Date(2026,5,29);
+  const wDate=new Date(W1.getTime()+(w-1)*7*864e5);
+  const wc=String(wDate.getDate()).padStart(2,"0")+"/"+String(wDate.getMonth()+1).padStart(2,"0")+"/"+wDate.getFullYear();
+  // FFF: find last wellness entry within this week
+  const wStartISO=wDate.toISOString().slice(0,10);
+  const wEndDate=new Date(wDate.getTime()+7*864e5);
+  const wEndISO=wEndDate.toISOString().slice(0,10);
+  const fffRows=(App.state.fff||[]).filter(r=>r.date>=wStartISO&&r.date<wEndISO);
+  const fffRow=fffRows.length?fffRows[fffRows.length-1]:null;
+  const tsbColor=fffRow&&fffRow.tsb!=null?(fffRow.tsb>5?C.teal:fffRow.tsb<-10?C.rose:C.amber):C.dim;
+  // Projection value for this week (plan-derived)
+  const projRow=(w>=1&&w<=49)?FFF_PROJ.byWeek[w]:null;
+  // Run volume for this week (km + hours) from imported sessions.runs — works
+  // for pre-plan and plan weeks alike (same weekly aggregation the chart uses)
+  let runKm=0, runH=0, runN=0;
+  (App.state.sessions.runs||[]).forEach(r=>{
+    if(!r.d) return;
+    const rw=Math.floor((new Date(r.d+"T00:00:00")-W1)/864e5/7)+1;
+    if(rw!==w) return;
+    if(r.km!=null) runKm+=r.km;
+    if(r.h!=null) runH+=r.h;
+    runN++;
+  });
+  const hasRun=runN>0;
+  // Weight for this week (last body reading within the week)
+  let wtKg=null;
+  (App.state.body||[]).forEach(b=>{
+    if(!b.d||b.kg==null) return;
+    const bw=Math.floor((new Date(b.d+"T00:00:00")-W1)/864e5/7)+1;
+    if(bw===w) wtKg=b.kg;
+  });
+  const wLabel=w>=1?`W${w}`:`W${w}`;
+  return `<div style="font-family:var(--mono);font-size:11px;color:${C.chalk}">${wLabel} · w/c ${wc}</div>
+  ${ph?`<div style="font-family:var(--mono);font-size:10px;color:${LEAD_COLOR[ph.lead]};margin-top:2px">${esc(ph.name)} — ${LEAD_LABEL[ph.lead]}</div>`:"<div style=\"font-family:var(--mono);font-size:10px;color:var(--dim);margin-top:2px\">pre-plan history</div>"}
+  ${p?`<div style="font-family:var(--mono);font-size:11px;color:${C.mist};margin-top:6px">plan ${App.unit==="km"?p.km+" km":fmt(p.h)+" h"}${done!=null?` · <span style="color:${C.chalk}">done ${fmt(done)} ${App.unit==="km"?"km":"h"}</span>`:""}</div>`:""}
+  ${p&&p.race?`<div style="font-family:var(--mono);font-size:10px;color:${C.rose};margin-top:4px">▲ ${esc(p.race.name)} — ${p.race.km} km</div>`:""}
+  ${fffRow||projRow?`<div style="margin-top:7px;padding-top:6px;border-top:1px solid ${C.contour}">
+    <div style="font-family:var(--mono);font-size:9px;color:${C.dim};letter-spacing:.1em;text-transform:uppercase;margin-bottom:3px">Fitness · Fatigue · Form</div>
+    ${fffRow?`<div style="display:flex;gap:10px;font-family:var(--mono);font-size:11px;margin-bottom:2px">
+      <span style="color:${C.teal}">CTL ${fffRow.ctl!=null?fmt(fffRow.ctl,1):"—"}</span>
+      <span style="color:${C.rose}">ATL ${fffRow.atl!=null?fmt(fffRow.atl,1):"—"}</span>
+      <span style="color:${tsbColor}">TSB ${fffRow.tsb!=null?fmt(fffRow.tsb,1):"—"}</span>
+    </div>`:""}
+    ${projRow?`<div style="display:flex;gap:8px;font-family:var(--mono);font-size:10px;color:${C.dim};margin-top:1px">
+      <span>proj CTL ${fmt(projRow.ctl,1)}</span>
+      <span>ATL ${fmt(projRow.atl,1)}</span>
+      <span>TSB ${fmt(projRow.tsb,1)}</span>
+      ${fffRow&&fffRow.tsb!=null&&projRow.tsb!=null?`<span style="color:${Math.abs(fffRow.tsb-projRow.tsb)>5?C.amber:C.dim}">Δ${fmt(fffRow.tsb-projRow.tsb,1)}</span>`:""}
+    </div>`:""}
+  </div>`:""}
+  ${hasRun?`<div style="margin-top:7px;padding-top:6px;border-top:1px solid ${C.contour}">
+    <div style="font-family:var(--mono);font-size:9px;color:${C.dim};letter-spacing:.1em;text-transform:uppercase;margin-bottom:3px">Run volume this week</div>
+    <div style="display:flex;gap:12px;font-family:var(--mono);font-size:11px">
+      <span style="color:${C.mist}">${fmt(runKm,1)} km</span>
+      <span style="color:${C.mist}">${fmt(runH,1)} h</span>
+      <span style="color:${C.dim}">${runN} run${runN===1?"":"s"}</span>
+    </div></div>`:""}
+  ${wtKg!=null?`<div style="margin-top:5px;font-family:var(--mono);font-size:11px;color:${C.amber}">Weight ${fmt(wtKg,1)} kg</div>`:""}
+  ${p&&p.note?`<div style="font-size:11px;color:${C.dim};margin-top:4px">${esc(p.note)}</div>`:""}
+  ${isPlan?`<div style="font-family:var(--mono);font-size:9px;color:${C.dim};margin-top:6px">tap for day-by-day</div>`:""}`;
+}
+
+/* ── Week Lens (v1.4) — linked weekly↔daily strip, run + gym ──
+   Plan chips come from the locked WEEK_TEMPLATES/WEEK_OVERRIDES (keyword-
+   classified, no new plan data). Done-state comes ONLY from imported
+   sessions (runs.json / MacroFactor-derived gym JSON) — never manual. */
+const dayISO = (w,i) => { const d=new Date(2026,5,29+(w-1)*7+i);
+  return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); };
+function classifyRun(s){ if(!s||s==="—") return "rest"; const t=s.toLowerCase();
+  if(/\brace\b|race —|race week/.test(t)&&!t.includes("race-sim")) return "race";
+  if(/shakeout/.test(t)) return "easy";
+  if(/^rest|^walk|travel|kit check|nothing/.test(t)) return "rest";
+  if(/long|b2b|race-sim|benchmark/.test(t)) return "long";
+  if(/\btt\b|threshold|drift test|touches|descent reps|me carry|mp touch|mp power|steady/.test(t)) return "quality";
+  return "easy"; }
+function classifyGym(s){ if(!s) return null; const t=s.toLowerCase();
+  if(t.includes("upper")) return "Upper"; if(t.includes("lower")) return "Lower";
+  if(t.includes("push")) return "Push"; if(t.includes("pull")) return "Pull";
+  if(t.includes("leg")) return "Legs"; if(t.includes("full")) return "Full"; return "Gym"; }
+const RUN_STYLE = {
+  race:   {bg:C.rose,  fg:"#1b1f24", solid:1, lab:"RACE"},
+  long:   {bg:C.teal,  fg:"#1b1f24", solid:1, lab:"Long"},
+  quality:{bg:C.violet,fg:"#1b1f24", solid:1, lab:"Quality"},
+  easy:   {bg:C.teal,  fg:C.teal,    solid:0, lab:"Easy"},
+  rest:   {bg:"transparent", fg:"var(--dim)", solid:0, lab:"Rest"},
+};
+function plannedDay(w,i){ const ph=phaseOf(w), tpl=(WEEK_TEMPLATES[ph.id]||[])[i]||{}, o=(WEEK_OVERRIDES[w]||{})[i]||{};
+  return { r:o.r||tpl.r||"—", g:o.g||tpl.g||null, L:tpl.L||o.L, H:tpl.H||o.H }; }
+function sessionMaps(){ const R={},G={};
+  (App.state.sessions.runs||[]).forEach(s=>{ if(s&&s.d) R[s.d]=s; });
+  (App.state.sessions.gym||[]).forEach(s=>{ if(s&&s.d) G[s.d]=s; });
+  return {R,G}; }
+function weekStrip(w){
+  const {R,G}=sessionMaps();
+  const cells=DAYS.map((d,i)=>{ const p=plannedDay(w,i), iso=dayISO(w,i);
+    const cat=classifyRun(p.r), st=RUN_STYLE[cat];
+    const run=R[iso], gym=G[iso];
+    const runDone=!!run, gymDone=!!gym;
+    let runChip;
+    if(cat==="rest"&&!runDone){ runChip=`<div class="lens-chip lens-rest" title="Rest">·</div>`; }
+    else if(cat==="rest"&&runDone){ runChip=`<div class="lens-chip" title="unplanned run — ${esc(run.type||"")} ${fmt(run.km)} km" style="background:transparent;color:${C.teal};border:1px solid ${C.teal}">✓ unplanned${run.km!=null?` <span style="opacity:.75">${fmt(run.km)}k</span>`:""}</div>`; }
+    else { const tid=typeFor(p.r);
+      runChip=`<div class="lens-chip" ${tid?`data-act="runtype" data-v="${tid}" style="cursor:pointer;`:`style="`}background:${st.solid?st.bg:"transparent"};color:${st.solid?st.fg:st.bg};border:1px ${st.solid?"solid":"dashed"} ${st.bg}" title="${esc(p.r)}${runDone&&run.km!=null?` — done: ${fmt(run.km)} km`:""}${tid?" · tap for session definition":""}">
+           ${runDone?"✓ ":""}${st.lab}${runDone&&run.km!=null?` <span style="opacity:.75">${fmt(run.km)}k</span>`:""}</div>`; }
+    const gLab=classifyGym(p.g);
+    const gymChip = gLab
+      ? `<div class="lens-chip" data-act="gymday" data-v="${w}-${i}" title="${esc(p.g)}${gymDone?" — done":""} · tap for exercises"
+           style="cursor:pointer;background:${gymDone?C.amber:"transparent"};color:${gymDone?"#1b1f24":C.amber};border:1px ${gymDone?"solid":"dashed"} ${C.amber}">${gymDone?"✓ ":""}${gLab}</div>`
+      : gymDone
+        ? `<div class="lens-chip" data-act="gymday" data-v="${w}-${i}" title="unplanned gym — ${esc(gym.name||"")}" style="cursor:pointer;background:${C.amber};color:#1b1f24;border:1px solid ${C.amber}">✓ ${esc(classifyGym(gym.name)||"Gym")}</div>`
+        : `<div class="lens-chip lens-rest">·</div>`;
+    const dot = p.H?`<i class="lens-dot" style="background:${C.rose}" title="hard legs"></i>`
+              : p.L?`<i class="lens-dot" style="background:${C.amber}" title="legs loaded"></i>`:"";
+    const now=new Date(), todayIso=now.getFullYear()+"-"+String(now.getMonth()+1).padStart(2,"0")+"-"+String(now.getDate()).padStart(2,"0");
+    const today = iso===todayIso;
+    return `<div class="lens-day" style="${today?`border-color:${C.teal}`:""}">
+      <div class="lens-dh">${d}<span style="color:var(--dim);font-size:8px"> ${iso.slice(8)}/${iso.slice(5,7)}</span>${dot}</div>
+      ${runChip}${gymChip}</div>`; }).join("");
+  return `<div class="lens-grid">${cells}</div>
+    ${gymDayCard(w)}
+    <div class="note" style="margin-top:8px">✓ = imported session on that date (runs ← runs.json · gym ← MacroFactor dump). Solid = key run (long/quality/race) · dashed = easy/planned · dot = leg-load flag. Tap a run chip for its taxonomy entry · tap a gym chip for the session prescription.</div>`;
+}
+
+/* ── gym day detail (v1.5) — Nippard prescription for a tapped lens chip ── */
+function gymDayCard(w){
+  const gd=App.gymDay; if(!gd||gd.w!==w) return "";
+  const p=plannedDay(w,gd.i), iso=dayISO(w,gd.i);
+  const {G}=sessionMaps(); const done=G[iso];
+  const key=classifyGym(p.g)||classifyGym(done&&done.name)||"Gym";
+  const S=GYM_SESSIONS[key]||GYM_SESSIONS["Gym"];
+  const rows=S.ex.length? S.ex.map(e=>`<tr><td style="font-size:12px;color:var(--chalk)">${esc(e[0])}</td>
+      <td style="font-family:var(--mono);font-size:11px;color:var(--mist);text-align:center">2 × <span style="color:var(--dim)">per sheet</span></td>
+      <td style="font-family:var(--mono);font-size:11px;color:var(--mist);text-align:center">RPE ${esc(e[1])}</td>
+      <td style="font-family:var(--mono);font-size:11px;color:var(--dim);text-align:right">${esc(e[2])}</td></tr>`).join("")
+    : `<tr><td class="note">No fixed exercise list — see the plan note for this day.</td></tr>`;
+  return `<div class="card" style="margin-top:10px;border-color:${C.amber}">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+      <div><div class="eyebrow" style="color:${C.amber}">${esc(S.name)} · ${DAYS[gd.i]} ${iso.slice(8)}/${iso.slice(5,7)} ${done?"· ✓ done":""}</div>
+        <div class="note" style="margin-top:4px">plan says: ${esc(p.g||done&&done.name||"—")} · wk 1 of a block = intro, wk 2+ last set to failure · reps per the Nippard sheet (rep cells corrupted in the text-dump conversion — read them there)</div></div>
+      <button class="btn" data-act="gymclose">close ✕</button></div>
+    ${S.watch?`<div class="note" style="color:${C.rose};margin-top:8px">⚑ ${esc(S.watch)}</div>`:""}
+    <table style="margin-top:10px"><tbody>${rows}</tbody></table>
+    <div class="note" style="margin-top:8px">On-ramp (this cycle): 1–2 RIR everywhere for ~2–3 wks — tissue lags strength after the layoff. Log per-set loads in MacroFactor, not here.</div>
+  </div>`;
+}
+
+/* ── trend card ── */
+function trendCard(title,unit,series,goodUp,target,invite){
+  const last = series.length ? series[series.length-1].v : null;
+  const base = series.length>1 ? series.slice(0,-1).reduce((s,p)=>s+p.v,0)/(series.length-1) : null;
+  const delta = (last!=null&&base) ? ((last-base)/base)*100 : null;
+  let dHtml = `<span style="color:var(--dim)">—</span>`;
+  if(delta!=null){ const up=delta>=0, good=goodUp?up:!up;
+    dHtml = `<span style="font-family:var(--mono);font-size:12px;color:${good?C.teal:C.rose}">${up?"▲":"▼"} ${fmt(Math.abs(delta))}%</span>`; }
+  return `<div class="card">
+    <div class="eyebrow">${esc(title)}</div>
+    <div style="display:flex;align-items:baseline;gap:10px;margin-top:8px">
+      <span style="font-family:var(--mono);font-size:22px;color:${last!=null?"var(--chalk)":"var(--dim)"}">${last!=null?fmt(last):"—"}</span>
+      <span style="font-family:var(--mono);font-size:10px;color:var(--dim)">${esc(unit)}</span>${dHtml}
+    </div>
+    <div style="height:42px;margin-top:6px">${series.length>1 ? sparkSVG(series,C.teal) :
+      `<div style="border-bottom:1px dashed var(--contour);height:100%;display:flex;align-items:flex-end"><span class="note" style="padding-bottom:4px">${esc(invite)}</span></div>`}</div>
+    ${target?`<div class="note" style="margin-top:8px">gate · ${esc(target)}</div>`:""}
+  </div>`;
+}
+
+/* ── DEMO MODE (v1.5) — synthetic preview state through W18, for layout
+   evaluation only. Deterministic (seeded PRNG). NEVER persisted, NEVER
+   exported, banner-labelled while active. "No demo data" invariant amended
+   for this explicit feature with Andre's sign-off 04/07/26. Numbers are
+   plausible-per-plan fabrications — they carry zero informational value. ── */
+function makeDemo(){
+  let seed=20260704; const rnd=()=>{ seed|=0; seed=(seed+0x6D2B79F5)|0;
+    let t=Math.imul(seed^(seed>>>15),1|seed); t=(t+Math.imul(t^(t>>>7),61|t))^t;
+    return ((t^(t>>>14))>>>0)/4294967296; };
+  const st=JSON.parse(JSON.stringify(EMPTY));
+  st.sessions={runs:[],gym:[]};
+  // per-week actuals + daily sessions W1–W18
+  const longMap={1:1.0,2:1.25,3:1.5,4:2.0,5:2.5,6:2.0,7:3.0,8:1.2,9:3.55,10:0,11:1.0,12:1.5,13:2.0,14:2.5,15:2.5,16:3.0,17:3.5,18:4.0};
+  for(let w=1;w<=18;w++){
+    const plan=PLAN[w-1]; if(!plan) break;
+    const adherence=0.93+rnd()*0.1;
+    const km=w===9?plan.km:Math.round(plan.km*adherence*10)/10;
+    const h=w===9?plan.h:Math.round(plan.h*adherence*10)/10;
+    const longH=longMap[w]||0;
+    const a={km,h,longH:longH||null,vert:Math.round(h*(w>=11?230:120)),
+      z12:Math.min(92,Math.round(68+w*1.3+rnd()*3)),
+      ef:Math.round((1.90+w*0.016+rnd()*0.02)*100)/100,
+      decoup:longH>=2?Math.round((12.5-(w*0.45)+rnd()*1.2)*10)/10:null};
+    st.actualWeeks[w]=a;
+    // daily sessions from the plan pattern
+    let easyDays=[]; for(let i=0;i<7;i++){ const p=plannedDay(w,i), cat=classifyRun(p.r);
+      if(cat!=="rest") easyDays.push({i,cat}); if(classifyGym(p.g)&&rnd()<0.93) st.sessions.gym.push({d:dayISO(w,i),name:p.g}); }
+    const shares={long:0.40,quality:0.20,race:1};
+    const nEasy=easyDays.filter(x=>x.cat==="easy").length||1;
+    const fixed=easyDays.filter(x=>x.cat!=="easy").reduce((t,x)=>t+(shares[x.cat]||0.25),0);
+    easyDays.forEach(x=>{ if(rnd()<0.04) return; // occasional missed run
+      const share=x.cat==="easy"?Math.max(0.05,(1-Math.min(fixed,0.85))/nEasy):(shares[x.cat]||0.25);
+      const dkm=Math.round(km*share*10)/10;
+      st.sessions.runs.push({d:dayISO(w,x.i),type:x.cat,km:dkm,h:Math.round(dkm*0.105*10)/10}); });
+  }
+  // bodyweight: weekly Thu, hypertrophy drift + post-marathon dip
+  let kg=65.0;
+  for(let w=1;w<=18;w++){ const lead=phaseOf(w).lead;
+    kg+= (lead==="hyp"?0.12:lead==="rec"?0.05:0.02) + (rnd()-0.5)*0.1;
+    if(w===10) kg-=0.5;
+    st.body.push({d:dayISO(w,3),kg:Math.round(kg*10)/10,bf:Math.round((20-w*0.06)*10)/10}); }
+  // girths: real seed + 3 synthetic monthly entries
+  const drift={shoulder:.2,chest:.15,waist:-.15,abdomen:-.15,hip:.05,bicepL:.15,bicepR:.15,forearmL:.1,forearmR:.1,upThighL:.25,upThighR:.2,loThighL:.15,loThighR:.15,calfL:.1,calfR:.15};
+  ["2026-08-04","2026-09-04","2026-10-04"].forEach((d,mi)=>{ const e={d};
+    GIRTHS.forEach(g=>{ const b=GIRTH_SEED[g.id]; if(b==null) return;
+      e[g.id]=Math.round((b+(drift[g.id]||0)*(mi+1)+(rnd()-0.5)*0.1)*10)/10; });
+    st.girths.push(e); });
+  // labs: one mid-Oct panel, values mid-range except CRP deliberately flagged
+  const pick=["ferritin","hb","crp","alt","creat","vitd"];
+  MARKERS.filter(m=>pick.includes(m.id)).forEach(m=>{
+    let v; if(m.id==="crp"&&m.hi!=null) v=Math.round(m.hi*1.15*10)/10;
+    else if(m.lo!=null&&m.hi!=null) v=Math.round((m.lo+(m.hi-m.lo)*0.45)*10)/10;
+    else if(m.hi!=null) v=Math.round(m.hi*0.6*10)/10;
+    else v=m.lo!=null?Math.round(m.lo*1.4*10)/10:1;
+    st.labs.push({d:"2026-10-15",marker:m.id,value:v}); });
+  // key lifts: two monthly points, rising (lifting resumes W11)
+  (typeof KEY_LIFTS!=="undefined"?KEY_LIFTS:[]).slice(0,5).forEach((l,li)=>{
+    const base=[80,45,90,55,70][li]||60;
+    st.lifts.push({d:"2026-09-30",lift:l,e1rm:base});
+    st.lifts.push({d:"2026-10-28",lift:l,e1rm:Math.round(base*1.035*10)/10}); });
+  // protein: last 10 real-calendar days so the scorecard 7-day window populates
+  for(let k=0;k<10;k++){ const d=new Date(Date.now()-k*864e5);
+    st.protein.push({d:d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"),
+      g:Math.round(112+rnd()*32)}); }
+  // check-ins: weekly Sundays
+  for(let w=1;w<=17;w++) st.checkins.push({d:dayISO(w,6),sleep:3+Math.round(rnd()*2),stress:2+Math.round(rnd()*2),mot:4+Math.round(rnd())});
+  // protocol demo entries
+  st.protocol.push({d:"2026-08-15",change:"[DEMO] carb periodisation around long runs",reason:"synthetic example",by:"nutritionist"});
+  st.protocol.push({d:"2026-10-01",change:"[DEMO] intra-run CHO stepped to 75 g/h",reason:"synthetic example",by:"coach"});
+  return st;
+}
+
+/* ── APP ── */
+const App = {
+  state: norm(JSON.parse(JSON.stringify(EMPTY))),
+  tab: "overview", unit: "km", clinical: false, selMarker: "ferritin",
+  week: null, selSeg: "tr", selWeek: null,
+  selType: null, gymDay: null, boardOpen: false, demo: false, _real: null,
+  ovRange: {past:12, future:8},  // weeks back / forward from today shown in overview
+  fffViz: {ctl:true, atl:true, tsb:true, proj:true}, // which FFF series are visible; proj = projection overlay
+  _t: null, _resetArm: false,
+  persist(){ if(this.demo) return; clearTimeout(this._t); this._t=setTimeout(()=>Store.save(this.state),400); },
+  flash(m){ const el=qs("flash"); if(el){ el.textContent="✓ "+m; setTimeout(()=>{ if(el) el.textContent=""; },2500); } },
+  openWeek(w){ if(w<1||w>49) return; this.week=w; this.render(); window.scrollTo(0,0); },
+  closeWeek(){ this.week=null; this.render(); },
+
+  rows(){ return Object.keys(this.state.actualWeeks).map(Number).sort((a,b)=>a-b).map(w=>({w,...this.state.actualWeeks[w]})); },
+  segSorted(){ return [...this.state.segmental].sort((a,b)=>a.d.localeCompare(b.d)); },
+
+  render(){
+    document.body.classList.toggle("clinical", this.clinical);
+    qs("app").innerHTML = this.clinical ? this.viewClinical() : this.viewMain();
+    this.bind();
+  },
+
+  viewMain(){
+    const races = RACES.map(r=>{ const d=daysTo(r.date);
+      return `<div style="text-align:right"><div style="font-family:var(--mono);font-size:18px;color:${d<0?"var(--dim)":"var(--chalk)"}">${d<0?"✓":d}</div>
+      <div style="font-family:var(--mono);font-size:8.5px;letter-spacing:.14em;color:var(--dim);text-transform:uppercase">${d<0?esc(r.name):"days · "+esc(r.name.split(" ")[0])}</div></div>`; }).join("");
+    const tabs=[["overview","Overview"],["running","Running"],["sessions","Sessions"],["strength","Strength"],["body","Body · Fuel"],["health","Health"],["data","Data"],["changelog","Changelog"]]
+      .map(t=>`<button class="tab ${this.tab===t[0]?"on":""}" data-act="tab" data-v="${t[0]}">${t[1]}</button>`).join("");
+    const storeNote = Store.mode==="memory" ? `<div class="note" style="color:${C.rose}">⚠ storage blocked in this context — data is session-only; use Export JSON to keep it</div>` : "";
+    return `
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px">
+      <div><div class="eyebrow" style="color:var(--teal)">Longitudinal athlete record · n = 1</div>
+        <h1 style="font-family:var(--mono);font-size:24px;font-weight:600;margin:6px 0 0">ANDRE <span style="color:var(--dim)">→</span> UTA100 <span style="color:var(--teal)">2027</span></h1></div>
+      <div style="display:flex;gap:18px;align-items:center;flex-wrap:wrap">${races}
+        <button class="btn no-print" data-act="clinical">⚕ CLINICAL VIEW</button></div>
+    </div>
+    ${storeNote}
+    ${this.demo?`<div class="note" style="color:${C.rose};border:1px dashed ${C.rose};border-radius:8px;padding:8px 12px;margin-top:10px">⚠ DEMO MODE — synthetic preview data through W18 (invariant amendment signed off by Andre 04/07/26). Read-only: nothing is saved, exports are blocked. Toggle off at the bottom.</div>`:""}
+    ${this.week ? this.viewWeek() : `<div class="tabbar no-print">${tabs}</div><div class="grid">${this["view_"+this.tab]()}</div>`}
+    <div class="no-print" style="display:flex;justify-content:center;margin-top:26px;padding-bottom:8px">
+      <button class="btn" data-act="demoToggle" style="${this.demo?`border-color:${C.rose};color:${C.rose}`:""}">DEMO MODE: ${this.demo?"ON — tap to return to real data":"OFF"}</button></div>`;
+  },
+
+  viewWeek(){
+    const w=this.week, p=PLAN[w-1], ph=phaseOf(w), ov=WEEK_OVERRIDES[w]||{};
+    const tpl=WEEK_TEMPLATES[ph.id]||[];
+    const a=this.state.actualWeeks[w];
+    const rows=DAYS.map((d,i)=>{ const base=tpl[i]||{}, o=ov[i]||{};
+      const run=o.r||base.r||"—", gym=o.g||base.g||"—";
+      const hard=base.H||o.H, legs=base.L||o.L;
+      const badge= hard ? `<span class="pill" style="border-color:${C.rose};color:${C.rose};font-size:9px;padding:2px 7px">hard legs</span>`
+        : legs ? `<span class="pill" style="border-color:${C.amber};color:${C.amber};font-size:9px;padding:2px 7px">legs loaded</span>` : "";
+      return `<tr><td style="font-family:var(--mono);font-size:11px;color:var(--dim);width:44px;vertical-align:top">${d}</td>
+        <td style="font-size:12.5px;color:var(--chalk);padding-right:10px">${esc(run)}</td>
+        <td style="font-size:12px;color:var(--mist)">${esc(gym)} ${badge}</td></tr>`; }).join("");
+    return `<div class="grid" style="margin-top:16px">
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+        <button class="btn" data-act="back">← plan</button>
+        <div style="display:flex;gap:6px">
+          <button class="btn" data-act="wkprev" ${w<=1?"disabled":""}>‹ W${w-1}</button>
+          <button class="btn" data-act="wknext" ${w>=49?"disabled":""}>W${w+1} ›</button></div></div>
+      <div style="margin-top:14px">
+        <div class="eyebrow" style="color:${LEAD_COLOR[ph.lead]}">W${w} · w/c ${p.wc} — ${esc(ph.name)} (${LEAD_LABEL[ph.lead]})</div>
+        <div style="font-family:var(--mono);font-size:12px;color:var(--mist);margin-top:6px">plan ${p.km} km · ${fmt(p.h)} h run${a&&a.km!=null?` · <span style="color:var(--chalk)">executed ${fmt(a.km)} km${a.h!=null?" · "+fmt(a.h)+" h":""}</span>`:""}</div>
+        ${p.race?`<div style="font-family:var(--mono);font-size:11px;color:${C.rose};margin-top:4px">▲ ${esc(p.race.name)} — ${p.race.km} km</div>`:""}
+        ${(p.note||ov.note)?`<div style="font-size:12px;color:var(--dim);margin-top:4px">${esc([p.note,ov.note].filter(Boolean).join(" · "))}</div>`:""}
+      </div>
+      ${weekStrip(w)}
+      <table style="margin-top:12px"><tbody>${rows}</tbody></table>
+      <div class="note" style="margin-top:12px">Pattern-level template from the locked macro — daily durations are ranges by design; each phase's weekly sheet (built at phase start, off prior execution) firms them. Standing rules apply: 48 h between hard leg work and key runs · no failure legs the day before long/quality runs.</div>
+    </div></div>`;
+  },
+
+  view_overview(){
+    const rows=this.rows();
+    const decoupS=rows.filter(r=>r.decoup!=null).map(r=>({v:r.decoup}));
+    const efS=rows.filter(r=>r.ef!=null).map(r=>({v:r.ef}));
+    const longS=rows.filter(r=>r.longH!=null).map(r=>({v:r.longH}));
+    const wtS=[...this.state.body].sort((a,b)=>a.d.localeCompare(b.d)).map(p=>({v:p.kg}));
+    const cw=todayWeek(), ph=phaseOf(cw);
+    const leadLegend = ["hyp","end","taper","rec"].map(l=>`<span class="note" style="display:flex;align-items:center;gap:6px"><i style="width:8px;height:8px;border-radius:2px;background:${LEAD_COLOR[l]};display:inline-block"></i>${LEAD_LABEL[l]}</span>`).join("");
+    return `
+    ${this.boardCard()}
+    ${(()=>{
+      const cw=todayWeek(), past=this.ovRange.past, future=this.ovRange.future;
+      const wS=cw-past, wE=Math.min(49,cw+future);
+      const hasFFF=(this.state.fff||[]).length>0;
+      // Combined legend: phase bands + FFF series
+      const fv=this.fffViz;
+      const fffLegend=`
+        <button class="btn" data-act="fffToggle" data-v="ctl" style="display:flex;align-items:center;gap:5px;padding:3px 8px;opacity:${fv.ctl?1:0.35}"><i style="width:22px;height:2px;background:${C.teal};display:inline-block;border-radius:1px"></i><span style="font-size:10px">CTL fitness</span></button>
+        <button class="btn" data-act="fffToggle" data-v="atl" style="display:flex;align-items:center;gap:5px;padding:3px 8px;opacity:${fv.atl?1:0.35}"><i style="width:22px;height:2px;background:${C.rose};display:inline-block;border-radius:1px"></i><span style="font-size:10px">ATL fatigue</span></button>
+        <button class="btn" data-act="fffToggle" data-v="tsb" style="display:flex;align-items:center;gap:5px;padding:3px 8px;opacity:${fv.tsb?1:0.35}"><i style="width:22px;height:2px;background:${C.violet};display:inline-block;border-radius:1px"></i><span style="font-size:10px">TSB form</span></button>
+        <button class="btn" data-act="fffToggle" data-v="proj" style="display:flex;align-items:center;gap:5px;padding:3px 8px;opacity:${fv.proj?1:0.35}"><i style="width:22px;height:2px;background:${C.mist};display:inline-block;border-radius:1px;border-top:1px dashed ${C.mist}"></i><span style="font-size:10px">Plan projection</span></button>
+        <span class="note" style="display:flex;align-items:center;gap:5px"><i style="width:22px;height:2px;background:${C.amber};display:inline-block;border-radius:1px"></i><span style="font-size:10px">Weight</span></span>`;
+      return `<div class="card" style="padding:0;overflow:hidden">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;padding:16px 18px 4px;flex-wrap:wrap;gap:10px">
+        <div>
+          <div class="eyebrow" style="color:var(--teal)">The plan · Fitness/Fatigue · Form · Weight</div>
+          <div style="font-size:11px;color:var(--dim);margin-top:3px">Plan volume (solid=past, dashed=future) · run history · CTL/ATL · TSB form</div>
+          <div style="font-size:11px;color:var(--dim);margin-top:1px">Bands = race TSB gates · weight · one shared timeline · tap any week</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">
+          <div style="display:flex;gap:6px">
+            <button class="pill ${this.unit==="km"?"on":""}" data-act="unit" data-v="km">KM</button>
+            <button class="pill ${this.unit==="h"?"on":""}" data-act="unit" data-v="h">HRS</button>
+          </div>
+          <div style="display:flex;gap:10px;align-items:flex-end">
+            <div style="display:flex;flex-direction:column;gap:3px;min-width:130px">
+              <div style="display:flex;justify-content:space-between">
+                <span style="font-family:var(--mono);font-size:9px;color:var(--dim);text-transform:uppercase;letter-spacing:.1em">past</span>
+                <span style="font-family:var(--mono);font-size:9px;color:var(--mist)">${past} wk</span>
+              </div>
+              <input type="range" min="4" max="156" step="1" value="${past}" data-act="rangePast" style="width:100%;accent-color:var(--teal)">
+            </div>
+            <div style="display:flex;flex-direction:column;gap:3px;min-width:130px">
+              <div style="display:flex;justify-content:space-between">
+                <span style="font-family:var(--mono);font-size:9px;color:var(--dim);text-transform:uppercase;letter-spacing:.1em">future</span>
+                <span style="font-family:var(--mono);font-size:9px;color:var(--mist)">${future} wk</span>
+              </div>
+              <input type="range" min="2" max="52" step="1" value="${future}" data-act="rangeFuture" style="width:100%;accent-color:var(--teal)">
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="scroll" style="padding:10px 6px 4px 0;position:relative" id="overviewWrap">${overviewSVG(wS,wE)}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:14px;padding:6px 18px 14px">${leadLegend}${hasFFF?fffLegend:""}
+</div>
+    </div>`; })()}
+    ${(()=>{ const lw=this.selWeek||todayWeek(), lp=PLAN[lw-1], lph=phaseOf(lw);
+    return `<div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+        <div><div class="eyebrow" style="color:${LEAD_COLOR[lph.lead]}">Week Lens · W${lw} · w/c ${lp.wc} — ${esc(lph.name)}</div>
+          <div class="note" style="margin-top:4px">run + gym, day by day${lw===todayWeek()?" · current week":""}</div></div>
+        <div style="display:flex;gap:6px">
+          <button class="btn" data-act="lensprev" ${lw<=1?"disabled":""}>‹ W${lw-1}</button>
+          <button class="btn" data-act="lensnext" ${lw>=49?"disabled":""}>W${lw+1} ›</button>
+          <button class="btn" data-act="lensopen">day-by-day →</button></div></div>
+      ${weekStrip(lw)}
+    </div>`; })()}
+    ${this.overviewRadarCard()}
+    <div class="cols4">
+      ${trendCard("Pw:HR decoupling","% last long run",decoupS,false,"duration-to-5% trends up","first long run ≥2 h")}
+      ${trendCard("EF","W/bpm",efS,true,"+13–15% at AeT by Feb","wk-3 AeT test sets baseline")}
+      ${trendCard("Long run","h",longS,true,"per phase progression","logs from W1")}
+      ${trendCard("Bodyweight","kg",wtS,true, ph.lead==="hyp"?"+0.2–0.25%/wk this block":"stable this block","weekly Withings avg")}
+    </div>
+    <div class="note">Currently W${cw} · ${esc(ph.name)} (${LEAD_LABEL[ph.lead]}). Weekly cadence feeds this: Garmin summary + long-run .fit → Running · Withings AM average → Body · MacroFactor export monthly → Strength · Renpho segmental monthly → Body · labs as drawn → Health.</div>`;
+  },
+
+  view_running(){
+    const rows=this.rows();
+    const dec=rows.filter(r=>r.decoup!=null);
+    const vert=rows.filter(r=>r.vert!=null||r.desc!=null);
+    const zone=rows.filter(r=>r.z12!=null);
+    const anchors = ANCHORS.map(a=>`<div style="display:flex;justify-content:space-between;gap:12px;border-bottom:1px solid var(--contour);padding-bottom:8px;flex-wrap:wrap">
+      <span style="font-size:12.5px;color:var(--mist)">${esc(a.k)}</span>
+      <span style="font-family:var(--mono);font-size:12px;color:var(--chalk)">${esc(a.v)}</span>
+      <span class="note" style="width:100%;text-align:right">${esc(a.n)}</span></div>`).join("");
+    return `
+    <div class="card"><div class="eyebrow" style="color:var(--teal)">Durability — Pw:HR decoupling per long run</div>
+      ${dec.length ? `<div style="margin-top:10px">${chartSVG({cats:dec.map(r=>"W"+r.w),yUnit:"%",series:[{name:"decoupling",color:C.teal,data:dec.map(r=>r.decoup)}],refs:[{y:5,label:"5% frontier",color:C.rose}]})}</div>`
+      : `<div class="empty">◦ First long run ≥2 h populates this. The number to move: how long you last before Pw:HR breaches 5%. Race fade reference: UTA 2026 went 199→100 W.</div>`}</div>
+    <div class="cols2">
+      <div class="card"><div class="eyebrow">Weekly vert · descent (m)</div>
+        ${vert.length ? `<div style="margin-top:10px">${chartSVG({cats:vert.map(r=>"W"+r.w),yMin:0,series:[{name:"ascent",color:C.teal,type:"bar",data:vert.map(r=>r.vert||0)},{name:"descent",color:C.violet,type:"bar",data:vert.map(r=>r.desc||0)}]})}</div>`
+        : `<div class="empty">◦ Descent metres are tracked separately — the 25-minute lever gets its own bar.</div>`}</div>
+      <div class="card"><div class="eyebrow">Zone discipline — % time ≤ AeT</div>
+        ${zone.length ? `<div style="margin-top:10px">${chartSVG({cats:zone.map(r=>"W"+r.w),yMin:50,yMax:100,yUnit:"%",series:[{name:"% ≤AeT",color:C.chalk,data:zone.map(r=>r.z12)}],refs:[{y:85,label:"85% floor",color:C.amber}]})}</div>`
+        : `<div class="empty">◦ Zones exist after the wk-3 AeT test — then ≥85–90% ≤AeT is the base/hybrid gate.</div>`}</div>
+    </div>
+    <div class="card"><div class="eyebrow">Reference anchors</div><div style="margin-top:10px;display:grid;gap:8px">${anchors}</div></div>
+    ${this.viewFFF()}`;
+  },
+
+  viewFFF(){
+    /* Fitness/Fatigue/Form panel — sourced from intervals.icu Wellness CSV
+       or live Sync. Trailing 90-day window shown in chart; current readiness card.
+       All values intervals.icu computed (CTL/ATL/TSB) — not independently verified. */
+    const fff = (this.state.fff||[]).slice().sort((a,b)=>a.date<b.date?-1:1);
+    if(!fff.length) return `<div class="card"><div class="eyebrow" style="color:${C.violet}">Fitness · Fatigue · Form (intervals.icu)</div>
+      <div class="empty">◦ Paste the intervals.icu Wellness CSV export into the FFF import box in the Data tab (or use Sync if the Worker is configured).<br>CTL = chronic training load (42-day; fitness) · ATL = acute training load (7-day; fatigue) · TSB = CTL−ATL (form/freshness).</div></div>`;
+    // trailing 90 days
+    const cutoff = new Date(); cutoff.setDate(cutoff.getDate()-90);
+    const cutStr = cutoff.toISOString().slice(0,10);
+    const recent = fff.filter(r=>r.date>=cutStr);
+    const cats = recent.map(r=>r.date.slice(5)); // MM-DD
+    const ctls = recent.map(r=>r.ctl);
+    const atls = recent.map(r=>r.atl);
+    const tsbs = recent.map(r=>r.tsb);
+    // current values (latest entry)
+    const cur = fff[fff.length-1];
+    const tsbColor = cur.tsb==null?C.dim:cur.tsb>5?C.teal:cur.tsb<-10?C.rose:C.amber;
+    const tsbLabel = cur.tsb==null?"—":cur.tsb>5?"Fresh (positive form)":cur.tsb<-10?"Fatigued (accumulated load)":"Neutral";
+    const stepLabel = (v,lo,hi,labels) => v==null?"—":v<lo?labels[0]:v<hi?labels[1]:labels[2];
+    const rampLabel = cur.rampRate==null?"—":cur.rampRate>8?"⚠ high ramp":cur.rampRate<0?"tapering / declining":cur.rampRate>5?"building fast":"building steady";
+    return `<div class="card"><div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px">
+      <div class="eyebrow" style="color:${C.violet}">Fitness · Fatigue · Form (intervals.icu) — trailing 90 days</div>
+      <div class="note" style="text-align:right">${fff.length} days · ${fff[0].date} → ${cur.date}</div></div>
+    <div class="cols4" style="margin-top:14px">
+      <div style="text-align:center"><div class="eyebrow">CTL · Fitness</div><div style="font-family:var(--mono);font-size:28px;color:${C.teal};margin-top:6px">${fmt(cur.ctl,1)}</div><div class="note">42-day load</div></div>
+      <div style="text-align:center"><div class="eyebrow">ATL · Fatigue</div><div style="font-family:var(--mono);font-size:28px;color:${C.rose};margin-top:6px">${fmt(cur.atl,1)}</div><div class="note">7-day load</div></div>
+      <div style="text-align:center"><div class="eyebrow">TSB · Form</div><div style="font-family:var(--mono);font-size:28px;color:${tsbColor};margin-top:6px">${fmt(cur.tsb,1)}</div><div class="note">${tsbLabel}</div></div>
+      <div style="text-align:center"><div class="eyebrow">Ramp rate</div><div style="font-family:var(--mono);font-size:16px;color:${C.amber};margin-top:12px">${fmt(cur.rampRate,1)}</div><div class="note">${rampLabel}</div></div>
+    </div>
+    <div style="margin-top:14px">${(()=>{
+      // Build projection series aligned to the same 90-day date cats
+      const projCTL=cats.map(mm=>{
+        const yr=mm.length===5?"2026":recent[0].date.slice(0,4);
+        const fullDate=yr+"-"+mm; const r=FFF_PROJ.idx[fullDate]; return r?r.ctl:null;});
+      const projATL=cats.map(mm=>{
+        const yr=mm.length===5?"2026":recent[0].date.slice(0,4);
+        const fullDate=yr+"-"+mm; const r=FFF_PROJ.idx[fullDate]; return r?r.atl:null;});
+      const projTSB=cats.map(mm=>{
+        const yr=mm.length===5?"2026":recent[0].date.slice(0,4);
+        const fullDate=yr+"-"+mm; const r=FFF_PROJ.idx[fullDate]; return r?r.tsb:null;});
+      // Rebuild cats with full year prefix for projection lookup
+      const fullCats=recent.map(r=>r.date);
+      const rawPCTL=fullCats.map(d=>{const r=FFF_PROJ.idx[d];return r?r.ctl:null;});
+      const rawPATL=fullCats.map(d=>{const r=FFF_PROJ.idx[d];return r?r.atl:null;});
+      const rawPTSB=fullCats.map(d=>{const r=FFF_PROJ.idx[d];return r?r.tsb:null;});
+      const hasProjInWindow=rawPCTL.some(v=>v!=null);
+      // Bias-correct projection: shift future values so they start from the last real point
+      // (eliminates step-change at the real→projected join; shape/trajectory unchanged)
+      let offCTL=0,offATL=0,offTSB=0;
+      const lastRealIdx=ctls.reduceRight((acc,v,i)=>acc===-1&&v!=null?i:acc,-1);
+      if(lastRealIdx>=0&&rawPCTL[lastRealIdx]!=null){
+        offCTL=(ctls[lastRealIdx]??0)-(rawPCTL[lastRealIdx]??0);
+        offATL=(atls[lastRealIdx]??0)-(rawPATL[lastRealIdx]??0);
+        offTSB=(tsbs[lastRealIdx]??0)-(rawPTSB[lastRealIdx]??0);
+      }
+      const pCTL=rawPCTL.map((v,i)=>v==null?null:(i>lastRealIdx?v+offCTL:v));
+      const pATL=rawPATL.map((v,i)=>v==null?null:(i>lastRealIdx?v+offATL:v));
+      const pTSB=rawPTSB.map((v,i)=>v==null?null:(i>lastRealIdx?v+offTSB:v));
+      const series=[
+        {name:"CTL (live)",color:C.teal,data:ctls},
+        {name:"ATL (live)",color:C.rose,data:atls},
+        {name:"TSB (live)",color:C.violet,data:tsbs},
+      ];
+      if(hasProjInWindow){
+        series.push({name:"CTL proj",color:C.teal,data:pCTL,dash:"5 4",opacity:0.4,width:1.1});
+        series.push({name:"ATL proj",color:C.rose,data:pATL,dash:"5 4",opacity:0.4,width:1.1});
+        series.push({name:"TSB proj",color:C.violet,data:pTSB,dash:"5 4",opacity:0.4,width:1.1});
+      }
+      return chartSVGdash({w:860,h:180,cats,series,refs:[{y:0,label:"TSB=0",color:C.dim}]});
+    })()}</div>
+    <div class="note" style="margin-top:8px">Solid = live (intervals.icu computed) · dashed = plan projection (05/07/26 baseline, Bannister τ CTL=42/ATL=7), bias-corrected to join seamlessly at the last real data point. Divergence shape = calibration signal — log deltas in FFF_PROJECTION_BASELINE.md §4. Wrist HR pre-2026-07-03 inflates load scores; chest-strap series begins 3 Jul 2026.</div></div>`;
+  },
+
+  view_strength(){
+    const dates=[...new Set(this.state.lifts.map(l=>l.d))].sort();
+    const series=KEY_LIFTS.map((l,i)=>({name:l,color:LIFT_COLORS[i],
+      data:dates.map(d=>{ const e=this.state.lifts.find(x=>x.lift===l&&x.d===d); return e?e.e1rm:null; })}))
+      .filter(s=>s.data.some(v=>v!=null));
+    return `
+    <div class="card"><div class="eyebrow" style="color:var(--amber)">The five ultra-relevant lifts — est. 1RM trend</div>
+      ${series.length ? `<div style="margin-top:10px">${chartSVG({cats:dates.map(d=>d.slice(5)),yUnit:"kg",h:230,series})}</div>`
+      : `<div class="empty">◦ Populates from the monthly MacroFactor Granular Export (or quick-add in Data). Gate: progression in hypertrophy blocks, retention everywhere else. Prior numbers are stale by design — rebuild toward.</div>`}</div>
+    <div class="card"><div class="eyebrow">Block context</div>
+      <div style="font-size:12.5px;color:var(--mist);line-height:1.75;margin-top:8px">Hypertrophy leads W1–3, W12–17, W26–31 (amber bands on the plan). Failure protocol from Nippard wk 2; the standing rule — any week the long run exceeds 3 h, Sunday Legs holds 1–2 RIR. ME layer (weighted carries 6.5 → 13 kg) lives only in the UTK- and UTA-specific blocks and counts as a hard leg day.</div></div>`;
+  },
+
+  view_body(){
+    const pts=[...this.state.body].sort((a,b)=>a.d.localeCompare(b.d));
+    const roll=pts.map((p,i)=>{ const w=pts.slice(Math.max(0,i-3),i+1); return w.reduce((s,q)=>s+q.kg,0)/w.length; });
+    const cur=phaseOf(todayWeek());
+    const prot=this.state.protocol;
+    const byCol = b => b==="nutritionist"?C.amber:b==="coach"?C.teal:C.violet;
+    return `
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px">
+        <div class="eyebrow" style="color:var(--amber)">Bodyweight — weekly AM average · 4-pt rolling mean</div>
+        <span class="note">current block gate · ${cur.lead==="hyp"?"+0.2–0.25% BW/wk":"hold stable"}</span></div>
+      ${pts.length>1 ? `<div style="margin-top:10px">${chartSVG({cats:pts.map(p=>p.d.slice(5)),yUnit:"kg",h:220,
+        series:[{name:"raw",color:C.dim,data:pts.map(p=>p.kg)},{name:"trend",color:C.amber,data:roll}]})}</div>`
+      : `<div class="empty">◦ One real point so far: 67.79 kg · 16.4% BF (03/07, Withings). The trend line starts at entry two — weekly same-condition AM average. BIA is trend-grade: read the slope, not the points.</div>`}
+    </div>
+    ${this.girthCard()}
+    <div class="cols3">
+      <div class="card"><div class="eyebrow">Lean mass (BIA-est.)</div>
+        <div style="font-family:var(--mono);font-size:22px;margin-top:8px">≈ 52 <span style="font-size:11px;color:var(--dim)">kg ±2–3</span></div>
+        <div class="note" style="margin-top:8px">UTA taper milestone: +0.7–1.2 kg (ceiling 1.5) · +5.4 kg lean = 73 kg @ 15% long-horizon goal (4–7+ yr arc)</div></div>
+      <div class="card"><div class="eyebrow">Protein target</div>
+        <div style="font-family:var(--mono);font-size:22px;margin-top:8px">136–146 <span style="font-size:11px;color:var(--dim)">g/d</span></div>
+        <div class="note" style="margin-top:8px">hypertrophy blocks · ≥125 g elsewhere (1.8–2.2 g/kg @ 67.79 kg)</div></div>
+      <div class="card"><div class="eyebrow">Nutrition oversight</div>
+        <div style="font-family:var(--mono);font-size:22px;margin-top:8px">MacroFactor</div>
+        <div class="note" style="margin-top:8px">adaptive TDEE = measurement engine · dietary targets overseen by nutritionist + Coach · changes logged below with attribution</div></div>
+    </div>
+    <div class="card"><div class="eyebrow">Protocol log — dated interventions, attributed</div>
+      ${prot.length ? `<table style="margin-top:10px"><tbody>${[...prot].sort((a,b)=>b.d.localeCompare(a.d)).map(x=>`<tr>
+        <td style="font-family:var(--mono);font-size:11px;color:var(--dim);width:86px;vertical-align:top">${esc(x.d)}</td>
+        <td style="font-size:12.5px;color:var(--chalk)">${esc(x.change)}${x.reason?`<div class="note">${esc(x.reason)}</div>`:""}</td>
+        <td style="text-align:right;width:100px;vertical-align:top"><span class="pill" style="font-size:9px;padding:2px 8px;border-color:${byCol(x.by)};color:${byCol(x.by)}">${esc(x.by)}</span></td></tr>`).join("")}</tbody></table>`
+      : `<div class="empty">◦ Nutrition/fuelling protocol changes land here with attribution (nutritionist · coach · andre) — the intervention layer worth trending against the charts above. Mirror entries to NUTRITION.md.</div>`}</div>`;
+  },
+
+  girthSorted(){ return [...(this.state.girths||[])].sort((a,b)=>a.d.localeCompare(b.d)); },
+
+  girthCard(){
+    const entries=this.girthSorted();
+    const first=entries[0]||null;
+    const last=entries[entries.length-1]||null;
+    const tgt=this.state.target||{kg:73,bf:15};
+    const sel=this.selSeg||GIRTHS[0].id;
+    const selDef=GIRTHS.find(g=>g.id===sel)||GIRTHS[0];
+
+    // target girths from λ-blend model: girth ∝ √(λ·lean_ratio·1.193 + (1-λ)·fat_ratio·0.842)
+    const baseLean=52, baseFat=13;
+    const tLean=tgt.kg*(1-tgt.bf/100), tFat=tgt.kg*tgt.bf/100;
+    function modelTarget(g, baseGirth){
+      if(baseGirth==null) return null;
+      const lr=tLean/baseLean, fr=tFat/baseFat;
+      const scale=Math.sqrt(g.λ*lr*1.193 + (1-g.λ)*fr*0.842);
+      return parseFloat((baseGirth*scale).toFixed(1));
+    }
+    const targetG={};
+    GIRTHS.forEach(g=>{
+      const base=g.target!=null?g.target:( GIRTH_SEED[g.id]!=null?modelTarget(g,GIRTH_SEED[g.id]):null );
+      targetG[g.id]=base;
+    });
+
+    // radar % helper (direction-aware, mirrors radarSVG)
+    const pctOf=g=>{ const cv=last?last[g.id]:null, tv=targetG[g.id];
+      if(cv==null||tv==null||tv===0) return null;
+      return Math.round(((g.id==="waist"||g.id==="abdomen")? tv/cv : cv/tv)*100); };
+
+    const pills=GIRTHS.map(g=>`<button class="pill ${g.id===sel?"on":""}" data-act="seg" data-v="${g.id}">${esc(g.name)}</button>`).join("");
+    const sitePts=entries.filter(e=>e[sel]!=null);
+    const siteTarget=targetG[sel];
+    const trend = sitePts.length>1 ? `<div style="margin-top:10px">${chartSVG({
+      cats:sitePts.map(e=>e.d.slice(5)), yUnit:"cm", h:160,
+      series:[{name:esc(selDef.name),color:C.teal,data:sitePts.map(e=>e[sel])}],
+      refs:siteTarget!=null?[{y:siteTarget,label:"target "+fmt(siteTarget,1)+" cm",color:C.amber}]:[]
+    })}</div>` : `<div class="note" style="margin-top:8px">◦ ${esc(selDef.name)}: trend starts at the second monthly measure${last&&last[sel]!=null?` — current ${fmt(last[sel],1)} cm${siteTarget!=null?` · target ${fmt(siteTarget,1)}`:""}`:""}.</div>`;
+
+    const pctChips=GIRTHS.map(g=>{ const p=pctOf(g);
+      const col=p==null?C.dim:(p>=98?C.teal:p>=92?C.amber:C.rose);
+      return `<button class="pill" data-act="seg" data-v="${g.id}" style="border-color:${col};color:${col}">${esc(g.name.replace("Upper Thigh","U.Th").replace("Lower Thigh","L.Th"))} ${p==null?"—":p+"%"}</button>`; }).join("");
+
+    return `<div class="card">
+      <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px">
+        <div class="eyebrow" style="color:${C.teal}">Body Map — girths vs target · silhouette + radar</div>
+        <span class="note">tape: Renpho protocol · monthly · targets: λ-blend to ${fmt(tgt.kg,0)} kg @ ${fmt(tgt.bf,0)}%</span></div>
+      <div style="display:flex;flex-wrap:wrap;gap:10px;justify-content:center;align-items:flex-start;margin-top:8px">
+        <div>${girthSVG(last, targetG)}
+          <div class="note" style="text-align:center;margin-top:4px">silhouette calibrated from the 04/07/26 baseline photos —<br>waist/shoulder + leg line photo-measured; other widths girth-proportioned</div></div>
+        <div>${radarSVG(last, targetG)}
+          <div class="note" style="text-align:center;margin-top:4px">100% = at target · direction-aware<br>(waist/abdomen: lower is better)</div></div></div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:12px">${pctChips}</div>
+      <div style="margin-top:14px"><div class="eyebrow">Site trend — ${esc(selDef.name)}</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">${pills}</div>${trend}</div>
+      <div class="note" style="margin-top:10px">Tape is same-conditions monthly (AM, cold muscles, same anatomical landmarks). L/R kept separate on purpose — the right-side history makes asymmetry a signal, not noise.</div>
+    </div>`;
+  },
+  view_health(){ return this.healthHTML(false); },
+
+  healthHTML(clin){
+    const m=MARKERS.find(x=>x.id===this.selMarker)||MARKERS[0];
+    const pts=this.state.labs.filter(l=>l.marker===m.id).sort((a,b)=>a.d.localeCompare(b.d));
+    const line = clin?C.paperline:C.contour, sub=clin?C.papersub:C.dim, ink=clin?C.ink:C.chalk, ac=clin?C.ink:C.teal;
+    const pills=MARKERS.map(mk=>`<button class="pill ${mk.id===this.selMarker?"on":""}" data-act="marker" data-v="${mk.id}"
+      style="${mk.id===this.selMarker&&clin?`background:${C.ink};border-color:${C.ink};color:#fff`:""}">${esc(mk.name)}</button>`).join("");
+    let band=null; const refs=[];
+    if(m.lo!=null&&m.hi!=null) band={lo:m.lo,hi:m.hi,color:clin?"#8FBF9F":C.teal};
+    else if(m.hi!=null) refs.push({y:m.hi,label:"upper ref",color:C.rose});
+    else if(m.lo!=null) refs.push({y:m.lo,label:"lower ref",color:C.rose});
+    const chart = pts.length ? chartSVG({cats:pts.map(p=>p.d.slice(2)),yUnit:m.unit,h:210,
+        series:[{name:m.name,color:ac,data:pts.map(p=>p.value)}], band, refs, line, sub})
+      : `<div class="empty" style="color:${sub}">◦ No entries for this marker yet. Planned draws: mid-Oct (pre-UTK, ferritin priority) · Feb–Mar (peak load). Log results here and in HEALTH_EXAMS.md.</div>`;
+    const tbl = this.state.labs.length ? `<table style="margin-top:10px"><tbody>${[...this.state.labs].sort((a,b)=>b.d.localeCompare(a.d)).map(l=>{
+        const mk=MARKERS.find(x=>x.id===l.marker);
+        const out=mk&&((mk.lo!=null&&l.value<mk.lo)||(mk.hi!=null&&l.value>mk.hi));
+        return `<tr><td style="font-family:var(--mono);font-size:11px;color:${sub};padding:7px 0;width:90px">${esc(l.d)}</td>
+        <td style="font-size:12.5px;color:${ink};padding:7px 0">${esc(mk?mk.name:l.marker)}</td>
+        <td style="font-family:var(--mono);font-size:12px;color:${out?C.rose:ink};padding:7px 0;text-align:right">${l.value} ${mk?mk.unit:""}${out?" ⚑":""}</td></tr>`;
+      }).join("")}</tbody></table>`
+      : `<div class="note" style="padding-top:10px;color:${sub}">◦ Empty — no exams logged yet. Baseline was deliberately skipped (Jul 2026).</div>`;
+    return `
+    <div class="card"><div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px">${pills}</div>
+      <div class="note" style="color:${sub}">${esc(m.name)}${refText(m)} · ${esc(m.why)}</div>
+      <div style="margin-top:10px">${chart}</div></div>
+    <div class="card"><div class="eyebrow">All entries</div>${tbl}</div>
+    <div class="note" style="color:${sub}">Self-tracked records prepared for consultation. Reference ranges are general endurance-athlete starting points — defer to the reporting lab's ranges and the treating physician. Not a medical document.</div>`;
+  },
+
+  viewClinical(){
+    return `<div style="max-width:860px;margin:0 auto">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid var(--ink);padding-bottom:14px">
+        <div><div class="eyebrow">Clinical view · self-tracked records</div>
+          <div style="font-size:22px;font-weight:600;margin-top:6px">Andre — health markers over time</div>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--papersub);margin-top:4px">Endurance athlete (ultra-trail) · concurrent resistance training · heavy sweater · prepared ${new Date().toLocaleDateString("en-AU")}</div></div>
+        <div style="display:flex;gap:8px" class="no-print">
+          <button class="btn" data-act="print" style="color:var(--papersub);border-color:var(--paperline)">print / PDF</button>
+          <button class="btn" data-act="clinical" style="color:var(--papersub);border-color:var(--paperline)">exit view</button></div>
+      </div>
+      <div class="grid" style="margin-top:18px">${this.healthHTML(true)}</div>
+    </div>`;
+  },
+
+  view_data(){
+    const f=(id,lab,w,ph)=>`<label class="f"><span>${lab}</span><input id="${id}" style="width:${w}px" placeholder="${ph||""}"></label>`;
+    return `
+    <div class="flash" id="flash"></div>
+    <div class="card"><div class="eyebrow" style="color:var(--teal)">Log a training week (actuals)</div>
+      <div class="row" style="margin-top:12px">
+        ${f("wk_w","week #",60,"1–46")}${f("wk_km","km",60)}${f("wk_h","hours",60)}${f("wk_vert","vert m",64)}${f("wk_desc","desc m",64)}
+        ${f("wk_long","long h",60)}${f("wk_dec","decoup %",70)}${f("wk_ef","EF W/bpm",72)}${f("wk_z","% ≤AeT",64)}
+        <button class="btn solid" data-act="addWeek">Save week</button></div>
+      <div class="note" style="margin-top:10px">Any field can be left blank — partial weeks merge. Executed line on the plan chart appears from the first saved week.</div></div>
+    <div class="cols3">
+      <div class="card"><div class="eyebrow">Body point (Withings, weekly)</div><div class="grid" style="margin-top:10px;gap:8px">
+        ${f("bd_d","date",120,"2026-07-09")}<div style="display:flex;gap:8px">${f("bd_kg","kg",64)}${f("bd_bf","bf %",64)}</div>
+        <button class="btn" data-act="addBody">Save body point</button></div></div>
+      <div class="card"><div class="eyebrow">Lab result</div><div class="grid" style="margin-top:10px;gap:8px">
+        ${f("lb_d","date",120,"2026-10-15")}
+        <label class="f"><span>marker</span><select id="lb_m">${MARKERS.map(m=>`<option value="${m.id}">${esc(m.name)}</option>`).join("")}</select></label>
+        ${f("lb_v","value",90)}<button class="btn" data-act="addLab">Save lab</button></div></div>
+      <div class="card"><div class="eyebrow">Key-lift point (from MacroFactor)</div><div class="grid" style="margin-top:10px;gap:8px">
+        ${f("lf_d","date",120,"2026-09-30")}
+        <label class="f"><span>lift</span><select id="lf_l">${KEY_LIFTS.map(l=>`<option>${esc(l)}</option>`).join("")}</select></label>
+        ${f("lf_v","est 1RM kg",90)}<button class="btn" data-act="addLift">Save lift point</button></div></div>
+    </div>
+    <div class="card"><div class="eyebrow">Renpho tape girths (monthly) — cm per site</div>
+      <div class="row" style="margin-top:12px;gap:8px">
+        ${f("gr_d","date",120,"2026-08-04")}
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;margin-top:10px">
+        ${GIRTHS.map(g=>`${f("gr_"+g.id,esc(g.name),90)}`).join("")}
+      </div>
+      <div class="row" style="margin-top:10px">
+        <button class="btn" data-act="addGirth">Save girth entry</button>
+        <span class="note">Partial entries allowed — leave blank sites empty. All measurements in cm. AM, rested, same tape landmarks, monthly cadence. Neck slot reserved pending re-measure.</span>
+      </div></div>
+    <div class="card"><div class="eyebrow">Protocol change (nutrition / fuelling)</div>
+      <div class="row" style="margin-top:12px">
+        ${f("pr_d","date",120,"2026-07-10")}
+        <label class="f"><span>by</span><select id="pr_by"><option>nutritionist</option><option>coach</option><option>andre</option></select></label>
+        ${f("pr_c","change",240,"e.g. +10 g/d protein on double days")}
+        ${f("pr_r","reason (opt.)",200)}
+        <button class="btn" data-act="addProt">Save protocol change</button></div>
+      <div class="note" style="margin-top:10px">Attributed intervention log — shows in Body · Fuel. Mirror entries to NUTRITION.md (file = canonical record).</div></div>
+    <div class="cols2">
+    <div class="card"><div class="eyebrow" style="color:${C.violet}">Weekly mind check-in (feeds the Scorecard)</div>
+      <div class="note" style="margin-top:6px">1–5 · sleep quality · life/work stress · motivation. The only manual scorecard input — everything else computes from imports.</div>
+      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center">
+        <input id="ci_d" type="date" style="width:150px">
+        <select id="ci_s">${[1,2,3,4,5].map(n=>`<option ${n===4?"selected":""}>${n}</option>`).join("")}</select><span class="note">sleep</span>
+        <select id="ci_x">${[1,2,3,4,5].map(n=>`<option ${n===3?"selected":""}>${n}</option>`).join("")}</select><span class="note">stress</span>
+        <select id="ci_m">${[1,2,3,4,5].map(n=>`<option ${n===4?"selected":""}>${n}</option>`).join("")}</select><span class="note">motivation</span>
+        <button class="btn solid" data-act="addCheckin">Log</button></div></div>
+    <div class="card"><div class="eyebrow" style="color:${C.amber}">Protein day (feeds the Scorecard)</div>
+      <div class="note" style="margin-top:6px">Daily grams from MacroFactor — target ≥122 g floor, 136–146 g in hypertrophy blocks.</div>
+      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center">
+        <input id="pr_d" type="date" style="width:150px"><input id="pr_g" type="number" placeholder="g" style="width:90px">
+        <button class="btn solid" data-act="addProtein">Log</button></div></div>
+    </div>
+    <div class="card"><div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px">
+      <div class="eyebrow" style="color:${C.violet}">intervals.icu — Live Sync (Cloudflare Worker)</div>
+      ${WORKER_URL?`<span class="note" style="color:${C.teal}">Worker configured ✓</span>`:`<span class="note" style="color:${C.amber}">Worker URL not set</span>`}</div>
+      <div class="note" style="margin-top:6px">Calls the Cloudflare Worker relay to pull fresh activities + wellness from intervals.icu — no manual export needed. Worker must be deployed first (see setup notes below).</div>
+      <div class="row" style="margin-top:10px">
+        <input id="worker_url" placeholder="${esc(WORKER_URL)||"https://icu-relay.YOUR-SUBDOMAIN.workers.dev"}" style="flex:1;min-width:240px" value="${esc(WORKER_URL)}">
+        <button id="sync_btn" class="btn solid" data-act="syncICU">↻ Sync now</button></div>
+      <div class="note" style="margin-top:8px">The Worker URL field overrides the in-file constant for this session only. To make it permanent, edit <code>WORKER_URL</code> near the top of the file. The Worker holds your API key as a Cloudflare secret — it never appears here or in storage.</div></div>
+    <div class="card"><div class="eyebrow" style="color:var(--teal)">Import sessions (feeds the Week Lens ✓)</div>
+      <textarea id="sess_io" rows="4" style="width:100%;margin-top:10px" placeholder='Paste runs.json (whole file or {"runs":[…]}) and/or {"gym":[{"d":"2026-07-04","name":"Upper (strength)"}]} — merges by date'></textarea>
+      <div style="display:flex;gap:8px;margin-top:10px;align-items:center;flex-wrap:wrap">
+        <button class="btn solid" data-act="importSess">Merge sessions</button>
+        <span class="note">Import-only by design: runs come from runs.json, gym from the MacroFactor dump (Coach converts). No manual ticks — the lens reflects the record, never edits it.</span></div></div>
+    <div class="card"><div class="eyebrow" style="color:${C.violet}">Import Fitness/Fatigue/Form (intervals.icu Wellness JSON)</div>
+      <textarea id="fff_io" rows="3" style="width:100%;margin-top:10px" placeholder='Paste JSON array: [{"date":"2026-07-05","ctl":14.55,"atl":4.21,"tsb":10.35,"rampRate":-1.55},…]'></textarea>
+      <div style="display:flex;gap:8px;margin-top:10px;align-items:center;flex-wrap:wrap">
+        <button class="btn solid" data-act="importFFF">Merge FFF</button>
+        <span class="note">Convert the intervals.icu Wellness CSV to JSON (Coach provides a script) then paste here. Merges by date — safe to re-import on refresh. ${(this.state.fff||[]).length?`<span style="color:${C.teal}">${(this.state.fff||[]).length} rows stored · latest ${this.state.fff[this.state.fff.length-1].date}</span>`:"No FFF data yet."}</span></div></div>
+    <div class="card"><div class="eyebrow">Import / export JSON</div>
+      <textarea id="io" rows="5" style="width:100%;margin-top:10px" placeholder="Paste a previously exported state here…"></textarea>
+      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+        <button class="btn" data-act="export">Export current state</button>
+        <button class="btn" data-act="import">Import pasted state</button>
+        <button class="btn danger" id="resetBtn" data-act="reset">Reset data</button></div></div>
+    <div class="card"><div class="eyebrow">Method notes</div>
+      <div style="font-size:12.5px;color:var(--mist);line-height:1.8;margin-top:8px">W1 = week commencing Mon 29/06/26. Planned km are derived from the hours-native plan at assumed blended paces (road ≈6:15/km, trail ≈8:00/km) and get recalibrated each block against executed pace — a derived estimate, flagged as such. Race weeks include race distance. Trends outrank points everywhere: rolling means on body data, deltas vs baseline on site cards. Device rule: one device per metric trend — Withings weekly total weight · Renpho monthly tape girths (cm) · Garmin chest strap + power throughout. Girth target model: girth ∝ √(λ·lean_scale·1.193 + (1−λ)·fat_scale·0.842), heuristic v1, replaces itself with measured slopes at ≥3 entries. Long-horizon physique goal: 73 kg @ 15% BF (formally adopted 04/07/26); UTA taper milestone: +0.7–1.2 kg lean. Extending the dashboard = adding one entry to a registry (GIRTHS, MARKERS, KEY_LIFTS) — built to grow. Storage mode: <b>${Store.mode}</b>.</div></div>`;
+  },
+
+  /* ── actions ── */
+  addWeek(){
+    const w=parseInt(qs("wk_w").value); if(!w||w<1||w>46) return this.flash("Week must be 1–46");
+    const map={km:"wk_km",h:"wk_h",vert:"wk_vert",desc:"wk_desc",longH:"wk_long",decoup:"wk_dec",ef:"wk_ef",z12:"wk_z"};
+    const entry={}; Object.keys(map).forEach(k=>{ const v=num(qs(map[k]).value); if(v!=null) entry[k]=v; });
+    this.state.actualWeeks[w]={...(this.state.actualWeeks[w]||{}),...entry};
+    this.persist(); this.render(); this.flash("W"+w+" saved");
+  },
+  addBody(){ const d=qs("bd_d").value.trim(), kg=num(qs("bd_kg").value); if(!d||kg==null) return this.flash("Need date + kg");
+    this.state.body.push({d,kg,bf:num(qs("bd_bf").value)}); this.persist(); this.render(); this.flash("Body point saved"); },
+  addLab(){ const d=qs("lb_d").value.trim(), v=num(qs("lb_v").value); if(!d||v==null) return this.flash("Need date + value");
+    this.state.labs.push({d,marker:qs("lb_m").value,value:v}); this.persist(); this.render(); this.flash("Lab saved"); },
+  addLift(){ const d=qs("lf_d").value.trim(), v=num(qs("lf_v").value); if(!d||v==null) return this.flash("Need date + kg");
+    this.state.lifts.push({d,lift:qs("lf_l").value,e1rm:v}); this.persist(); this.render(); this.flash("Lift point saved"); },
+  addSeg(){
+    // back-compat: kept for any imported states with old segmental data
+    const d=qs("sg_d")&&qs("sg_d").value.trim();
+    if(!d) return;
+    const vals={la:num(qs("sg_la")&&qs("sg_la").value),ra:num(qs("sg_ra")&&qs("sg_ra").value),
+      tr:num(qs("sg_tr")&&qs("sg_tr").value),ll:num(qs("sg_ll")&&qs("sg_ll").value),rl:num(qs("sg_rl")&&qs("sg_rl").value)};
+    if(Object.values(vals).some(v=>v==null)) return this.flash("Need date + all 5 areas");
+    this.state.segmental.push({d,...vals}); this.persist(); this.render(); this.flash("Segmental entry saved");
+  },
+  addGirth(){
+    const d=qs("gr_d")&&qs("gr_d").value.trim();
+    if(!d) return this.flash("Need a date");
+    const entry={d};
+    let hasAny=false;
+    GIRTHS.forEach(g=>{ const v=num(qs("gr_"+g.id)&&qs("gr_"+g.id).value); if(v!=null){ entry[g.id]=v; hasAny=true; } });
+    if(!hasAny) return this.flash("Enter at least one girth measurement");
+    // merge with existing entry on same date if present
+    const existing=this.state.girths.find(e=>e.d===d);
+    if(existing){ Object.assign(existing, entry); }
+    else { this.state.girths.push(entry); }
+    this.persist(); this.render(); this.flash("Girth entry saved");
+  },
+  segSorted(){ return [...(this.state.segmental||[])].sort((a,b)=>a.d.localeCompare(b.d)); },
+  addProt(){
+    const d=qs("pr_d").value.trim(), c=qs("pr_c").value.trim();
+    if(!d||!c) return this.flash("Need date + change");
+    const r=qs("pr_r").value.trim();
+    this.state.protocol.push({d,by:qs("pr_by").value,change:c,...(r?{reason:r}:{})});
+    this.persist(); this.render(); this.flash("Protocol change saved");
+  },
+  setTarget(){
+    const kg=num(qs("tg_kg").value), bf=num(qs("tg_bf").value);
+    if(kg==null||bf==null) return this.flash("Need both target kg and bf %");
+    this.state.target={kg,bf}; this.persist(); this.render(); this.flash("Projection target set");
+  },
+  doExport(){ qs("io").value=JSON.stringify(this.state,null,2); this.flash("Exported — copy the text (or paste into a share-copy's EMBEDDED_STATE)"); },
+  doImport(){ try{ const p=JSON.parse(qs("io").value); if(!p.version) throw 0; this.state=norm(p); this.persist(); this.render(); this.flash("Imported"); }
+    catch(e){ this.flash("Import failed — invalid JSON"); } },
+  importSessions(){
+    /* Accepts: whole runs.json ({runs:[{date,run_type,dist_km,time_s,…}]}) ·
+       {gym:[{d,name}]} · a prior state export ({sessions:{…}}) · or any mix.
+       Merge = replace-by-date within each kind. Import-only: the lens never
+       writes back — runs.json and MacroFactor stay the sources of truth. */
+    try{
+      const p=JSON.parse(qs("sess_io").value); let nr=0, ng=0, skipped=0;
+      const S=this.state.sessions;
+      const upsert=(arr,e)=>{ const i=arr.findIndex(x=>x.d===e.d); if(i>=0) arr[i]=e; else arr.push(e); };
+      const rawRuns = (p.sessions&&p.sessions.runs) || p.runs || [];
+      rawRuns.forEach(r=>{ if(!r) return;
+        const d=r.d||r.date; if(!d) return;
+        // Quarantined runs (e.g. UTK 2025, injury-skewed) are KEPT for volume
+        // display but tagged so any fitness/trend calc can exclude them.
+        const isQ=(r.scale_flags||[]).some(f=>String(f).includes("quarantine"));
+        upsert(S.runs,{ d, type:r.type||r.run_type||null,
+          km: r.km!=null?r.km:(r.dist_km!=null?r.dist_km:null),
+          h:  r.h!=null?r.h:(r.time_s!=null?Math.round(r.time_s/36)/100:null),
+          quarantined: isQ });
+        if(isQ) skipped++; else nr++; });
+      const rawGym = (p.sessions&&p.sessions.gym) || p.gym || [];
+      rawGym.forEach(g=>{ if(!g||!(g.d||g.date)) return; upsert(S.gym,{d:g.d||g.date, name:g.name||null}); ng++; });
+      if(!nr&&!ng){ this.flash("Nothing recognised — expected runs.json and/or {gym:[…]}"); return; }
+      S.runs.sort((a,b)=>a.d.localeCompare(b.d)); S.gym.sort((a,b)=>a.d.localeCompare(b.d));
+      this.persist(); this.render();
+      this.flash(`Merged ${nr} run${nr===1?"":"s"} · ${ng} gym session${ng===1?"":"s"}${skipped?` · ${skipped} quarantined skipped`:""}`);
+    }catch(e){ this.flash("Sessions import failed — invalid JSON"); }
+  },
+  importFFF(){
+    /* Accepts: intervals.icu Wellness CSV converted to JSON array [{date,ctl,atl,tsb,rampRate}]
+       or the raw wellness CSV rows converted to objects. Merge by date, replace-on-conflict.
+       Same import-only pattern as importSessions(). */
+    try{
+      const raw = JSON.parse(qs("fff_io").value);
+      const rows = Array.isArray(raw) ? raw : (raw.fff||[]);
+      if(!rows.length){ this.flash("Nothing recognised — expected array [{date,ctl,atl,tsb,rampRate}]"); return; }
+      const upsert=(arr,e)=>{ const i=arr.findIndex(x=>x.date===e.date); if(i>=0) arr[i]=e; else arr.push(e); };
+      let n=0;
+      rows.forEach(r=>{ if(!r||!r.date) return;
+        upsert(this.state.fff,{ date:r.date,
+          ctl: r.ctl!=null?+r.ctl:null, atl:r.atl!=null?+r.atl:null,
+          tsb: r.tsb!=null?+r.tsb:(r.ctl!=null&&r.atl!=null?+(r.ctl-r.atl).toFixed(3):null),
+          rampRate: r.rampRate!=null?+r.rampRate:(r.ramp_rate!=null?+r.ramp_rate:null) });
+        n++; });
+      this.state.fff.sort((a,b)=>a.date.localeCompare(b.date));
+      this.persist(); this.render();
+      this.flash(`FFF: merged ${n} wellness row${n===1?"":"s"}`);
+    }catch(e){ this.flash("FFF import failed — paste a JSON array [{date,ctl,atl,tsb,rampRate}]"); }
+  },
+
+  async syncICU(){
+    /* Calls the Cloudflare Worker relay, which calls intervals.icu server-side.
+       Worker returns {activities:[…], wellness:[…]} — same shape as CSV exports.
+       Requires WORKER_URL to be set (Data tab shows the URL input). */
+    const url = (qs("worker_url")||{}).value || WORKER_URL;
+    if(!url){ this.flash("Worker URL not set — paste it in the field above or edit WORKER_URL in the file"); return; }
+    const btn = qs("sync_btn");
+    if(btn){ btn.disabled=true; btn.textContent="⟳ Syncing…"; }
+    try{
+      const res = await fetch(url, {method:"GET", headers:{"Accept":"application/json"}});
+      if(!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      // Ingest activities → sessions.runs + body weight (icu_weight, kg, when present)
+      let nr=0, nf=0, nw=0, skipped=0;
+      const S=this.state.sessions;
+      const upsertR=(arr,e)=>{ const i=arr.findIndex(x=>x.d===e.d); if(i>=0) arr[i]=e; else arr.push(e); };
+      const upsertBdy=(arr,e)=>{ const i=arr.findIndex(x=>x.d===e.d);
+        if(i>=0){ if(e.kg!=null) arr[i].kg=e.kg; } // weight-only: never overwrite existing bf%
+        else arr.push({d:e.d, kg:e.kg}); };
+      (data.activities||[]).forEach(r=>{
+        const d=(r.start_date_local||r.date||r.Date||"").slice(0,10); if(!d) return;
+        // Body weight: icu_weight field present on any activity type (Withings→MFP→Garmin→ICU chain)
+        const wkg=r.icu_weight!=null?+r.icu_weight:null;
+        if(wkg!=null&&wkg>30&&wkg<200){ upsertBdy(this.state.body,{d,kg:Math.round(wkg*10)/10}); nw++; }
+        // Runs only
+        const type=r.type||r.Type||r.sport_type||"";
+        if(!["Run","TrailRun","VirtualRun"].includes(type)) return;
+        const dist_m=r.distance||r.Distance||r.icu_distance||r.dist_m||null;
+        const dist_km=dist_m?Math.round(dist_m/10)/100:null;
+        const time_s=r.moving_time||r.elapsed_time||r["Moving Time"]||r.time_s||null;
+        upsertR(S.runs,{ d, type:type==="TrailRun"?"easy":type==="Run"?"easy":"easy", km:dist_km,
+          h: time_s?Math.round(time_s/36)/100:null });
+        nr++;
+      });
+      // Ingest wellness → fff
+      const upsertF=(arr,e)=>{ const i=arr.findIndex(x=>x.date===e.date); if(i>=0) arr[i]=e; else arr.push(e); };
+      (data.wellness||[]).forEach(r=>{
+        const date=(r.date||"").slice(0,10); if(!date) return;
+        const ctl=r.ctl!=null?+r.ctl:null, atl=r.atl!=null?+r.atl:null;
+        upsertF(this.state.fff,{ date, ctl, atl,
+          tsb:(ctl!=null&&atl!=null)?+(ctl-atl).toFixed(3):null,
+          rampRate:r.rampRate!=null?+r.rampRate:null });
+        nf++;
+      });
+      S.runs.sort((a,b)=>a.d.localeCompare(b.d));
+      this.state.fff.sort((a,b)=>a.date.localeCompare(b.date));
+      this.state.body.sort((a,b)=>a.d.localeCompare(b.d));
+      this.persist(); this.render();
+      this.flash(`Sync complete — ${nr} run${nr===1?"":"s"} · ${nf} wellness row${nf===1?"":"s"}${nw?` · ${nw} weight point${nw===1?"":"s"}`:""}`);
+    }catch(e){
+      this.flash(`Sync failed: ${e.message}`);
+    }finally{
+      if(btn){ btn.disabled=false; btn.textContent="↻ Sync now"; }
+    }
+  },
+
+  /* ── Scorecard (v1.5): computed from logged data only — "—" until data exists ── */
+  scores(){
+    const S=this.state, cw=todayWeek();
+    // running adherence: executed vs plan hours over weeks with actuals
+    let adh=null; { let ph=0,ah=0; Object.keys(S.actualWeeks||{}).forEach(k=>{ const a=S.actualWeeks[k];
+      if(a&&a.h!=null&&PLAN[k-1]){ ph+=PLAN[k-1].h; ah+=a.h; } });
+      if(ph>0) adh=Math.round(ah/ph*100); }
+    // strength + running done/planned this week to date
+    const now=new Date(); const di=Math.min(6,(now.getDay()+6)%7);
+    const {R,G}=sessionMaps();
+    let gp=0,gd=0,rp=0,rd=0;
+    for(let i=0;i<=di;i++){ const p=plannedDay(cw,i), iso=dayISO(cw,i);
+      if(classifyGym(p.g)){ gp++; if(G[iso]) gd++; }
+      if(classifyRun(p.r)!=="rest"){ rp++; if(R[iso]) rd++; } }
+    // protein: last 7 calendar days, days ≥117 g
+    const wk=[...Array(7)].map((_,k)=>{ const d=new Date(Date.now()-k*864e5);
+      return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); });
+    const plog=(S.protein||[]).filter(p=>wk.includes(p.d));
+    const pHit=plog.filter(p=>p.g>=117).length, pDays=plog.length;
+    // health: latest value per marker vs range
+    let flags=0, seen=0;
+    MARKERS.forEach(m=>{ const pts=(S.labs||[]).filter(l=>l.marker===m.id).sort((a,b)=>a.d.localeCompare(b.d));
+      if(!pts.length) return; seen++;
+      const lv=pts[pts.length-1].value;
+      if((m.lo!=null&&lv<m.lo)||(m.hi!=null&&lv>m.hi)) flags++; });
+    // mind: latest weekly check-in → 0–100 (stress inverted)
+    const ci=[...(S.checkins||[])].sort((a,b)=>a.d.localeCompare(b.d)).pop()||null;
+    const mind=ci?Math.round(((ci.sleep+(6-ci.stress)+ci.mot)/3)/5*100):null;
+    return {adh, gym:gp?`${gd}/${gp}`:null, gymOK:gp?gd/gp:null, run:rp?`${rd}/${rp}`:null, runOK:rp?rd/rp:null,
+            prot:pDays?`${pHit}/7`:null, protOK:pDays?pHit/7:null, flags, seen, mind, ci};
+  },
+  scoreCard(){
+    const sc=this.scores();
+    const dot=v=>v==null?C.dim:(v>=0.85?C.teal:v>=0.6?C.amber:C.rose);
+    const tile=(lab,val,sub,col)=>`<div class="card" style="padding:12px">
+      <div class="eyebrow" style="margin-bottom:4px">${lab}</div>
+      <div style="font-family:var(--mono);font-size:20px;color:${col}">${val==null?"—":val}</div>
+      <div class="note" style="margin-top:4px">${sub}</div></div>`;
+    return `<div class="card"><div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px">
+      <div class="eyebrow" style="color:${C.teal}">Scorecard — all fronts, logged data only</div>
+      <span class="note">empty = not yet instrumented, never guessed</span></div>
+      <div class="cols4" style="margin-top:10px">
+      ${tile("Run · plan adherence", sc.adh==null?null:sc.adh+"%", "executed vs plan hours, logged weeks", dot(sc.adh==null?null:Math.min(sc.adh,100)/100))}
+      ${tile("Run · this week", sc.run, "sessions done/planned to date (imports)", dot(sc.runOK))}
+      ${tile("Gym · this week", sc.gym, "sessions done/planned to date (imports)", dot(sc.gymOK))}
+      ${tile("Fuel · protein days", sc.prot, "days ≥117 g in last 7 (quick-add in Data)", dot(sc.protOK))}
+      ${tile("Health · lab flags", sc.seen?String(sc.flags):null, sc.seen?`${sc.flags} of ${sc.seen} tracked markers out of range`:"no labs logged yet", sc.seen?(sc.flags===0?C.teal:C.rose):C.dim)}
+      ${tile("Mind · weekly check-in", sc.mind==null?null:sc.mind+"%", sc.ci?`sleep ${sc.ci.sleep} · stress ${sc.ci.stress} · motivation ${sc.ci.mot} (${esc(sc.ci.d)})`:"3 taps in the Data tab — the only manual input", dot(sc.mind==null?null:sc.mind/100))}
+      </div></div>`;
+  },
+  overviewRadarCard(){
+    const sc=this.scores();
+    const dot=v=>v==null?C.dim:(v>=0.85?C.teal:v>=0.6?C.amber:C.rose);
+    const pill=(lab,val,sub,col)=>`<div style="display:flex;flex-direction:column;gap:2px;padding:8px 12px;border:1px solid var(--contour);border-radius:10px;min-width:100px">
+      <div class="eyebrow" style="margin-bottom:2px;font-size:9px">${lab}</div>
+      <div style="font-family:var(--mono);font-size:18px;color:${col}">${val==null?"—":val}</div>
+      <div class="note" style="font-size:9px;margin-top:2px">${sub}</div></div>`;
+    const pills=[
+      pill("Run adherence", sc.adh==null?null:sc.adh+"%", "vs plan hrs", dot(sc.adh==null?null:Math.min(sc.adh,100)/100)),
+      pill("Run · wk", sc.run, "done/planned", dot(sc.runOK)),
+      pill("Gym · wk", sc.gym, "done/planned", dot(sc.gymOK)),
+      pill("Protein days", sc.prot, "≥117 g/7 d", dot(sc.protOK)),
+      pill("Lab flags", sc.seen?String(sc.flags):null, sc.seen?`${sc.flags}/${sc.seen} markers`:"no labs", sc.seen?(sc.flags===0?C.teal:C.rose):C.dim),
+      pill("Mind", sc.mind==null?null:sc.mind+"%", sc.ci?`slp ${sc.ci.sleep} · str ${sc.ci.stress} · mot ${sc.ci.mot}`:"tap Data tab", dot(sc.mind==null?null:sc.mind/100)),
+    ].join("");
+    return `<div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px">
+        <div class="eyebrow" style="color:${C.teal}">Scorecard — all fronts, logged data only</div>
+        <span class="note">empty = not yet instrumented, never guessed</span></div>
+      <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap">
+        <div style="flex-shrink:0">${perfRadarSVG(sc)}</div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;flex:1">${pills}</div>
+      </div></div>`;
+  },
+  boardCard(){
+    const notes=[...(this.state.boardNotes||[])].sort((a,b)=>b.d.localeCompare(a.d));
+    const latest={}; notes.forEach(n=>{ if(!latest[n.m]) latest[n.m]=n; });
+    const ceo=latest["ceo"];
+    const members=BOARD.filter(b=>b.id!=="ceo").map(b=>{ const n=latest[b.id];
+      return `<div style="padding:8px 0;border-top:1px solid var(--contour)">
+        <div class="eyebrow" style="color:${C.violet}">${esc(b.role)}${n?` · ${esc(n.d)}`:""}</div>
+        <div style="font-size:12.5px;color:var(--chalk);margin-top:4px">${n?esc(n.note):"<span class=\'note\'>no note on file</span>"}</div></div>`; }).join("");
+    return `<div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+        <div class="eyebrow" style="color:${C.violet}">Boardroom — what each seat is asking of you</div>
+        <button class="btn" data-act="board">${this.boardOpen?"collapse ▴":"all 9 member notes ▾"}</button></div>
+      ${ceo?`<div style="margin-top:10px;padding:12px;border:1px solid ${C.violet};border-radius:10px">
+        <div class="eyebrow" style="color:${C.violet}">CEO synthesis · ${esc(ceo.d)}</div>
+        <div style="font-size:13px;color:var(--chalk);margin-top:6px;line-height:1.55">${esc(ceo.note)}</div></div>`:""}
+      ${this.boardOpen?`<div style="margin-top:10px">${members}</div>`:""}
+      <div class="note" style="margin-top:8px">Charter personas (athletic_board_charter.md) · notes are dated entries in state — refreshed at board reviews, coach-authored from the record.</div>
+    </div>`;
+  },
+  /* ── Sessions tab (v1.5) ── */
+  view_sessions(){
+    const groups=["Easy","Quality","Long","Test","Race"];
+    const sel=this.selType;
+    const cards=groups.map(gr=>{
+      const items=RUN_TYPES.filter(t=>t.grp===gr).map(t=>`
+        <div class="card" id="type_${t.id}" style="padding:14px;${t.id===sel?`border-color:${C.teal}`:""}">
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <span class="pill on" style="font-size:9px">${t.id.toUpperCase()}</span>
+            <span style="font-family:var(--mono);font-size:14px;color:var(--chalk)">${esc(t.name)}</span></div>
+          <div style="font-size:12.5px;color:var(--chalk);margin-top:8px">${esc(t.purpose)}</div>
+          <div style="font-size:12px;margin-top:8px"><span style="font-family:var(--mono);color:${C.teal};font-size:10px;letter-spacing:.1em">RX </span><span style="color:var(--mist)">${esc(t.rx)}</span></div>
+          <div style="font-size:12px;margin-top:4px"><span style="font-family:var(--mono);color:${C.amber};font-size:10px;letter-spacing:.1em">STRUCTURE </span><span style="color:var(--mist)">${esc(t.structure)}</span></div>
+          <div class="note" style="margin-top:4px">log: ${esc(t.log)}</div>
+        </div>`).join("");
+      return `<div><div class="eyebrow" style="margin:6px 0">${gr}</div><div class="cols3">${items}</div></div>`; }).join("");
+    const tn=[...(this.state.taxNotes||[])].sort((a,b)=>b.d.localeCompare(a.d));
+    const noteRows=tn.length?tn.map(n=>`<tr>
+      <td style="font-family:var(--mono);font-size:11px;color:var(--dim);width:86px;vertical-align:top">${esc(n.d)}</td>
+      <td style="width:110px;vertical-align:top"><span class="pill" style="font-size:9px">${esc((TYPE_BY_ID[n.type]||{name:n.type}).name)}</span></td>
+      <td style="font-family:var(--mono);font-size:11px;color:var(--dim);width:36px;vertical-align:top">P${esc(String(n.phase||"—"))}</td>
+      <td style="font-size:12.5px;color:var(--chalk)">${esc(n.note)}</td></tr>`).join(""):"";
+    const typeOpts=RUN_TYPES.map(t=>`<option value="${t.id}">${esc(t.name)}</option>`).join("");
+    return `
+    <div class="card"><div class="eyebrow" style="color:${C.teal}">Run taxonomy — the standard session language</div>
+      <div class="note" style="margin-top:6px">Every plan entry maps to one of these types (Week Lens chips deep-link here). The taxonomy is a locked registry: WHAT each session is never changes mid-plan. What shifts by period is the FOCUS — captured as dated notes below. Rx reads symbolically until the wk-3 AeT test and wk-6 TT anchor the numbers.</div></div>
+    ${cards}
+    <div class="card"><div class="eyebrow" style="color:${C.amber}">Period focus notes — dated, per type</div>
+      ${noteRows?`<table style="margin-top:10px"><tbody>${noteRows}</tbody></table>`:`<div class="empty">◦ No period notes yet.</div>`}
+      <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;align-items:center">
+        <input id="tx_d" type="date" style="width:150px"><select id="tx_t">${typeOpts}</select>
+        <input id="tx_p" type="number" min="1" max="11" placeholder="phase #" style="width:90px">
+        <input id="tx_n" placeholder="focus note for this period" style="flex:1;min-width:200px">
+        <button class="btn solid" data-act="taxAdd">Add note</button></div></div>`;
+  },
+  view_changelog(){
+    const log=`v1.23  05/07/26  Projection continuity: bias-correct dashed projection
+                   lines so they start seamlessly from the last real FFF point
+                   (eliminates the visual step-change at the join). Offset
+                   Δ=(actual−proj) at last real week applied to all future
+                   projection weeks. Both Overview (panels 2+3) and Running tab
+                   FFF chart corrected. FFF_PROJ constant unchanged.
+v1.22  05/07/26  5 UI changes: (1) Ph12 (W47–49) now renders — fixed
+                   wEnd cap Math.min(46→49) in slider callback, crosshair,
+                   view_overview IIFE, FFF/body loop, and plan-area close.
+                   Week Lens next-button cap also corrected 46→49.
+                   (2) Overview SVG fills card width: removed fixed px width
+                   attribute — SVG now width="100%" (viewBox unchanged).
+                   (3) Scorecard replaced with Performance Radar: new
+                   perfRadarSVG() (6-axis hex: run adherence, run wk, gym wk,
+                   protein, health, mind) + compact pill stats beside it.
+                   scoreCard() retained for internal use; overviewRadarCard()
+                   replaces it in Overview tab.
+                   (4) Boardroom card moved above the main plan chart in
+                   view_overview() — CEO synthesis is now the first thing
+                   visible on the Overview tab.
+                   (5) Changelog tab added — all changelog entries consolidated
+                   here; stray post-&lt;/html&gt; text removed from source.
+                   node --check + render harness: clean.
+v1.21  05/07/26  8 changes: (1) High Risk TSB band pastelised. (2) FFF_PROJ
+                   upgraded to PLAN-hours×IF model. (3) Race names aligned
+                   across PLAN/PHASES/RACES. (4) Ph12 W47–49 added to PHASES +
+                   PLAN; FFF_PROJ byWeek extended; future slider max 52.
+                   (5) Header layout: KM/HRS pills + sliders top-right.
+                   (6) Legend projection note removed.
+v1.19  05/07/26  FFF plan-projection overlay (Bannister CTL τ=42/ATL τ=7,
+                   seed 14.6/4.2, dashed lines + race TSB gate bands, toggle).
+v1.18  05/07/26  Weight EWMA trend line (α=0.1, raw + smoothed).
+v1.17  05/07/26  syncICU() weight upsert into state.body.
+v1.16  05/07/26  Historic volume line + auto-sync on open.
+v1.15  05/07/26  Historic run bars: dimmed, stub dots, full loop.
+v1.14  05/07/26  syncICU() ROOT FIX: start_date_local field name.
+v1.13  05/07/26  syncICU() field-name fix; WORKER_URL baked in.
+v1.9.1–v1.9.7 05/07/26  FFF readiness bands, panel layout, crosshair,
+                   tooltip volume row, y-axis tight fit, historic line style.
+v1.9  05/07/26   Two-panel overviewSVG (plan + FFF), shared x-axis.
+v1.8  05/07/26   Merged plan + FFF into single overviewSVG, dual y-axes.
+v1.7.1–v1.7.3 05/07/26  Slider drag fix, shared crosshair + tooltip,
+                   pre-plan history, negative week support.
+v1.7  05/07/26   Linked date-range view: sliders drive plan + FFF.
+v1.6  05/07/26   intervals.icu integration: FFF_DATA, importFFF(),
+                   Cloudflare Worker Sync, FFF panel in Running tab.
+v1.5  04/07/26   Scorecard, Athletic Board, Body Map, demo mode, girth radar.
+v1.0–v1.4  02–04/07/26  Initial build; ported from React artifact.
+                   Full early history in OPERATING_BRIEF.md.`;
+    return `<div class="card">
+      <div class="eyebrow" style="color:${C.teal};margin-bottom:12px">Dashboard changelog — v1.22 (current) → v1.0</div>
+      <pre style="font-family:var(--mono);font-size:11px;color:var(--mist);line-height:1.7;white-space:pre-wrap;margin:0">${esc(log)}</pre>
+    </div>`;
+  },
+  taxAdd(){
+    const d=qs("tx_d").value, t=qs("tx_t").value, p=parseInt(qs("tx_p").value)||null, n=qs("tx_n").value.trim();
+    if(!d||!n){ this.flash("Date and note required"); return; }
+    this.state.taxNotes.push({d,type:t,phase:p,note:n}); this.persist(); this.render(); this.flash("Period note added");
+  },
+  addCheckin(){
+    const d=qs("ci_d").value, sl=parseInt(qs("ci_s").value), st=parseInt(qs("ci_x").value), mo=parseInt(qs("ci_m").value);
+    if(!d){ this.flash("Date required"); return; }
+    this.state.checkins.push({d,sleep:sl,stress:st,mot:mo}); this.persist(); this.render(); this.flash("Check-in logged");
+  },
+  addProtein(){
+    const d=qs("pr_d").value, g=parseFloat(qs("pr_g").value);
+    if(!d||isNaN(g)){ this.flash("Date and grams required"); return; }
+    this.state.protein.push({d,g}); this.persist(); this.render(); this.flash("Protein day logged");
+  },
+  toggleDemo(){
+    if(this.demo){ this.state=this._real; this._real=null; this.demo=false; this.flash("Back to real data"); }
+    else { this._real=this.state; this.state=norm(makeDemo()); this.demo=true; this.flash("Demo data loaded — read-only"); }
+    this.gymDay=null; this.render();
+  },
+  doReset(){
+    if(!this._resetArm){ this._resetArm=true; const b=qs("resetBtn"); if(b) b.textContent="Tap again to confirm reset";
+      setTimeout(()=>{ this._resetArm=false; const b2=qs("resetBtn"); if(b2) b2.textContent="Reset data"; },3000); return; }
+    this._resetArm=false; this.state=norm(JSON.parse(JSON.stringify(EMPTY))); this.persist(); this.render(); this.flash("Reset — plan itself is code and stays");
+  },
+
+  /* ── wiring ── */
+  bind(){
+    document.querySelectorAll("[data-act]").forEach(el=>{
+      // Range sliders fire oninput continuously; wire them separately
+      if(el.type==="range"){
+        el.onchange=()=>{ const a=el.dataset.act, v=+el.value;
+          if(a==="rangePast"){ this.ovRange.past=v; this.render(); }
+          else if(a==="rangeFuture"){ this.ovRange.future=v; this.render(); }
+        }; return;
+      }
+      el.onclick=()=>{ const a=el.dataset.act, v=el.dataset.v;
+        if(a==="tab"){ this.tab=v; this.week=null; this.render(); }
+        else if(a==="unit"){ this.unit=v; this.render(); }
+        else if(a==="clinical"){ this.clinical=!this.clinical; this.render(); }
+        else if(a==="marker"){ this.selMarker=v; this.render(); }
+        else if(a==="seg"){ this.selSeg=v; this.render(); }
+        else if(a==="print"){ window.print(); }
+        else if(a==="back"){ this.closeWeek(); }
+        else if(a==="wkprev"){ this.openWeek(this.week-1); }
+        else if(a==="wknext"){ this.openWeek(this.week+1); }
+        else if(a==="addWeek") this.addWeek();
+        else if(a==="addBody") this.addBody();
+        else if(a==="addLab") this.addLab();
+        else if(a==="addLift") this.addLift();
+        else if(a==="addSeg") this.addSeg();
+        else if(a==="addGirth") this.addGirth();
+        else if(a==="addProt") this.addProt();
+        else if(a==="setTarget") this.setTarget();
+        else if(a==="demoToggle") this.toggleDemo();
+        else if(this.demo && ["addWeek","addBody","addLab","addLift","addGirth","addProt","setTarget","import","importSess","importFFF","reset","taxAdd","addCheckin","addProtein","export"].includes(a)){ this.flash("Demo mode is read-only — toggle off at the bottom"); }
+        else if(a==="gymday"){ const [w,i]=v.split("-").map(Number); this.gymDay=(this.gymDay&&this.gymDay.w===w&&this.gymDay.i===i)?null:{w,i}; this.render(); }
+        else if(a==="gymclose"){ this.gymDay=null; this.render(); }
+        else if(a==="runtype"){ if(v){ this.selType=v; this.week=null; this.tab="sessions"; this.render(); const t=qs("type_"+v); if(t) t.scrollIntoView({behavior:"smooth",block:"center"}); } }
+        else if(a==="board"){ this.boardOpen=!this.boardOpen; this.render(); }
+        else if(a==="taxAdd") this.taxAdd();
+        else if(a==="addCheckin") this.addCheckin();
+        else if(a==="addProtein") this.addProtein();
+        else if(a==="lensprev"){ this.selWeek=Math.max(1,(this.selWeek||todayWeek())-1); this.render(); }
+        else if(a==="lensnext"){ this.selWeek=Math.min(49,(this.selWeek||todayWeek())+1); this.render(); }
+        else if(a==="lensopen") this.openWeek(this.selWeek||todayWeek());
+        else if(a==="importSess") this.importSessions();
+        else if(a==="importFFF") this.importFFF();
+        else if(a==="fffToggle"){ if(v&&this.fffViz.hasOwnProperty(v)){ this.fffViz[v]=!this.fffViz[v]; this.render(); } }
+        else if(a==="syncICU"){ if(this.demo){ this.flash("Demo mode is read-only"); } else { this.syncICU(); } }
+        else if(a==="export") this.doExport();
+        else if(a==="import") this.doImport();
+        else if(a==="reset") this.doReset(); };
+    });
+    // body figure segment taps
+    document.querySelectorAll("rect[data-seg]").forEach(r=>{
+      r.addEventListener("click",()=>{ this.selSeg=r.dataset.seg; this.render(); });
+    });
+    // hero + FFF shared crosshair tooltip
+    const bindCharts=()=>{
+      const wrap=qs("overviewWrap"), tip=qs("tip");
+      if(!wrap||!tip) return;
+      const moveCross=(w)=>{
+        const cw=todayWeek(), past=App.ovRange.past, future=App.ovRange.future;
+        const wStart=cw-past, wEnd=Math.min(49,cw+future);
+        const span=wEnd-wStart; if(span<=0) return;
+        const Pl=52, Pr=14, W=920, iw=W-Pl-Pr;
+        const x=Pl+((w-wStart)/span)*iw;
+        const ox=qs("overviewX");
+        if(ox){ ox.setAttribute("x1",x); ox.setAttribute("x2",x); }
+      };
+      const hideCross=()=>{ const ox=qs("overviewX"); if(ox){ ox.setAttribute("x1","-999"); ox.setAttribute("x2","-999"); } };
+      wrap.querySelectorAll("rect[data-w]").forEach(r=>{
+        const show=(ev)=>{ const w=parseInt(r.dataset.w);
+          tip.innerHTML=overviewTipHTML(w); tip.style.display="block";
+          const x=Math.min(ev.pageX+14, window.scrollX+document.documentElement.clientWidth-260);
+          tip.style.left=x+"px"; tip.style.top=(ev.pageY+14)+"px";
+          moveCross(w); };
+        r.addEventListener("pointerenter",show);
+        r.addEventListener("pointermove",show);
+        r.addEventListener("pointerleave",()=>{ tip.style.display="none"; hideCross(); });
+        // click-through only for plan weeks (data-plan="1")
+        if(r.dataset.plan==="1"){
+          r.addEventListener("click",()=>{ tip.style.display="none"; hideCross(); App.openWeek(parseInt(r.dataset.w)); });
+        }
+      });
+      wrap.addEventListener("pointerleave",()=>{ tip.style.display="none"; hideCross(); });
+    };
+    bindCharts();
+  },
+};
+
+/* ── boot ── */
+(async function(){
+  Store.init();
+  const saved = await Store.load();
+  if(saved) App.state=norm(saved);
+  else if(EMBEDDED_STATE) App.state=norm(EMBEDDED_STATE);
+  App.render();
+  // Auto-sync on open if Worker is configured — silent background pull
+  if(WORKER_URL){ App.syncICU(); }
+})();
+</script>
+</body>
+</html>
