@@ -110,6 +110,13 @@
    CHANGELOG
    v1.0  02/07/26  first HTML build (ported from React artifact)
    (v1.0–v1.6 archived — full history in OPERATING_BRIEF.md CHANGELOG)
+   v1.24  06/07/26 GitHub Pages hosting bake: WORKER_URL confirmed as
+                   https://icu-relay.andregarridoo.workers.dev (already set
+                   in v1.13). Cloudflare Worker ALLOWED_ORIGIN locked from
+                   "*" to https://andregarridoo.github.io. Dashboard now live
+                   at https://andregarridoo.github.io/andregarridoo-dashboard/
+                   athlete-dashboard.html — Sync button functional in real
+                   browser (no Claude artifact sandbox limitation).
    v1.23  05/07/26 Projection continuity fix: bias-correct the dashed
                    projection line so it starts seamlessly from the last real
                    FFF data point (eliminates the visual step-change at the
@@ -2358,7 +2365,11 @@ const App = {
         <button class="btn solid" data-act="taxAdd">Add note</button></div></div>`;
   },
   view_changelog(){
-    const log=`v1.23  05/07/26  Projection continuity: bias-correct dashed projection
+    const log=`v1.24  06/07/26  GitHub Pages hosting bake: WORKER_URL confirmed, Cloudflare
+                   Worker ALLOWED_ORIGIN locked to https://andregarridoo.github.io.
+                   Live URL: https://andregarridoo.github.io/andregarridoo-dashboard/
+                   athlete-dashboard.html. Sync button now functional in real browser.
+v1.23  05/07/26  Projection continuity: bias-correct dashed projection
                    lines so they start seamlessly from the last real FFF point
                    (eliminates the visual step-change at the join). Offset
                    Δ=(actual−proj) at last real week applied to all future
