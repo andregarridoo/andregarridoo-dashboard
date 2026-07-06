@@ -110,28 +110,51 @@
    CHANGELOG
    v1.0  02/07/26  first HTML build (ported from React artifact)
    (v1.0–v1.6 archived — full history in OPERATING_BRIEF.md CHANGELOG)
+   v1.28  06/07/26 Body Map photo view. PHOTO_CONTOUR: front-view contour
+                   machine-traced from the 06/07/26 baseline 3-view photo
+                   (6 regions, scanline-tracked, verified vs mask). New
+                   photoOverlaySVG(): baseline photo + teal current contour +
+                   amber dashed target = same contour warped per scanline by
+                   target÷current girth ratio (true scale, landmark-keyed,
+                   cannot cross the body line by construction). Photo is
+                   device-local ONLY (PHOTO_KEY in localStorage, canvas
+                   re-encode ≤1100 px jpeg): never baked into this file,
+                   never exported — privacy ruling 06/07/26. PHOTO |
+                   SILHOUETTE toggle on the Body Map card (girthSVG kept —
+                   sole full-leg/calf view until a full-body photo lands).
+                   node --check + render harness: clean.
+   v1.27  06/07/26 Demo mode rebuilt. All tabs now fully populated: wellness
+                   channels (RHR/HRV/readiness/bodyBattery/sleep) on 180 fff
+                   rows; all 20 MARKERS with 2 time points (two blood panels
+                   showing a trend); image exam showcase (MRI/X-ray/physio
+                   entries as img_ lab records, dedicated card in Health tab);
+                   bodyweight series from 67.79 kg anchor; 5 lift datapoints
+                   across 5 months for all 5 KEY_LIFTS; richer board notes
+                   with W10 + W18 synthesis entries; 5 protocol entries.
+                   healthHTML split into numericLabs + imgBlock render paths
+                   (img_ entries excluded from the blood-panel table; rendered
+                   in their own card). node --check + render harness: clean.
+   v1.26  06/07/26 Body Battery added. Worker v2.1: tries both key variants
+                   (garminBodyBattery then bodyBattery); bodyBattery_key_found
+                   in coverage diagnostic identifies the live key. DETAIL_FIELDS
+                   expanded with confirmed Garmin FIT fields (PerformanceCondition,
+                   TrainingEffect, running dynamics — all confirmed on Fenix 6S
+                   06/07/26); "PROVISIONAL" label removed from activity-detail.
+                   Dashboard: bodyBattery added to s.fff ingest (syncICU +
+                   importFFF); added to CH channel list in Wellness section;
+                   added to boardSignals (Data Analyst lens, action at <20 or
+                   trending down); Data tab coverage reveal shows first_bodyBattery
+                   + bodyBattery_key_found. node --check + render harness: clean.
    v1.25  06/07/26 Daily wellness channels (RHR/HRV/readiness/sleep) +
-                   Training Readiness card. (1) Worker v2 (separate file):
-                   wellness window 730 d every sync, activity DETAIL_DAYS=90
-                   (Option 3), passes through restingHR/hrv/readiness/sleep +
-                   detailDiag + wellnessCoverage. (2) s.fff rows gain optional
-                   rhr/hrv/readiness/sleepSecs/sleepHrs/sleepScore — norm-safe,
-                   STORE_KEY unchanged, back-compatible (old rows null). syncICU
-                   + importFFF ingest field-preservingly (never null-out an
-                   existing channel). (3) Training Readiness card on Overview —
-                   standalone graph, DAY/WEEK x-axis toggle (week = macro-week
-                   means, axis matches the plan). NOT bundled with the plan
-                   chart. (4) Wellness section inside the Health tab (option A):
-                   RHR/HRV/readiness/sleep stat cards + metric-selectable trend,
-                   DAY/WEEK toggle. Screen-only — kept out of the clinical print.
-                   (5) Boardroom: live wellness signals routed to persona lenses;
-                   only action-severity items promoted to a CEO "needs a call"
-                   banner. Computed from Sync, NOT written into boardNotes (those
-                   stay coach-authored). (6) Data tab shows last-sync coverage
-                   reveal + activity-detail probe result. Depth of new channels
-                   is provisional — reaches only as far back as intervals.icu
-                   stored them; no Body Battery (no standard ICU key — not
-                   invented). node --check + render harness: clean.
+                   Training Readiness card. Worker v2: wellness 730 d every sync,
+                   activity DETAIL_DAYS=90 (Option 3), passes RHR/HRV/readiness/
+                   sleep + coverage + detail diagnostics. s.fff rows gain optional
+                   rhr/hrv/readiness/sleep* (norm-safe, STORE_KEY unchanged,
+                   back-compatible). syncICU + importFFF merge field-preservingly.
+                   Training Readiness card on Overview — standalone graph, DAY/WEEK
+                   toggle. Wellness section in the Health tab (option A). Boardroom:
+                   live signals routed to persona lenses. Data tab coverage reveal.
+                   No Body Battery (no standard ICU key at time of build — added v1.26).
    v1.24  06/07/26 GitHub Pages hosting bake: WORKER_URL confirmed as
                    https://icu-relay.andregarridoo.workers.dev (already set
                    in v1.13). Cloudflare Worker ALLOWED_ORIGIN locked from
@@ -918,6 +941,76 @@ function girthSVG(todayG, targetG){
   </svg>`;
 }
 
+/* ── PHOTO_CONTOUR (v1.28): Andre's front-view body contour, machine-traced
+   from the 06/07/26 baseline 3-view photo (980×1232). METHOD: grey-grid
+   background removed by colour-spread mask; front figure isolated by
+   connected-component; per-scanline run tracking split into 6 regions
+   (upper = head→armpit outer envelope · torso · armL/armR · legL/legR);
+   median-smoothed, 6 px sampling, outlier rows repaired (watch band).
+   Verified: 309/311 rows ≥85% in-figure coverage, edges ≤4 px off mask.
+   Coordinates are photo pixels — the overlay aligns 1:1 with the photo.
+   Landmark heights measured from the mask width profile (waist = torso
+   minimum, hip = torso maximum, crotch = central-run split at y 711);
+   chest/neck from stature fractions. Side convention: image-left = subject's
+   RIGHT (front view). The photo itself is NEVER baked into this file —
+   privacy ruling 06/07/26: it loads from device storage only. ── */
+const PHOTO_KEY = STORE_KEY + ":photo";   // device-local — outside state, never exported
+const PHOTO_CONTOUR = {"img":{"w":980,"h":1232},"landmarks":{"neck":240,"sho":295,"chest":350,"split":416,"waist":465,"abd":630,"hip":700,"crotch":711,"upTh":766,"loTh":870,"calf":960,"ankle":1120,"armBicep":480,"armForearm":620,"armWrist":680},"regions":{"upper":[[240,119.5,285.0],[246,112.0,295.0],[252,87.0,316.0],[258,73.0,324.0],[264,63.0,333.0],[270,55.0,338.0],[276,52.0,342.0],[282,47.0,347.0],[288,43.0,349.0],[294,41.0,351.0],[300,39.0,353.0],[306,37.0,355.0],[312,37.0,357.0],[318,37.0,358.0],[324,35.0,358.0],[330,33.0,358.0],[336,33.0,359.0],[342,33.0,359.0],[348,33.0,359.0],[354,30.0,361.0],[360,29.0,362.0],[366,27.0,363.0],[372,26.0,365.0],[378,26.0,366.0],[384,24.0,367.0],[390,24.0,367.0],[396,24.0,367.0],[402,23.0,369.0],[408,23.0,369.0],[414,23.0,369.0],[415,23.0,369.0]],"torso":[[416,92.5,303.5],[422,93.0,301.0],[428,95.0,299.0],[434,96.0,298.0],[440,97.0,298.0],[446,99.0,297.0],[452,98.0,295.0],[458,98.0,294.0],[464,101.0,293.0],[470,101.0,293.0],[476,101.0,293.0],[482,102.0,294.0],[488,101.0,294.0],[494,99.0,294.0],[500,98.0,297.0],[506,96.0,298.0],[512,95.0,300.0],[518,95.0,300.0],[524,95.0,300.0],[530,93.0,301.0],[536,93.0,301.0],[542,93.0,301.0],[548,93.0,301.0],[554,93.0,300.0],[560,93.0,299.0],[566,93.0,299.0],[572,92.0,301.0],[578,90.0,302.0],[584,89.0,305.0],[590,88.0,307.0],[596,86.0,308.0],[602,85.0,309.0],[608,85.0,310.0],[614,84.0,310.0],[620,83.0,311.0],[626,82.0,312.0],[632,81.0,313.0],[638,80.0,314.0],[644,80.0,315.0],[650,79.0,316.0],[656,78.0,318.0],[662,77.0,318.0],[668,76.0,318.0],[674,76.0,319.0],[680,75.0,320.0],[686,74.0,320.0],[692,73.0,321.0],[698,73.0,321.0],[704,72.0,322.0],[710,72.0,321.0]],"armR":[[416,23.0,78.5],[422,22.0,78.0],[428,21.0,76.0],[434,20.0,75.0],[440,18.0,74.0],[446,17.0,73.0],[452,13.0,72.0],[458,11.0,71.0],[464,10.0,70.0],[470,9.0,69.0],[476,8.0,66.0],[482,7.0,64.0],[488,7.0,63.0],[494,7.0,63.0],[500,5.0,63.0],[506,5.0,62.0],[512,5.0,60.0],[518,5.0,59.0],[524,5.0,59.0],[530,4.0,58.0],[536,4.0,57.0],[542,4.0,56.0],[548,4.0,53.0],[554,4.0,51.0],[560,4.0,48.0],[566,5.0,48.0],[572,5.0,45.0],[578,4.0,42.0],[584,4.0,41.0],[590,4.0,40.0],[596,4.0,38.0],[602,4.0,37.0],[608,4.0,36.0],[614,4.0,36.0],[620,4.0,36.0],[626,4.0,37.0],[632,4.0,39.0],[638,4.0,43.0],[644,4.0,45.0],[650,4.0,47.0],[656,4.0,49.0],[662,4.0,51.0],[668,4.0,52.0],[674,4.0,52.0],[680,4.0,53.0]],"armL":[[416,310.5,371.0],[422,312.0,371.0],[428,313.0,371.0],[434,314.0,373.0],[440,315.0,374.0],[446,317.0,376.0],[452,318.0,378.0],[458,319.0,381.0],[464,321.0,382.0],[470,323.0,383.0],[476,324.0,383.0],[482,325.0,387.0],[488,326.0,387.0],[494,327.0,387.0],[500,328.0,387.0],[506,329.0,387.0],[512,330.0,388.0],[518,331.0,388.0],[524,332.0,388.0],[530,333.0,389.0],[536,335.0,389.0],[542,337.0,389.0],[548,341.0,389.0],[554,343.0,389.0],[560,347.0,389.0],[566,348.0,389.0],[572,350.0,389.0],[578,352.0,389.0],[584,355.0,390.0],[590,356.0,395.0],[596,356.3,396.3],[602,356.6,397.6],[608,357.0,399.0],[614,359.0,393.0],[620,359.0,394.0],[626,355.0,394.0],[632,351.0,394.0],[638,349.0,394.0],[644,347.0,395.0],[650,345.0,395.0],[656,344.0,395.0],[662,342.0,395.0],[668,341.0,396.0],[674,341.0,396.0],[680,340.0,396.0]],"legR":[[711,76.5,193.0],[717,77.0,193.0],[723,76.0,193.0],[729,76.0,190.0],[735,76.0,190.0],[741,75.0,190.0],[747,75.0,190.0],[753,78.0,187.0],[759,78.0,187.0],[765,78.0,186.0],[771,78.0,184.0],[777,78.0,182.0],[783,79.0,181.0],[789,79.0,179.0],[795,79.0,177.0],[801,80.0,175.0],[807,80.0,173.0],[813,80.0,172.0],[819,84.0,171.0],[825,84.0,170.0],[831,84.0,170.0],[837,86.0,169.0],[843,86.0,168.0],[849,86.0,167.0],[855,86.0,167.0],[861,85.0,166.0],[867,84.0,165.0],[873,84.0,164.0],[879,84.0,163.0],[885,84.0,161.0],[891,83.0,159.0],[897,83.0,156.0],[903,83.0,155.0],[909,82.0,153.0],[915,80.0,151.0],[921,80.0,149.0],[927,80.0,148.0],[933,77.0,147.0],[939,77.0,147.0],[945,75.0,147.0],[951,74.0,147.0],[957,73.0,147.0],[963,72.0,147.0],[969,72.0,147.0],[975,72.0,147.0],[981,72.0,147.0],[987,72.0,147.0],[993,72.0,145.0],[999,72.0,145.0],[1005,73.0,145.0],[1011,74.0,143.0],[1017,74.0,141.0],[1023,76.0,139.0],[1029,76.0,138.0],[1035,77.0,137.0],[1041,78.0,136.0],[1047,79.0,135.0],[1053,80.0,134.0],[1059,80.0,133.0],[1065,81.0,132.0],[1071,82.0,132.0],[1077,83.0,131.0],[1083,84.0,130.0],[1089,85.0,127.0],[1095,86.0,127.0],[1101,88.0,127.0],[1107,89.0,127.0],[1113,89.0,127.0],[1119,89.0,127.0],[1120,89.0,127.0]],"legL":[[711,203.0,317.5],[717,203.0,320.0],[723,205.0,320.0],[729,206.0,320.0],[735,206.0,320.0],[741,207.0,319.0],[747,209.0,319.0],[753,210.0,320.0],[759,212.0,320.0],[765,214.0,320.0],[771,215.0,319.0],[777,217.0,319.0],[783,219.0,319.0],[789,220.0,318.0],[795,222.0,318.0],[801,224.0,317.0],[807,224.0,317.0],[813,224.0,317.0],[819,227.0,316.0],[825,228.0,316.0],[831,228.0,316.0],[837,230.0,315.0],[843,230.0,314.0],[849,232.0,313.0],[855,232.0,313.0],[861,233.0,313.0],[867,234.0,314.0],[873,236.0,315.0],[879,237.0,315.0],[885,238.0,315.0],[891,240.0,315.0],[897,242.0,315.0],[903,244.0,316.0],[909,246.0,316.0],[915,248.0,316.0],[921,249.0,318.0],[927,251.0,319.0],[933,253.0,320.0],[939,253.0,322.0],[945,254.0,324.0],[951,254.0,324.0],[957,254.0,325.0],[963,252.0,326.0],[969,252.0,326.0],[975,252.0,326.0],[981,253.0,326.0],[987,253.0,326.0],[993,254.0,325.0],[999,255.0,325.0],[1005,255.0,324.0],[1011,256.0,323.0],[1017,257.0,323.0],[1023,259.0,322.0],[1029,260.0,321.0],[1035,262.0,320.0],[1041,263.0,319.0],[1047,264.0,319.0],[1053,265.0,319.0],[1059,266.0,318.0],[1065,267.0,317.0],[1071,268.0,317.0],[1077,269.0,315.0],[1083,270.0,314.0],[1089,271.0,313.0],[1095,271.0,313.0],[1101,272.0,312.0],[1107,273.0,311.0],[1113,273.0,311.0],[1119,273.0,311.0],[1120,273.0,311.0]]}};
+
+/* photoOverlaySVG (v1.28): baseline photo + dual contour.
+   Teal solid = today's contour (photo-traced). Amber dashed = target
+   proportions: the SAME contour warped per scanline about its own centreline
+   by r(y) = target girth ÷ current girth, piecewise-linear between measured
+   landmark heights. TRUE SCALE — no amplification (unlike girthSVG's Δ×3).
+   Same-centre scaling ⇒ the target line is a proportional offset of Andre's
+   real curvature and cannot cross it except where r passes through 1 (blend
+   endpoints — zero-delta points by construction). Current girths come from
+   the latest monthly Renpho entry, so the warp updates as data lands. */
+function photoOverlaySVG(todayG, targetG, photoUrl){
+  const PC=PHOTO_CONTOUR, L=PC.landmarks, IW=PC.img.w, IH=PC.img.h;
+  const rOf=id=>{ const cv=todayG?todayG[id]:null, tv=targetG?targetG[id]:null;
+    if(cv==null||tv==null||cv===0) return 1;
+    return Math.min(1.35,Math.max(0.75,tv/cv)); };
+  const rBicAvg=(rOf("bicepL")+rOf("bicepR"))/2;
+  const SCHED={
+    upper:[[L.neck,1],[L.sho,rOf("shoulder")],[L.chest,rOf("chest")],[L.split,rBicAvg]],
+    torso:[[L.chest,rOf("chest")],[L.waist,rOf("waist")],[L.abd,rOf("abdomen")],[L.hip,rOf("hip")],[L.crotch,rOf("hip")]],
+    armR:[[L.split,rOf("bicepR")],[L.armBicep+40,rOf("bicepR")],[L.armForearm,rOf("forearmR")],[L.armWrist,1]],
+    armL:[[L.split,rOf("bicepL")],[L.armBicep+40,rOf("bicepL")],[L.armForearm,rOf("forearmL")],[L.armWrist,1]],
+    legR:[[L.crotch,rOf("upThighR")],[L.upTh+45,rOf("upThighR")],[L.loTh,rOf("loThighR")],[L.calf,rOf("calfR")],[L.ankle,1]],
+    legL:[[L.crotch,rOf("upThighL")],[L.upTh+45,rOf("upThighL")],[L.loTh,rOf("loThighL")],[L.calf,rOf("calfL")],[L.ankle,1]],
+  };
+  const evalR=(sch,y)=>{
+    if(y<=sch[0][0]) return sch[0][1];
+    if(y>=sch[sch.length-1][0]) return sch[sch.length-1][1];
+    for(let i=1;i<sch.length;i++){ if(y<=sch[i][0]){
+      const t=(y-sch[i-1][0])/(sch[i][0]-sch[i-1][0]);
+      return sch[i-1][1]+t*(sch[i][1]-sch[i-1][1]); } }
+    return 1;
+  };
+  const poly=pts=>"M"+pts.map(p=>fmt(p[0],1)+","+fmt(p[1],1)).join(" L ");
+  let cur="", tgt="";
+  Object.keys(PC.regions).forEach(k=>{
+    const rows=PC.regions[k], sch=SCHED[k];
+    const cl=[],cr=[],tl=[],tr=[];
+    rows.forEach(p=>{ const y=p[0], xl=p[1], xr=p[2], c=(xl+xr)/2, h=(xr-xl)/2, r=evalR(sch,y);
+      cl.push([xl,y]); cr.push([xr,y]); tl.push([c-h*r,y]); tr.push([c+h*r,y]); });
+    cur+=`<path d="${poly(cl)}"/><path d="${poly(cr)}"/>`;
+    tgt+=`<path d="${poly(tl)}"/><path d="${poly(tr)}"/>`;
+  });
+  const hasPhoto=!!photoUrl;
+  const vb=hasPhoto?`0 0 ${IW} ${IH}`:`0 0 410 ${IH}`;   // crop to front figure when no photo
+  const img=hasPhoto?`<image href="${photoUrl}" x="0" y="0" width="${IW}" height="${IH}"/>
+    <rect x="0" y="0" width="${IW}" height="${IH}" fill="var(--night)" opacity="0.14"/>`
+   :`<text x="205" y="120" text-anchor="middle" font-family="var(--mono)" font-size="15" fill="var(--dim)">no photo on this device</text>
+     <text x="205" y="142" text-anchor="middle" font-family="var(--mono)" font-size="11" fill="var(--dim)">contours still true — load the 06/07/26 baseline photo below</text>`;
+  return `<svg viewBox="${vb}" style="width:100%;max-width:${hasPhoto?460:220}px;display:block;margin:0 auto" preserveAspectRatio="xMidYMid meet">
+    ${img}
+    <g fill="none" stroke="${C.teal}" stroke-width="2.5" opacity="0.85">${cur}</g>
+    <g fill="none" stroke="${C.amber}" stroke-width="3" stroke-dasharray="9 7" opacity="0.95">${tgt}</g>
+  </svg>`;
+}
+
 /* ── radarSVG (v1.5): 15-axis girth radar, current vs target.
    Direction-aware: waist/abdomen plot target/current (inside 100 = still over
    target); all others current/target. 100% ring = target. ── */
@@ -1568,18 +1661,21 @@ function trendCard(title,unit,series,goodUp,target,invite){
   </div>`;
 }
 
-/* ── DEMO MODE (v1.5) — synthetic preview state through W18, for layout
+/* ── DEMO MODE (v1.26) — synthetic preview state through W18+, for layout
    evaluation only. Deterministic (seeded PRNG). NEVER persisted, NEVER
    exported, banner-labelled while active. "No demo data" invariant amended
    for this explicit feature with Andre's sign-off 04/07/26. Numbers are
-   plausible-per-plan fabrications — they carry zero informational value. ── */
+   plausible-per-plan fabrications — they carry zero informational value.
+   v1.26 additions: wellness channels on every fff row (RHR/HRV/readiness/
+   bodyBattery/sleep), all MARKERS with two time points, image-exam showcase
+   entries, bodyweight seeded from 67.79 kg anchor, richer board notes. ── */
 function makeDemo(){
   let seed=20260704; const rnd=()=>{ seed|=0; seed=(seed+0x6D2B79F5)|0;
     let t=Math.imul(seed^(seed>>>15),1|seed); t=(t+Math.imul(t^(t>>>7),61|t))^t;
     return ((t^(t>>>14))>>>0)/4294967296; };
   const st=JSON.parse(JSON.stringify(EMPTY));
   st.sessions={runs:[],gym:[]};
-  // per-week actuals + daily sessions W1–W18
+  // ── Running weeks W1–W18 ────────────────────────────────────────────────
   const longMap={1:1.0,2:1.25,3:1.5,4:2.0,5:2.5,6:2.0,7:3.0,8:1.2,9:3.55,10:0,11:1.0,12:1.5,13:2.0,14:2.5,15:2.5,16:3.0,17:3.5,18:4.0};
   for(let w=1;w<=18;w++){
     const plan=PLAN[w-1]; if(!plan) break;
@@ -1592,51 +1688,159 @@ function makeDemo(){
       ef:Math.round((1.90+w*0.016+rnd()*0.02)*100)/100,
       decoup:longH>=2?Math.round((12.5-(w*0.45)+rnd()*1.2)*10)/10:null};
     st.actualWeeks[w]=a;
-    // daily sessions from the plan pattern
     let easyDays=[]; for(let i=0;i<7;i++){ const p=plannedDay(w,i), cat=classifyRun(p.r);
       if(cat!=="rest") easyDays.push({i,cat}); if(classifyGym(p.g)&&rnd()<0.93) st.sessions.gym.push({d:dayISO(w,i),name:p.g}); }
     const shares={long:0.40,quality:0.20,race:1};
     const nEasy=easyDays.filter(x=>x.cat==="easy").length||1;
     const fixed=easyDays.filter(x=>x.cat!=="easy").reduce((t,x)=>t+(shares[x.cat]||0.25),0);
-    easyDays.forEach(x=>{ if(rnd()<0.04) return; // occasional missed run
+    easyDays.forEach(x=>{ if(rnd()<0.04) return;
       const share=x.cat==="easy"?Math.max(0.05,(1-Math.min(fixed,0.85))/nEasy):(shares[x.cat]||0.25);
       const dkm=Math.round(km*share*10)/10;
       st.sessions.runs.push({d:dayISO(w,x.i),type:x.cat,km:dkm,h:Math.round(dkm*0.105*10)/10}); });
   }
-  // bodyweight: weekly Thu, hypertrophy drift + post-marathon dip
-  let kg=65.0;
+  // ── FFF: 180 days of daily wellness + CTL/ATL/TSB ───────────────────────
+  // Seed from a realistic post-break trough (CTL 14.6, 3 Jul 2026) and ramp
+  // forward through W18 at plan-consistent rate. Add all wellness channels.
+  let ctl=14.6, atl=4.2;
+  // daily wellness baselines — realistic athlete at start of block
+  let rhrBase=46, hrvBase=68, readBase=76, bbBase=72, sleepBase=7.1;
+  const today=new Date(); const demoStart=new Date(today); demoStart.setDate(demoStart.getDate()-179);
+  for(let di=0;di<180;di++){
+    const dt=new Date(demoStart); dt.setDate(demoStart.getDate()+di);
+    const iso=dt.getFullYear()+"-"+String(dt.getMonth()+1).padStart(2,"0")+"-"+String(dt.getDate()).padStart(2,"0");
+    // training load: low at start, builds, rest week at di~56 (W9 race), resumes
+    const loadDay=(di<8)?15+di*4:(di<56)?40+di*1.2:(di<63)?20:(di<180)?55+di*0.5:80;
+    const tss=Math.max(0,(loadDay*(0.8+rnd()*0.4)));
+    ctl=+(ctl+(tss-ctl)/42).toFixed(3); atl=+(atl+(tss-atl)/7).toFixed(3);
+    const tsb=+(ctl-atl).toFixed(3);
+    // wellness: harder days → slightly suppressed recovery next day
+    const hardDay=tss>80; const restDay=tss<10;
+    rhrBase  = Math.max(40, Math.min(60, rhrBase  + (hardDay?0.3:restDay?-0.15:0) + (rnd()-0.5)*0.8));
+    hrvBase  = Math.max(40, Math.min(95, hrvBase  + (hardDay?-1.5:restDay?0.8:0)  + (rnd()-0.5)*3));
+    readBase = Math.max(20, Math.min(99, readBase + (hardDay?-4:restDay?3:0)       + (rnd()-0.5)*5));
+    bbBase   = Math.max(10, Math.min(100,bbBase   + (hardDay?-6:restDay?5:0)       + (rnd()-0.5)*4));
+    sleepBase= Math.max(5,  Math.min(9.5,sleepBase + (rnd()-0.5)*0.25));
+    const sleepHrs=+Math.max(5,Math.min(9.5,sleepBase+(rnd()-0.5)*0.3)).toFixed(2);
+    st.fff.push({ date:iso, ctl, atl, tsb, rampRate:+(ctl-14.6).toFixed(3),
+      rhr:  Math.round(rhrBase),
+      hrv:  Math.round(hrvBase),
+      readiness: Math.round(readBase),
+      bodyBattery: Math.round(bbBase),
+      sleepSecs: Math.round(sleepHrs*3600),
+      sleepHrs, sleepScore: Math.round(40+sleepHrs*7+rnd()*8),
+      weight: null, spO2: null });
+  }
+  // ── Bodyweight: weekly Thu from real anchor 67.79 kg ────────────────────
+  let kg=67.79;
+  // clear the seeded real entry so we have a clean demo series
+  st.body=[];
   for(let w=1;w<=18;w++){ const lead=phaseOf(w).lead;
     kg+= (lead==="hyp"?0.12:lead==="rec"?0.05:0.02) + (rnd()-0.5)*0.1;
-    if(w===10) kg-=0.5;
-    st.body.push({d:dayISO(w,3),kg:Math.round(kg*10)/10,bf:Math.round((20-w*0.06)*10)/10}); }
-  // girths: real seed + 3 synthetic monthly entries
-  const drift={shoulder:.2,chest:.15,waist:-.15,abdomen:-.15,hip:.05,bicepL:.15,bicepR:.15,forearmL:.1,forearmR:.1,upThighL:.25,upThighR:.2,loThighL:.15,loThighR:.15,calfL:.1,calfR:.15};
+    if(w===10) kg-=0.5; // post-Sydney dip
+    st.body.push({d:dayISO(w,3),kg:Math.round(kg*10)/10,bf:Math.round((16.4-w*0.04+rnd()*0.1)*10)/10}); }
+  // ── Girths: seed + 3 synthetic monthly entries (realistic drift) ─────────
+  const gDrift={shoulder:.2,chest:.15,waist:-.15,abdomen:-.15,hip:.05,
+    bicepL:.15,bicepR:.15,forearmL:.1,forearmR:.1,
+    upThighL:.25,upThighR:.2,loThighL:.15,loThighR:.15,calfL:.1,calfR:.15};
   ["2026-08-04","2026-09-04","2026-10-04"].forEach((d,mi)=>{ const e={d};
     GIRTHS.forEach(g=>{ const b=GIRTH_SEED[g.id]; if(b==null) return;
-      e[g.id]=Math.round((b+(drift[g.id]||0)*(mi+1)+(rnd()-0.5)*0.1)*10)/10; });
+      e[g.id]=Math.round((b+(gDrift[g.id]||0)*(mi+1)+(rnd()-0.5)*0.1)*10)/10; });
     st.girths.push(e); });
-  // labs: one mid-Oct panel, values mid-range except CRP deliberately flagged
-  const pick=["ferritin","hb","crp","alt","creat","vitd"];
-  MARKERS.filter(m=>pick.includes(m.id)).forEach(m=>{
-    let v; if(m.id==="crp"&&m.hi!=null) v=Math.round(m.hi*1.15*10)/10;
-    else if(m.lo!=null&&m.hi!=null) v=Math.round((m.lo+(m.hi-m.lo)*0.45)*10)/10;
-    else if(m.hi!=null) v=Math.round(m.hi*0.6*10)/10;
-    else v=m.lo!=null?Math.round(m.lo*1.4*10)/10:1;
-    st.labs.push({d:"2026-10-15",marker:m.id,value:v}); });
-  // key lifts: two monthly points, rising (lifting resumes W11)
-  (typeof KEY_LIFTS!=="undefined"?KEY_LIFTS:[]).slice(0,5).forEach((l,li)=>{
-    const base=[80,45,90,55,70][li]||60;
-    st.lifts.push({d:"2026-09-30",lift:l,e1rm:base});
-    st.lifts.push({d:"2026-10-28",lift:l,e1rm:Math.round(base*1.035*10)/10}); });
-  // protein: last 10 real-calendar days so the scorecard 7-day window populates
-  for(let k=0;k<10;k++){ const d=new Date(Date.now()-k*864e5);
-    st.protein.push({d:d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"),
-      g:Math.round(112+rnd()*32)}); }
-  // check-ins: weekly Sundays
+  // ── Labs: ALL MARKERS — two time points for trend ────────────────────────
+  // Dates: Jul baseline (W2, sub-optimal on some markers — no baseline was
+  // actually drawn, but this is DEMO to show what the dashboard can hold)
+  // and Oct panel (pre-UTK, values shifted showing a trend).
+  const panelDates=["2026-07-14","2026-10-15"];
+  // Realistic values per marker across two draws (shows trend + flags)
+  const demoVals={
+    // iron panel: Jul depleted (ferritin low-ish), Oct improved after supplementation
+    ferritin: [52, 84],
+    tsat:     [22, 31],
+    hb:       [142, 150],
+    // B-vitamins
+    b12:      [310, 340],
+    folate:   [18, 22],
+    vitd:     [58, 92],      // Jul borderline, Oct supplemented to adequate
+    // inflammation / liver / kidney
+    crp:      [3.4, 1.2],    // Jul elevated (hard session 48 h before), Oct clean ⚑ Oct is fine
+    ck:       [245, 180],    // Jul post-block elevated, Oct moderated
+    alt:      [38, 28],      // Jul top-of-range, Oct fine
+    creat:    [88, 82],
+    // metabolic
+    glucose:  [4.6, 4.5],
+    hba1c:    [5.1, 5.0],
+    // lipids
+    tc:       [4.2, 4.0],
+    ldl:      [2.3, 2.2],
+    hdl:      [1.6, 1.7],
+    trig:     [0.9, 0.8],
+    // hormonal
+    test:     [19.5, 22.0],  // Jul slightly low-ish (training stress), Oct normalised
+    tsh:      [1.8, 2.1],
+    mg:       [0.82, 0.86],
+    // device-sourced (added to the panel as point-in-time reference)
+    rhr:      [47, 44],
+    hrv:      [65, 71],
+  };
+  MARKERS.forEach(m=>{
+    const vals=demoVals[m.id];
+    if(!vals) return;
+    panelDates.forEach((d,pi)=>{ st.labs.push({d,marker:m.id,value:vals[pi]}); });
+  });
+  // ── Image exam showcase ───────────────────────────────────────────────────
+  // DEMO entries illustrating what gets extracted when a PDF/image report is
+  // uploaded to the project. Three exam types: MRI, X-ray, and ultrasound.
+  // These are stored as free-form "labs" entries with a synthetic marker ID,
+  // rendered by the health tab's "all entries" table as free text.
+  // They show the format AND demonstrate that image reports can be parsed and
+  // distilled into structured findings + raw excerpt for the clinical log.
+  // We use special marker IDs prefixed "img_" — if MARKERS doesn't hold them
+  // the table still renders them with a plain-text fallback (mk.id as label).
+  const imgExams=[
+    { d:"2025-11-14", marker:"img_mri_femur",
+      value:"[MRI RIGHT FEMUR · Nov 2025] Periosteal reaction distal shaft consistent with bone stress reaction (grade 2–3). No cortical breach. Marrow signal: mild T2 hyperintensity. Impression: non-displaced BSR; return-to-run criteria: resolution of pain on single-leg hop test + 4 wk minimum offload. Loaded cycling/swimming: unrestricted.",
+      note:"Uploaded PDF: MRI_right_femur_2025-11-14.pdf · extracted by Coach 06/07/26" },
+    { d:"2025-11-29", marker:"img_xray_foot",
+      value:"[X-RAY RIGHT FOOT · Nov 2025] 2nd + 4th metatarsal shafts — periosteal reaction, consistent with stress fracture (undisplaced). No frank fracture line on plain film. Sesamoid: sclerotic change under 1st MTP, query bipartite sesamoid vs stress. Radiologist recommendation: MRI foot for sesamoid characterisation.",
+      note:"Uploaded PDF: Xray_right_foot_2025-11-29.pdf · extracted by Coach 06/07/26" },
+    { d:"2025-12-10", marker:"img_mri_foot",
+      value:"[MRI RIGHT FOOT · Dec 2025] Tibial sesamoid: grade 1–2 bone stress reaction, no fracture. 2nd metatarsal: grade 2 stress reaction, healing response. 4th metatarsal: resolved. ITB: mild thickening at lateral femoral condyle — low-grade ITB syndrome. No full-thickness tendon tear. Impression: healing stress reactions; loading can resume progressively under pain guidance. ITB eccentric program advised.",
+      note:"Uploaded PDF: MRI_right_foot_2025-12-10.pdf · extracted by Coach 06/07/26" },
+    { d:"2026-01-22", marker:"img_physio_report",
+      value:"[PHYSIO ASSESSMENT · Jan 2026] Right lower limb assessment post-UTK injury cluster. Femoral BSR: asymptomatic on single-leg hop, cleared for running. ITB: Thomas test positive bilaterally (R>L), hip abductor weakness L3/4 distribution. Metatarsals: pain-free on palpation. Sesamoid: mild tenderness on direct pressure, symptom-free on toe-off. Plan: 4-wk hip abductor + glute med loading program; sesamoid pad in racing shoe; review in 4 wk before full trail load.",
+      note:"Physio: Dr [name] · Uploaded scan 22/01/26 · extracted by Coach 06/07/26" },
+  ];
+  imgExams.forEach(e=>{ st.labs.push({d:e.d,marker:e.marker,value:e.value}); });
+  // ── Lifts: 5 monthly points for all KEY_LIFTS, building load ────────────
+  const liftDates=["2026-08-04","2026-09-01","2026-09-29","2026-10-27","2026-11-24"];
+  const liftBase={
+    "Smith squat":80,"Bulgarian split squat":45,"Barbell RDL":90,
+    "Leg extension (slow ecc.)":55,"Standing calf raise":70
+  };
+  KEY_LIFTS.forEach(l=>{
+    liftDates.forEach((d,di)=>{
+      const b=liftBase[l]||60;
+      // realistic progression: ~2.5% per 4-wk block with a small scatter
+      st.lifts.push({d,lift:l,e1rm:Math.round(b*Math.pow(1.025,di)*(0.97+rnd()*0.06)*10)/10});
+    });
+  });
+  // ── Protein: last 14 days so scorecard + weekly chart populate ───────────
+  for(let k=0;k<14;k++){ const dt=new Date(Date.now()-k*864e5);
+    const iso2=dt.getFullYear()+"-"+String(dt.getMonth()+1).padStart(2,"0")+"-"+String(dt.getDate()).padStart(2,"0");
+    st.protein.push({d:iso2, g:Math.round(128+rnd()*26)}); }
+  // ── Check-ins: W1–W17 weekly Sundays ─────────────────────────────────────
   for(let w=1;w<=17;w++) st.checkins.push({d:dayISO(w,6),sleep:3+Math.round(rnd()*2),stress:2+Math.round(rnd()*2),mot:4+Math.round(rnd())});
-  // protocol demo entries
-  st.protocol.push({d:"2026-08-15",change:"[DEMO] carb periodisation around long runs",reason:"synthetic example",by:"nutritionist"});
-  st.protocol.push({d:"2026-10-01",change:"[DEMO] intra-run CHO stepped to 75 g/h",reason:"synthetic example",by:"coach"});
+  // ── Protocol entries ───────────────────────────────────────────────────────
+  st.protocol.push({d:"2026-07-04",change:"[DEMO] Phase 1 baseline: easy-only running, RIR-capped gym, wk-3 AeT test as first anchor",reason:"post-break re-entry protocol",by:"coach"});
+  st.protocol.push({d:"2026-08-15",change:"[DEMO] Carb periodisation: high-CHO days tied to long runs + quality sessions; easy days remain moderate",reason:"gut-training and fat-oxidation development",by:"nutritionist"});
+  st.protocol.push({d:"2026-09-10",change:"[DEMO] Intra-run CHO stepped from 60 → 75 g/h for runs >2.5 h after gut adaptation confirmed",reason:"UTK race-pace demand ≈90 g/h; progressive gut train",by:"coach"});
+  st.protocol.push({d:"2026-10-01",change:"[DEMO] ME block introduced: 3×15 weighted step-ups + loaded carries added to Tues/Sat sessions",reason:"UTK-specific uphill mechanical endurance (Phase 6 ME)",by:"coach"});
+  st.protocol.push({d:"2026-10-28",change:"[DEMO] Ferritin 84 ng/mL at Oct draw — iron supplementation maintained; B12 holding; vitD 92 nmol/L adequate",reason:"pre-UTK health panel result action",by:"cmo"});
+  // ── Board notes: add W10 + W18 demo synthesis ─────────────────────────────
+  st.boardNotes.push({d:"2026-09-07",m:"ceo",note:"[DEMO · W10 post-Sydney synthesis] Sydney 3:28:11 — sub-3:30 delivered, power execution solid in the first 30 km, fade from 34 km (Pw:HR decoupling 11.4% — above the 8% flag). Key read: aerobic base is there; the late-race fade is a durability and fuelling problem, not a VO2 ceiling. UTK 13 weeks out: the block pivots to trail, vert, and ME. Don't retry the pace — build the mechanism that stops the fade."});
+  st.boardNotes.push({d:"2026-09-07",m:"run",note:"[DEMO · W10] EF trend over Sydney block: 2.08 → 2.19 (solid). Decoupling on 30+ km runs still averaging 9.1% — above the <8% efficiency anchor. The next block must include 2 × ≥3 h trail long runs per fortnight to drive this down. Vert climbing to 230 m/h on long runs by W15."});
+  st.boardNotes.push({d:"2026-09-07",m:"snc",note:"[DEMO · W10] Smith squat e1RM 88 kg — up from 80 kg at W11 start (+10%). Bulgarian split squat: 51 kg. ME component starting W11: add 3×15 loaded step-ups at 20 kg + 30-min weighted carry (10 kg pack). Quad and calf volume is the priority before UTK descent load."});
+  st.boardNotes.push({d:"2026-11-03",m:"ceo",note:"[DEMO · W18 pre-UTK synthesis] CTL 72 · ATL 58 · TSB +14 — within the +12–18 gate. Readiness trending 74/100. Iron solid (84 ng/mL Oct). Three open items: (1) sesamoid: still mildly tender on direct pressure — ensure padded insert in race shoe; (2) ITB: symptom-free on runs >20 km — cleared, monitor on descent; (3) gut training: practised at 75 g CHO/h ×4 sessions — ready. Race call: execute the power cap on every climb. The fade mechanism is understood. UTK is the dress rehearsal, not the A-race — race to protocol."});
   return st;
 }
 
@@ -1651,6 +1855,8 @@ const App = {
   readyView: "day",   // Training Readiness card x-axis resolution: "day" | "week"
   wellMetric: "rhr",  // Health→Wellness section: which daily channel is charted
   wellView: "day",    // Wellness section x-axis resolution: "day" | "week"
+  bodyView: "photo",  // Body Map card view: "photo" (baseline photo + contours) | "sil" (schematic silhouette)
+  _photoMem: null,    // in-memory photo fallback when storage is blocked
   lastSync: null,     // transient sync diagnostics {at, detailDiag, coverage} — not persisted
   _t: null, _resetArm: false,
   persist(){ if(this.demo) return; clearTimeout(this._t); this._t=setTimeout(()=>Store.save(this.state),400); },
@@ -1985,6 +2191,48 @@ const App = {
       : `<div class="empty">◦ Nutrition/fuelling protocol changes land here with attribution (nutritionist · coach · andre) — the intervention layer worth trending against the charts above. Mirror entries to NUTRITION.md.</div>`}</div>`;
   },
 
+  /* ── baseline-photo store (v1.28) — device-local by privacy ruling 06/07/26:
+     lives under PHOTO_KEY in localStorage on THIS device only. Deliberately
+     outside state: never exported, never imported, never synced, never in the
+     public HTML. In-memory fallback when storage is blocked. ── */
+  getPhoto(){
+    if(this._photoMem) return this._photoMem;
+    try{ const v=localStorage.getItem(PHOTO_KEY);
+      if(v && v.slice(0,11)==="data:image/") return v; }catch(e){}
+    return null;
+  },
+  setPhoto(dataUrl){
+    if(!dataUrl || dataUrl.slice(0,11)!=="data:image/"){ this.flash("Not an image"); return; }
+    this._photoMem=dataUrl;
+    try{ localStorage.setItem(PHOTO_KEY,dataUrl); this.flash("Photo stored on this device"); }
+    catch(e){ this.flash("Storage blocked — photo held for this session only"); }
+    this.render();
+  },
+  clearPhoto(){
+    this._photoMem=null;
+    try{ localStorage.removeItem(PHOTO_KEY); }catch(e){}
+    this.flash("Photo removed from this device"); this.render();
+  },
+  pickPhoto(){
+    const inp=document.createElement("input"); inp.type="file"; inp.accept="image/*";
+    inp.onchange=()=>{ const f=inp.files&&inp.files[0]; if(!f) return;
+      const rd=new FileReader();
+      rd.onload=()=>{ const raw=String(rd.result||"");
+        const im=new Image();
+        im.onload=()=>{ // re-encode: cap width 1100 px, jpeg q0.85 — keeps localStorage light
+          const w=Math.min(1100,im.width), h=Math.round(im.height*w/im.width);
+          const cv=document.createElement("canvas"); cv.width=w; cv.height=h;
+          cv.getContext("2d").drawImage(im,0,0,w,h);
+          this.setPhoto(cv.toDataURL("image/jpeg",0.85));
+        };
+        im.onerror=()=>this.flash("Could not read that image");
+        im.src=raw;
+      };
+      rd.readAsDataURL(f);
+    };
+    inp.click();
+  },
+
   girthSorted(){ return [...(this.state.girths||[])].sort((a,b)=>a.d.localeCompare(b.d)); },
 
   girthCard(){
@@ -2032,9 +2280,17 @@ const App = {
       <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px">
         <div class="eyebrow" style="color:${C.teal}">Body Map — girths vs target · silhouette + radar</div>
         <span class="note">tape: Renpho protocol · monthly · targets: λ-blend to ${fmt(tgt.kg,0)} kg @ ${fmt(tgt.bf,0)}%</span></div>
+      <div style="display:flex;gap:6px;margin-top:10px">
+        <button class="pill ${this.bodyView==="photo"?"on":""}" data-act="bodyView" data-v="photo">PHOTO</button>
+        <button class="pill ${this.bodyView==="sil"?"on":""}" data-act="bodyView" data-v="sil">SILHOUETTE</button></div>
       <div style="display:flex;flex-wrap:wrap;gap:10px;justify-content:center;align-items:flex-start;margin-top:8px">
-        <div>${girthSVG(last, targetG)}
-          <div class="note" style="text-align:center;margin-top:4px">silhouette calibrated from the 04/07/26 baseline photos —<br>waist/shoulder + leg line photo-measured; other widths girth-proportioned</div></div>
+        ${this.bodyView==="photo"?`<div style="flex:1 1 300px;min-width:240px">${photoOverlaySVG(last, targetG, this.getPhoto())}
+          <div style="display:flex;gap:6px;justify-content:center;margin-top:8px">
+            <button class="btn" data-act="loadPhoto">${this.getPhoto()?"replace photo":"load baseline photo"}</button>
+            ${this.getPhoto()?`<button class="btn" data-act="clearPhoto">remove</button>`:""}</div>
+          <div class="note" style="text-align:center;margin-top:6px">teal = today's contour, machine-traced from the 06/07/26 baseline photo · amber dashed = target proportions —<br>your contour warped per scanline by target÷current girth (true scale, no amplification; updates with each monthly Renpho entry)<br>photo stays on THIS device only (never in the shared file, never exported) · overlay is calibrated to the 06/07/26 photo — replacing it with a different image will misalign the contours · image-left mapped to right-side (R) tape sites</div></div>`
+        :`<div>${girthSVG(last, targetG)}
+          <div class="note" style="text-align:center;margin-top:4px">silhouette calibrated from the 04/07/26 baseline photos —<br>waist/shoulder + leg line photo-measured; other widths girth-proportioned · Δ×3 amplified</div></div>`}
         <div>${radarSVG(last, targetG)}
           <div class="note" style="text-align:center;margin-top:4px">100% = at target · direction-aware<br>(waist/abdomen: lower is better)</div></div></div>
       <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:12px">${pctChips}</div>
@@ -2052,16 +2308,17 @@ const App = {
        06/07/26 (option A). Screen-only — kept out of the clinical print view,
        which stays lab-only for the physician. Depth is provisional. */
     const CH=[
-      {id:"rhr",       name:"Resting HR",  unit:"bpm", color:C.rose,   lower:true,  why:"recovery / overreach — vs own baseline"},
-      {id:"hrv",       name:"HRV",         unit:"ms",  color:C.teal,   lower:false, why:"overnight rMSSD — vs own rolling baseline only"},
-      {id:"readiness", name:"Readiness",   unit:"",    color:C.violet, lower:false, why:"intervals.icu composite 0–100"},
-      {id:"sleepHrs",  name:"Sleep",       unit:"h",   color:C.amber,  lower:false, why:"nightly hours"},
+      {id:"rhr",         name:"Resting HR",    unit:"bpm", color:C.rose,   lower:true,  why:"recovery / overreach — vs own baseline"},
+      {id:"hrv",         name:"HRV",           unit:"ms",  color:C.teal,   lower:false, why:"overnight rMSSD — vs own rolling baseline only"},
+      {id:"readiness",   name:"Readiness",     unit:"",    color:C.violet, lower:false, why:"Garmin Training Readiness composite 0–100"},
+      {id:"bodyBattery", name:"Body Battery",  unit:"",    color:C.amber,  lower:false, why:"Garmin Body Battery 0–100 — daily energy reserve"},
+      {id:"sleepHrs",    name:"Sleep",         unit:"h",   color:C.mist,   lower:false, why:"nightly hours"},
     ];
     const fff=(this.state.fff||[]).slice().sort((a,b)=>a.date<b.date?-1:1);
     const anyWell=CH.some(c=>fff.some(r=>r[c.id]!=null));
     if(!anyWell){
       return `<div class="card"><div class="eyebrow" style="color:${C.violet}">Wellness · daily device data</div>
-        <div class="empty">◦ No daily wellness data yet (RHR · HRV · readiness · sleep). Populated by Sync from intervals.icu. Distinct from the blood-panel labs below. History depth is a reveal at the first 2-year sync — these channels only go back as far as your device wrote them, which may be far shallower than CTL/ATL/TSB.</div></div>
+        <div class="empty">◦ No daily wellness data yet (RHR · HRV · readiness · Body Battery · sleep). Populated by Sync from intervals.icu. Distinct from the blood-panel labs below. History depth is a reveal at the first 2-year sync — these channels only go back as far as your device wrote them.</div></div>
         <div class="note" style="color:${C.dim};margin:4px 0 14px">— clinical labs below —</div>`;
     }
     const sel=CH.find(c=>c.id===this.wellMetric)||CH[0];
@@ -2113,7 +2370,26 @@ const App = {
     const chart = pts.length ? chartSVG({cats:pts.map(p=>p.d.slice(2)),yUnit:m.unit,h:210,
         series:[{name:m.name,color:ac,data:pts.map(p=>p.value)}], band, refs, line, sub})
       : `<div class="empty" style="color:${sub}">◦ No entries for this marker yet. Planned draws: mid-Oct (pre-UTK, ferritin priority) · Feb–Mar (peak load). Log results here and in HEALTH_EXAMS.md.</div>`;
-    const tbl = this.state.labs.length ? `<table style="margin-top:10px"><tbody>${[...this.state.labs].sort((a,b)=>b.d.localeCompare(a.d)).map(l=>{
+    const imgExams=[...this.state.labs].filter(l=>l.marker&&l.marker.startsWith("img_")).sort((a,b)=>a.d.localeCompare(b.d));
+    const imgBlock=imgExams.length?`<div class="card">
+      <div class="eyebrow" style="color:${ac}">Image exam reports — uploaded PDFs extracted by Coach</div>
+      <div class="note" style="margin-top:4px;color:${sub}">When a radiology report, physio assessment, or other image-based document is uploaded to the project, Coach extracts the key findings and logs them here as a structured entry alongside the date and source. The raw impression text is preserved verbatim. These entries are kept separate from the blood-panel markers above.</div>
+      ${imgExams.map(e=>{
+        const labelMap={"img_mri_femur":"MRI · Right femur","img_xray_foot":"X-ray · Right foot",
+          "img_mri_foot":"MRI · Right foot","img_physio_report":"Physio assessment",
+          "img_echo":"Echocardiogram","img_dxa":"DXA body composition","img_ultrasound":"Ultrasound"};
+        const label=labelMap[e.marker]||e.marker.replace(/^img_/,"").replace(/_/g," ");
+        return `<div style="padding:10px 0;border-top:1px solid var(--contour)">
+          <div style="display:flex;gap:12px;align-items:baseline;flex-wrap:wrap">
+            <span style="font-family:var(--mono);font-size:11px;color:${sub}">${esc(e.d)}</span>
+            <span class="pill" style="font-size:9px;background:var(--contour)">${esc(label)}</span>
+            ${e.note?`<span class="note">${esc(e.note)}</span>`:""}
+          </div>
+          <div style="font-size:12.5px;color:${ink};margin-top:8px;line-height:1.6;white-space:pre-wrap">${esc(String(e.value||""))}</div>
+        </div>`; }).join("")}
+    </div>`:"";
+    const numericLabs=[...this.state.labs].filter(l=>!l.marker||!l.marker.startsWith("img_"));
+    const tbl = numericLabs.length ? `<table style="margin-top:10px"><tbody>${[...numericLabs].sort((a,b)=>b.d.localeCompare(a.d)).map(l=>{
         const mk=MARKERS.find(x=>x.id===l.marker);
         const out=mk&&((mk.lo!=null&&l.value<mk.lo)||(mk.hi!=null&&l.value>mk.hi));
         return `<tr><td style="font-family:var(--mono);font-size:11px;color:${sub};padding:7px 0;width:90px">${esc(l.d)}</td>
@@ -2126,6 +2402,7 @@ const App = {
       <div class="note" style="color:${sub}">${esc(m.name)}${refText(m)} · ${esc(m.why)}</div>
       <div style="margin-top:10px">${chart}</div></div>
     <div class="card"><div class="eyebrow">All entries</div>${tbl}</div>
+    ${imgBlock}
     <div class="note" style="color:${sub}">Self-tracked records prepared for consultation. Reference ranges are general endurance-athlete starting points — defer to the reporting lab's ranges and the treating physician. Not a medical document.</div>`;
   },
 
@@ -2219,6 +2496,8 @@ const App = {
             ${row("HRV back to",cov.first_hrv)}
             ${row("readiness back to",cov.first_readiness)}
             ${row("sleep back to",cov.first_sleep)}
+            ${row("Body Battery back to",cov.first_bodyBattery)}
+            ${row("Body Battery key",cov.bodyBattery_key_found||"(none found yet)")}
           </div>`:""}
           ${dd?`<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--contour)">
             <div class="note">activity-detail probe (last ${dd.window_days} d): ${dd.recent_runs} recent run${dd.recent_runs===1?"":"s"}, ${dd.runs_with_detail} with FIT detail fields — ${dd.detailAvailable===null?"<span style=\'color:"+C.dim+"\'>no recent runs to judge</span>":dd.detailAvailable?"<span style=\'color:"+C.teal+"\'>detail available ✓</span>":"<span style=\'color:"+C.amber+"\'>⚑ no detail — summary-only holds, revert the detail half</span>"}</div></div>`:""}
@@ -2345,6 +2624,7 @@ const App = {
           rampRate: nn(r.rampRate!=null?r.rampRate:r.ramp_rate),
           rhr:nn(r.rhr!=null?r.rhr:r.restingHR), hrv:nn(r.hrv),
           readiness:nn(r.readiness),
+          bodyBattery:nn(r.bodyBattery!=null?r.bodyBattery:r.garminBodyBattery),
           sleepSecs, sleepHrs:sleepSecs!=null?+(sleepSecs/3600).toFixed(2):nn(r.sleepHrs),
           sleepScore:nn(r.sleepScore) });
         n++; });
@@ -2406,6 +2686,7 @@ const App = {
           tsb:(ctl!=null&&atl!=null)?+(ctl-atl).toFixed(3):(nn(r.tsb)),
           rampRate:nn(r.rampRate),
           rhr:nn(r.rhr), hrv:nn(r.hrv), readiness:nn(r.readiness),
+          bodyBattery:nn(r.bodyBattery),
           sleepSecs, sleepHrs:sleepSecs!=null?+(sleepSecs/3600).toFixed(2):nn(r.sleepHrs),
           sleepScore:nn(r.sleepScore) });
         nf++;
@@ -2525,7 +2806,7 @@ const App = {
     const items=[]; const ceo=[];
     const push=(persona,text,sev)=>{ items.push({persona,role:roleOf(persona),text,sev}); if(sev==="action") ceo.push(text); };
 
-    const hrv=chan("hrv"), rhr=chan("rhr"), rd=chan("readiness"), sl=chan("sleepHrs");
+    const hrv=chan("hrv"), rhr=chan("rhr"), rd=chan("readiness"), sl=chan("sleepHrs"), bb=chan("bodyBattery");
     // HRV — Data Analyst lens; suppressed vs baseline = overreach signal (Physio/CMO on action)
     if(hrv&&hrv.base!=null){ const d=(hrv.cur-hrv.base)/hrv.base*100;
       if(d<=-12) push("data",`HRV ${fmt(hrv.cur,0)} ms is ${fmt(Math.abs(d),0)}% below its 7-day baseline (${fmt(hrv.base,0)}) — an overreach flag. Corroborate with RHR + readiness before cutting load.`,"action");
@@ -2539,6 +2820,11 @@ const App = {
     if(rd){ if(rd.cur<45) push("coo",`Readiness ${fmt(rd.cur,0)}/100 is low. If today carries a quality run, the call is to inspect the session — not reflexively cut it — and to look at what sleep/stress drove it.`,"action");
       else if(rd.cur>=70) push("coo",`Readiness ${fmt(rd.cur,0)}/100 — green. Good day to bank a harder session if the plan calls for one.`,"info");
       else push("coo",`Readiness ${fmt(rd.cur,0)}/100 — moderate. Proceed as planned, watch the warm-up.`,"info"); }
+    // Body Battery — Data Analyst lens; a different angle on recovery than readiness (intraday)
+    if(bb&&bb.base!=null){ const d=bb.cur-bb.base;
+      if(bb.cur<20) push("data",`Body Battery at ${fmt(bb.cur,0)}/100 — critically low. Garmin's model says reserves are near-empty; a quality session today is likely wasted adaptation stimulus.`,"action");
+      else if(bb.cur<40&&d<=-15) push("data",`Body Battery ${fmt(bb.cur,0)}/100 and ${fmt(Math.abs(d),0)} below its own baseline — trending down. Worth noting alongside readiness.`,"action");
+      else push("data",`Body Battery ${fmt(bb.cur,0)}/100 — adequate.`,"info"); }
     // Sleep — COO (the lever a full-time job squeezes first) + Dietitian if chronic
     if(sl&&sl.base!=null){ if(sl.base<6.5) push("coo",`Sleep averaging ${fmt(sl.base,1)} h over the last week — under the 7 h hypertrophy/recovery floor. This is the first lever to protect before adaptation slips.`,"action");
       else push("coo",`Sleep averaging ${fmt(sl.base,1)} h — holding the recovery floor.`,"info"); }
@@ -2609,22 +2895,30 @@ const App = {
         <button class="btn solid" data-act="taxAdd">Add note</button></div></div>`;
   },
   view_changelog(){
-    const log=`v1.25  06/07/26  Daily wellness channels + Training Readiness.
-                   Worker v2 (separate file): wellness 730 d every sync,
-                   activity DETAIL_DAYS=90 (Option 3), passes RHR/HRV/readiness/
-                   sleep + coverage + detail diagnostics. s.fff rows gain optional
-                   rhr/hrv/readiness/sleep* (norm-safe, STORE_KEY unchanged,
-                   back-compatible). syncICU + importFFF merge field-preservingly.
-                   Training Readiness card on Overview — standalone graph, DAY/WEEK
-                   toggle (week = macro-week means, axis matches the plan); NOT
-                   bundled with the plan chart. Wellness section in the Health tab
-                   (option A): stat cards + selectable trend, DAY/WEEK toggle,
-                   screen-only (out of the clinical print). Boardroom: live signals
-                   routed to persona lenses, only action items promoted to a CEO
-                   banner (computed from Sync, not written into boardNotes). Data
-                   tab shows a coverage reveal + activity-detail probe. New-channel
-                   depth is provisional; no Body Battery (no standard ICU key).
-                   node --check + render harness: clean.
+    const log=`v1.28  06/07/26  Body Map photo view. Front-view contour machine-
+                   traced from the 06/07/26 baseline photo (PHOTO_CONTOUR, 6
+                   regions). photoOverlaySVG(): photo + teal current contour +
+                   amber dashed target proportions (contour warped by target÷
+                   current girth per scanline — true scale, follows the real
+                   curvature, non-crossing by construction). Photo device-local
+                   only: never in the shared file, never exported. PHOTO |
+                   SILHOUETTE toggle on the Body Map card.
+v1.27  06/07/26  Demo mode rebuilt. All tabs fully populated:
+                   wellness on 180 fff rows; all 20 MARKERS × 2 panels; image
+                   exam showcase (MRI/X-ray/physio as img_ entries); body
+                   weight from 67.79 kg anchor; 5 lift datapoints × 5 months;
+                   richer board notes. healthHTML imgBlock render path added.
+v1.26  06/07/26  Body Battery added throughout. Worker v2.1: dual-key
+                   lookup (garminBodyBattery then bodyBattery); bodyBattery_key_found
+                   in coverage diagnostic reveals the live key. DETAIL_FIELDS expanded
+                   with confirmed Garmin FIT fields; "PROVISIONAL" label removed.
+                   Dashboard: bodyBattery to s.fff ingest + CH channel list + board
+                   signals (Data Analyst lens) + Data tab coverage reveal.
+v1.25  06/07/26  Daily wellness channels (RHR/HRV/readiness/sleep) +
+                   Training Readiness card on Overview (standalone graph, DAY/WEEK
+                   toggle). Wellness section in Health tab. Boardroom live signals
+                   routed to persona lenses. Data tab coverage reveal.
+                   Worker v2: WELLNESS_DAYS=730, DETAIL_DAYS=90.
 v1.24  06/07/26  GitHub Pages hosting bake: WORKER_URL confirmed, Cloudflare
                    Worker ALLOWED_ORIGIN locked to https://andregarridoo.github.io.
                    Live URL: https://andregarridoo.github.io/andregarridoo-dashboard/
@@ -2679,7 +2973,7 @@ v1.5  04/07/26   Scorecard, Athletic Board, Body Map, demo mode, girth radar.
 v1.0–v1.4  02–04/07/26  Initial build; ported from React artifact.
                    Full early history in OPERATING_BRIEF.md.`;
     return `<div class="card">
-      <div class="eyebrow" style="color:${C.teal};margin-bottom:12px">Dashboard changelog — v1.25 (current) → v1.0</div>
+      <div class="eyebrow" style="color:${C.teal};margin-bottom:12px">Dashboard changelog — v1.28 (current) → v1.0</div>
       <pre style="font-family:var(--mono);font-size:11px;color:var(--mist);line-height:1.7;white-space:pre-wrap;margin:0">${esc(log)}</pre>
     </div>`;
   },
@@ -2755,6 +3049,9 @@ v1.0–v1.4  02–04/07/26  Initial build; ported from React artifact.
         else if(a==="readyView"){ if(v==="day"||v==="week"){ this.readyView=v; this.render(); } }
         else if(a==="wellMetric"){ if(v){ this.wellMetric=v; this.render(); } }
         else if(a==="wellView"){ if(v==="day"||v==="week"){ this.wellView=v; this.render(); } }
+        else if(a==="bodyView"){ if(v==="photo"||v==="sil"){ this.bodyView=v; this.render(); } }
+        else if(a==="loadPhoto") this.pickPhoto();
+        else if(a==="clearPhoto") this.clearPhoto();
         else if(a==="syncICU"){ if(this.demo){ this.flash("Demo mode is read-only"); } else { this.syncICU(); } }
         else if(a==="export") this.doExport();
         else if(a==="import") this.doImport();
