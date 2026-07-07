@@ -110,6 +110,19 @@
    CHANGELOG
    v1.0  02/07/26  first HTML build (ported from React artifact)
    (v1.0–v1.6 archived — full history in OPERATING_BRIEF.md CHANGELOG)
+   v1.29  06/07/26 Target explorer + interactive radar. GIRTH_TARGET_ANCHOR
+                   (73/15 — the goal the explicit per-site targets were computed
+                   for). App.targetGirths(): explicit targets ratio-scaled by
+                   λ-model between anchor and viewed goal (exact canonical
+                   numbers at the anchor); model-only sites unchanged.
+                   Body Map card: kg/BF% ±0.5 steppers drive ALL target renders
+                   live (photo dashed contour, silhouette, radar ring, chips,
+                   site trend) as a transient what-if; "adopt as target" commits
+                   via state.target (persisted, demo-guarded). radarSVG:
+                   per-vertex hit circles → hover/tap site card (current,
+                   target, Δ direction-aware, % of target, λ) in #radarTip;
+                   click selects the site trend; dot enlarges on hover.
+                   node --check + render harness: clean.
    v1.28  06/07/26 Body Map photo view. PHOTO_CONTOUR: front-view contour
                    machine-traced from the 06/07/26 baseline 3-view photo
                    (6 regions, scanline-tracked, verified vs mask). New
@@ -559,6 +572,13 @@ const GIRTHS = [
   {id:"calfR",      name:"Calf R",          λ:0.80, target:37.6},
   // neck: excluded pending re-measure (20.7 cm implausible for adult male)
 ];
+/* GIRTH_TARGET_ANCHOR (v1.29): the physique goal the explicit per-site GIRTHS
+   targets above were computed for (73 kg @ 15% BF, formally adopted 04/07/26).
+   The target-explorer scales explicit site targets by the λ-model RATIO
+   modelScale(view)÷modelScale(anchor) — at the anchor you get exactly the
+   canonical numbers; away from it every site scales smoothly. If per-site
+   targets are ever recalculated for a new goal, update this anchor with them. */
+const GIRTH_TARGET_ANCHOR = {kg:73, bf:15};
 
 /* ── RUN TAXONOMY (v1.5) — the standard session language. Locked registry;
    period-specific focus lives in state.taxNotes (dated data, not code).
@@ -1033,9 +1053,24 @@ function radarSVG(cur, tgt){
   const pts=GIRTHS.map((g,i)=>{ const p=pctOf(g); return p==null?null:pt(i,rOf(p)); });
   const have=pts.filter(Boolean).length;
   const poly = have>=3 ? "M"+pts.map((p,i)=>p?fmt(p[0],1)+","+fmt(p[1],1):null).filter(Boolean).join(" L ")+" Z" : null;
+  /* v1.29 — interactive vertices: visible dot per measured site + a larger
+     invisible hit circle carrying the site card data (hover/tap → #radarTip;
+     click selects the site trend). Sites without data get a hit circle on the
+     100% ring so every axis is inspectable. */
+  const dots=GIRTHS.map((g,i)=>{
+    const p=pctOf(g); const [hx,hy]=p==null?pt(i,r100):pts[i];
+    const cv=cur?cur[g.id]:null, tv=tgt?tgt[g.id]:null;
+    const down=(g.id==="waist"||g.id==="abdomen");
+    const col=p==null?C.dim:(p>=98?C.teal:p>=92?C.amber:C.rose);
+    const dv=(cv!=null&&tv!=null)?tv-cv:null;
+    const dTxt=dv==null?"—":`${dv>0?"+":""}${fmt(dv,1)} cm ${down?(dv<0?"to lose":"over"):(dv>0?"to gain":"met")}`;
+    return `${p==null?"":`<circle data-dot="${g.id}" cx="${fmt(hx,1)}" cy="${fmt(hy,1)}" r="3.5" fill="${col}" stroke="var(--night)" stroke-width="0.8"/>`}
+      <circle data-site="${g.id}" data-name="${esc(g.name)}" data-cur="${cv==null?"—":fmt(cv,1)+" cm"}" data-tgt="${tv==null?"—":fmt(tv,1)+" cm"}" data-delta="${esc(dTxt)}" data-pct="${p==null?"—":p+"%"}" data-lam="${g.λ}" cx="${fmt(hx,1)}" cy="${fmt(hy,1)}" r="13" fill="transparent" style="cursor:pointer"/>`;
+  }).join("");
   return `<svg viewBox="0 0 ${S} ${S}" width="${S}" height="${S}" style="max-width:100%">
     ${rings}${spokes}
     ${poly?`<path d="${poly}" fill="rgba(94,234,212,.14)" stroke="${C.teal}" stroke-width="1.8" stroke-linejoin="round"/>`:""}
+    ${dots}
     <text x="${c}" y="${S-4}" text-anchor="middle" font-size="8.5" fill="var(--dim)" font-family="var(--mono)">amber ring = target (100%) · teal = current · waist/abdomen inverted</text>
   </svg>`;
 }
@@ -1856,6 +1891,7 @@ const App = {
   wellMetric: "rhr",  // Health→Wellness section: which daily channel is charted
   wellView: "day",    // Wellness section x-axis resolution: "day" | "week"
   bodyView: "photo",  // Body Map card view: "photo" (baseline photo + contours) | "sil" (schematic silhouette)
+  tgtView: null,      // target-explorer what-if {kg,bf} — null = show the adopted state.target
   _photoMem: null,    // in-memory photo fallback when storage is blocked
   lastSync: null,     // transient sync diagnostics {at, detailDiag, coverage} — not persisted
   _t: null, _resetArm: false,
@@ -2235,28 +2271,55 @@ const App = {
 
   girthSorted(){ return [...(this.state.girths||[])].sort((a,b)=>a.d.localeCompare(b.d)); },
 
+  /* λ-blend model scale for a given goal (v1.29 — centralised) */
+  modelScale(lam, kg, bf){
+    const baseLean=52, baseFat=13;
+    const lr=(kg*(1-bf/100))/baseLean, fr=(kg*bf/100)/baseFat;
+    return Math.sqrt(lam*lr*1.193 + (1-lam)*fr*0.842);
+  },
+  /* per-site target girths for any {kg,bf} goal — explicit GIRTHS targets are
+     canonical at GIRTH_TARGET_ANCHOR and ratio-scaled elsewhere; sites without
+     an explicit target use the pure model against the 04/07/26 seed */
+  targetGirths(tgt){
+    const out={};
+    GIRTHS.forEach(g=>{
+      if(g.target!=null){
+        out[g.id]=parseFloat((g.target * this.modelScale(g.λ,tgt.kg,tgt.bf)/this.modelScale(g.λ,GIRTH_TARGET_ANCHOR.kg,GIRTH_TARGET_ANCHOR.bf)).toFixed(1));
+      } else if(GIRTH_SEED[g.id]!=null){
+        out[g.id]=parseFloat((GIRTH_SEED[g.id]*this.modelScale(g.λ,tgt.kg,tgt.bf)).toFixed(1));
+      } else out[g.id]=null;
+    });
+    return out;
+  },
+  tgtAdj(v){
+    const adopted=this.state.target||{kg:73,bf:15};
+    if(v==="reset"){ this.tgtView=null; this.render(); return; }
+    const cur=this.tgtView||{kg:adopted.kg,bf:adopted.bf};
+    const n={kg:cur.kg,bf:cur.bf};
+    if(v==="kg-") n.kg=Math.max(60,+(n.kg-0.5).toFixed(1));
+    else if(v==="kg+") n.kg=Math.min(85,+(n.kg+0.5).toFixed(1));
+    else if(v==="bf-") n.bf=Math.max(8,+(n.bf-0.5).toFixed(1));
+    else if(v==="bf+") n.bf=Math.min(25,+(n.bf+0.5).toFixed(1));
+    this.tgtView=(n.kg===adopted.kg&&n.bf===adopted.bf)?null:n;
+    this.render();
+  },
+  tgtAdopt(){
+    if(!this.tgtView) return;
+    this.state.target={kg:this.tgtView.kg,bf:this.tgtView.bf};
+    this.tgtView=null; this.persist(); this.render();
+    this.flash("Target adopted — mirror the decision to the athlete brief at block end");
+  },
+
   girthCard(){
     const entries=this.girthSorted();
     const first=entries[0]||null;
     const last=entries[entries.length-1]||null;
-    const tgt=this.state.target||{kg:73,bf:15};
+    const adopted=this.state.target||{kg:73,bf:15};
+    const tgt=this.tgtView||adopted;                 // effective goal (what-if view or adopted)
+    const whatIf=!!this.tgtView;
     const sel=this.selSeg||GIRTHS[0].id;
     const selDef=GIRTHS.find(g=>g.id===sel)||GIRTHS[0];
-
-    // target girths from λ-blend model: girth ∝ √(λ·lean_ratio·1.193 + (1-λ)·fat_ratio·0.842)
-    const baseLean=52, baseFat=13;
-    const tLean=tgt.kg*(1-tgt.bf/100), tFat=tgt.kg*tgt.bf/100;
-    function modelTarget(g, baseGirth){
-      if(baseGirth==null) return null;
-      const lr=tLean/baseLean, fr=tFat/baseFat;
-      const scale=Math.sqrt(g.λ*lr*1.193 + (1-g.λ)*fr*0.842);
-      return parseFloat((baseGirth*scale).toFixed(1));
-    }
-    const targetG={};
-    GIRTHS.forEach(g=>{
-      const base=g.target!=null?g.target:( GIRTH_SEED[g.id]!=null?modelTarget(g,GIRTH_SEED[g.id]):null );
-      targetG[g.id]=base;
-    });
+    const targetG=this.targetGirths(tgt);            // v1.29 — anchored λ-blend (see GIRTH_TARGET_ANCHOR)
 
     // radar % helper (direction-aware, mirrors radarSVG)
     const pctOf=g=>{ const cv=last?last[g.id]:null, tv=targetG[g.id];
@@ -2279,7 +2342,21 @@ const App = {
     return `<div class="card">
       <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px">
         <div class="eyebrow" style="color:${C.teal}">Body Map — girths vs target · silhouette + radar</div>
-        <span class="note">tape: Renpho protocol · monthly · targets: λ-blend to ${fmt(tgt.kg,0)} kg @ ${fmt(tgt.bf,0)}%</span></div>
+        <span class="note">tape: Renpho protocol · monthly · targets: λ-blend to ${fmt(tgt.kg,1)} kg @ ${fmt(tgt.bf,1)}%${whatIf?` <b style="color:${C.amber}">(what-if)</b>`:""}</span></div>
+      <div style="display:flex;flex-wrap:wrap;gap:14px;align-items:center;margin-top:10px">
+        <span class="eyebrow" style="color:${C.amber}">Target explorer</span>
+        <span style="display:flex;gap:5px;align-items:center">
+          <button class="pill" data-act="tgtAdj" data-v="kg-">−</button>
+          <span style="font-family:var(--mono);font-size:13px;min-width:64px;text-align:center;color:${whatIf?C.amber:"var(--chalk)"}">${fmt(tgt.kg,1)} kg</span>
+          <button class="pill" data-act="tgtAdj" data-v="kg+">+</button></span>
+        <span style="display:flex;gap:5px;align-items:center">
+          <button class="pill" data-act="tgtAdj" data-v="bf-">−</button>
+          <span style="font-family:var(--mono);font-size:13px;min-width:56px;text-align:center;color:${whatIf?C.amber:"var(--chalk)"}">${fmt(tgt.bf,1)} %</span>
+          <button class="pill" data-act="tgtAdj" data-v="bf+">+</button></span>
+        ${whatIf?`<button class="btn" data-act="tgtAdj" data-v="reset">↺ back to adopted ${fmt(adopted.kg,0)}/${fmt(adopted.bf,0)}%</button>
+          <button class="btn" data-act="tgtAdopt" style="border-color:${C.amber};color:${C.amber}">adopt as target</button>`
+        :`<span class="note">±0.5 steps — dashed contours, radar ring, chips and site targets all follow · what-if only until adopted</span>`}
+      </div>
       <div style="display:flex;gap:6px;margin-top:10px">
         <button class="pill ${this.bodyView==="photo"?"on":""}" data-act="bodyView" data-v="photo">PHOTO</button>
         <button class="pill ${this.bodyView==="sil"?"on":""}" data-act="bodyView" data-v="sil">SILHOUETTE</button></div>
@@ -2291,8 +2368,9 @@ const App = {
           <div class="note" style="text-align:center;margin-top:6px">teal = today's contour, machine-traced from the 06/07/26 baseline photo · amber dashed = target proportions —<br>your contour warped per scanline by target÷current girth (true scale, no amplification; updates with each monthly Renpho entry)<br>photo stays on THIS device only (never in the shared file, never exported) · overlay is calibrated to the 06/07/26 photo — replacing it with a different image will misalign the contours · image-left mapped to right-side (R) tape sites</div></div>`
         :`<div>${girthSVG(last, targetG)}
           <div class="note" style="text-align:center;margin-top:4px">silhouette calibrated from the 04/07/26 baseline photos —<br>waist/shoulder + leg line photo-measured; other widths girth-proportioned · Δ×3 amplified</div></div>`}
-        <div>${radarSVG(last, targetG)}
-          <div class="note" style="text-align:center;margin-top:4px">100% = at target · direction-aware<br>(waist/abdomen: lower is better)</div></div></div>
+        <div id="radarWrap" style="position:relative">${radarSVG(last, targetG)}
+          <div id="radarTip" style="display:none;position:absolute;z-index:5;pointer-events:none;background:var(--night);border:1px solid var(--contour);border-radius:8px;padding:8px 11px;font-size:11.5px;line-height:1.55;min-width:150px;box-shadow:0 4px 14px rgba(0,0,0,.45)"></div>
+          <div class="note" style="text-align:center;margin-top:4px">100% = at target · direction-aware<br>(waist/abdomen: lower is better) · hover / tap a vertex for the site card · tap selects the trend below</div></div></div>
       <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:12px">${pctChips}</div>
       <div style="margin-top:14px"><div class="eyebrow">Site trend — ${esc(selDef.name)}</div>
         <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">${pills}</div>${trend}</div>
@@ -2895,7 +2973,14 @@ const App = {
         <button class="btn solid" data-act="taxAdd">Add note</button></div></div>`;
   },
   view_changelog(){
-    const log=`v1.28  06/07/26  Body Map photo view. Front-view contour machine-
+    const log=`v1.29  06/07/26  Target explorer + interactive radar. kg/BF%
+                   steppers on the Body Map card re-derive every site target
+                   live (anchored λ-model — canonical numbers at the adopted
+                   73/15 goal) across photo contour, silhouette, radar, chips;
+                   what-if until "adopt as target" commits. Radar vertices now
+                   hover/tap-interactive: site card with current, target, Δ,
+                   % of target, λ; click selects the trend chart.
+v1.28  06/07/26  Body Map photo view. Front-view contour machine-
                    traced from the 06/07/26 baseline photo (PHOTO_CONTOUR, 6
                    regions). photoOverlaySVG(): photo + teal current contour +
                    amber dashed target proportions (contour warped by target÷
@@ -2973,7 +3058,7 @@ v1.5  04/07/26   Scorecard, Athletic Board, Body Map, demo mode, girth radar.
 v1.0–v1.4  02–04/07/26  Initial build; ported from React artifact.
                    Full early history in OPERATING_BRIEF.md.`;
     return `<div class="card">
-      <div class="eyebrow" style="color:${C.teal};margin-bottom:12px">Dashboard changelog — v1.28 (current) → v1.0</div>
+      <div class="eyebrow" style="color:${C.teal};margin-bottom:12px">Dashboard changelog — v1.29 (current) → v1.0</div>
       <pre style="font-family:var(--mono);font-size:11px;color:var(--mist);line-height:1.7;white-space:pre-wrap;margin:0">${esc(log)}</pre>
     </div>`;
   },
@@ -3032,7 +3117,7 @@ v1.0–v1.4  02–04/07/26  Initial build; ported from React artifact.
         else if(a==="addProt") this.addProt();
         else if(a==="setTarget") this.setTarget();
         else if(a==="demoToggle") this.toggleDemo();
-        else if(this.demo && ["addWeek","addBody","addLab","addLift","addGirth","addProt","setTarget","import","importSess","importFFF","reset","taxAdd","addCheckin","addProtein","export"].includes(a)){ this.flash("Demo mode is read-only — toggle off at the bottom"); }
+        else if(this.demo && ["addWeek","addBody","addLab","addLift","addGirth","addProt","setTarget","tgtAdopt","import","importSess","importFFF","reset","taxAdd","addCheckin","addProtein","export"].includes(a)){ this.flash("Demo mode is read-only — toggle off at the bottom"); }
         else if(a==="gymday"){ const [w,i]=v.split("-").map(Number); this.gymDay=(this.gymDay&&this.gymDay.w===w&&this.gymDay.i===i)?null:{w,i}; this.render(); }
         else if(a==="gymclose"){ this.gymDay=null; this.render(); }
         else if(a==="runtype"){ if(v){ this.selType=v; this.week=null; this.tab="sessions"; this.render(); const t=qs("type_"+v); if(t) t.scrollIntoView({behavior:"smooth",block:"center"}); } }
@@ -3050,6 +3135,8 @@ v1.0–v1.4  02–04/07/26  Initial build; ported from React artifact.
         else if(a==="wellMetric"){ if(v){ this.wellMetric=v; this.render(); } }
         else if(a==="wellView"){ if(v==="day"||v==="week"){ this.wellView=v; this.render(); } }
         else if(a==="bodyView"){ if(v==="photo"||v==="sil"){ this.bodyView=v; this.render(); } }
+        else if(a==="tgtAdj"){ if(v) this.tgtAdj(v); }
+        else if(a==="tgtAdopt") this.tgtAdopt();
         else if(a==="loadPhoto") this.pickPhoto();
         else if(a==="clearPhoto") this.clearPhoto();
         else if(a==="syncICU"){ if(this.demo){ this.flash("Demo mode is read-only"); } else { this.syncICU(); } }
@@ -3061,6 +3148,32 @@ v1.0–v1.4  02–04/07/26  Initial build; ported from React artifact.
     document.querySelectorAll("rect[data-seg]").forEach(r=>{
       r.addEventListener("click",()=>{ this.selSeg=r.dataset.seg; this.render(); });
     });
+    // radar vertex hover/tap → site measures card (v1.29)
+    (()=>{
+      const wrap=qs("radarWrap"), tip=qs("radarTip");
+      if(!wrap||!tip) return;
+      wrap.querySelectorAll("[data-site]").forEach(h=>{
+        const dot=wrap.querySelector(`[data-dot="${h.dataset.site}"]`);
+        const show=e=>{
+          tip.innerHTML=`<div class="eyebrow" style="color:${C.teal}">${h.dataset.name}</div>
+            <div style="font-family:var(--mono);margin-top:4px">current <b>${h.dataset.cur}</b></div>
+            <div style="font-family:var(--mono)">target <b style="color:${C.amber}">${h.dataset.tgt}</b></div>
+            <div style="font-family:var(--mono)">Δ ${h.dataset.delta}</div>
+            <div class="note" style="margin-top:3px">${h.dataset.pct} of target · λ ${h.dataset.lam}</div>`;
+          tip.style.display="block";
+          const wr=wrap.getBoundingClientRect(), tw=tip.offsetWidth||160, th=tip.offsetHeight||90;
+          let x=e.clientX-wr.left+14, y=e.clientY-wr.top-th-10;
+          if(x+tw>wr.width) x=wr.width-tw-4;
+          if(y<0) y=e.clientY-wr.top+16;
+          tip.style.left=x+"px"; tip.style.top=y+"px";
+          if(dot) dot.setAttribute("r","5.5");
+        };
+        h.addEventListener("pointerenter",show);
+        h.addEventListener("pointermove",show);
+        h.addEventListener("pointerleave",()=>{ tip.style.display="none"; if(dot) dot.setAttribute("r","3.5"); });
+        h.addEventListener("click",()=>{ this.selSeg=h.dataset.site; this.render(); });
+      });
+    })();
     // hero + FFF shared crosshair tooltip
     const bindCharts=()=>{
       const wrap=qs("overviewWrap"), tip=qs("tip");
