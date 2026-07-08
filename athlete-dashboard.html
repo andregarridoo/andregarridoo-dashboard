@@ -5,59 +5,115 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Andre → UTA100 2027 · Athlete Dashboard</title>
 <style>
-  :root{
-    --night:#0C1116; --ridge:#151C23; --ridge2:#1B242D; --contour:#2A3540;
-    --chalk:#E8EDF1; --mist:#93A4B1; --dim:#5C6B77;
-    --teal:#5FA8A0; --amber:#DCA95C; --violet:#8E86C3; --slate:#4A5866; --rose:#D0708B;
-    --paper:#FAF9F5; --ink:#1B1F24; --paperline:#D8D5CC; --papersub:#5A6470;
+  /* ── DESIGN TOKENS (v1.31 — single source of colour truth) ──────────────────
+     Every colour lives here. The JS `C` object (and LEAD_COLOR / LIFT_COLORS)
+     read these at render time via getComputedStyle, so charts + inline styles
+     re-theme automatically when [data-theme] flips. Do NOT reintroduce hardcoded
+     hex in JS — add the colour here and reference C.<name>.
+     Naming: surfaces --c-night/ridge/ridge2/contour/chalk/mist/dim ·
+     accents --c-teal/amber/violet/slate/rose · paper set --c-paper/ink/paperline/papersub.
+     #14 chart tokens: --fs-axis, --fs-ref (numeric px, read by chart helpers),
+     --c-axis, --c-line. ── */
+  :root, :root[data-theme="dark"]{
+    /* surfaces (dark default — G8) */
+    --c-night:#0C1116; --c-ridge:#151C23; --c-ridge2:#1B242D; --c-contour:#2A3540;
+    --c-chalk:#E8EDF1; --c-mist:#93A4B1; --c-dim:#5C6B77;
+    /* accents */
+    --c-teal:#5FA8A0; --c-amber:#DCA95C; --c-violet:#8E86C3; --c-slate:#4A5866; --c-rose:#D0708B;
+    /* paper set (used by clinical view + light accents) */
+    --c-paper:#FAF9F5; --c-ink:#1B1F24; --c-paperline:#D8D5CC; --c-papersub:#5A6470;
+    /* #14 chart tokens */
+    --fs-axis:9; --fs-ref:8.5; --c-axis:var(--c-dim); --c-line:var(--c-contour);
+    /* type */
     --mono:ui-monospace,'SF Mono','Cascadia Mono',Menlo,Consolas,monospace;
     --sans:ui-sans-serif,-apple-system,'Segoe UI',Roboto,Helvetica,sans-serif;
+    /* semantic surface roles (theme-swapped) */
+    --bg:var(--c-night); --fg:var(--c-chalk); --card:var(--c-ridge); --cardline:var(--c-contour);
+    --field:var(--c-night); --fieldline:var(--c-contour);
+  }
+  /* ── LIGHT THEME (#16 / G8) — paper surfaces + darker accents so charts read
+     crisply on light. Accents deepened vs dark (washed-out teal/amber on paper
+     was the reason for palette-b). Clinical view is a separate axis (print) and
+     forces its own light surfaces regardless of this toggle. ── */
+  :root[data-theme="light"]{
+    --c-night:#FAF9F5; --c-ridge:#FFFFFF; --c-ridge2:#F1EFE8; --c-contour:#D8D5CC;
+    --c-chalk:#1B1F24; --c-mist:#5A6470; --c-dim:#8A8578;
+    --c-teal:#3E7A73; --c-amber:#B07C28; --c-violet:#6B62A8; --c-slate:#6B7580; --c-rose:#B24E6B;
+    --c-axis:#8A8578; --c-line:#CFCBBE;
+    --bg:var(--c-night); --fg:var(--c-chalk); --card:var(--c-ridge); --cardline:var(--c-contour);
+    --field:#FFFFFF; --fieldline:var(--c-contour);
   }
   *{box-sizing:border-box}
-  body{margin:0;background:var(--night);color:var(--chalk);font-family:var(--sans);-webkit-font-smoothing:antialiased}
+  body{margin:0;background:var(--c-night);color:var(--c-chalk);font-family:var(--sans);-webkit-font-smoothing:antialiased}
   .wrap{max-width:1120px;margin:0 auto;padding:22px 16px 70px}
-  .eyebrow{font-family:var(--mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--dim)}
-  .card{background:var(--ridge);border:1px solid var(--contour);border-radius:10px;padding:16px}
+  .eyebrow{font-family:var(--mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--c-dim)}
+  .card{background:var(--c-ridge);border:1px solid var(--c-contour);border-radius:10px;padding:16px}
   .grid{display:grid;gap:14px}
   .cols2{display:grid;gap:14px;grid-template-columns:1fr}
   .cols3{display:grid;gap:14px;grid-template-columns:1fr}
   .cols4{display:grid;gap:14px;grid-template-columns:1fr 1fr}
   @media(min-width:760px){.cols2{grid-template-columns:1fr 1fr}.cols3{grid-template-columns:1fr 1fr 1fr}.cols4{grid-template-columns:repeat(4,1fr)}}
-  .empty{font-family:var(--mono);font-size:11px;color:var(--dim);padding:14px 0;line-height:1.7}
+  .empty{font-family:var(--mono);font-size:11px;color:var(--c-dim);padding:14px 0;line-height:1.7}
   button{font-family:var(--mono);cursor:pointer}
-  .btn{font-size:11px;letter-spacing:.06em;padding:7px 12px;border-radius:7px;background:transparent;color:var(--mist);border:1px solid var(--contour)}
-  .btn.solid{background:var(--teal);color:var(--night);border-color:var(--teal)}
-  .btn.danger{color:var(--rose);border-color:var(--rose)}
+  .btn{font-size:11px;letter-spacing:.06em;padding:7px 12px;border-radius:7px;background:transparent;color:var(--c-mist);border:1px solid var(--c-contour)}
+  .btn.solid{background:var(--c-teal);color:var(--c-night);border-color:var(--c-teal)}
+  .btn.danger{color:var(--c-rose);border-color:var(--c-rose)}
   .btn:disabled{opacity:.4;cursor:default}
-  .pill{font-size:10px;letter-spacing:.1em;padding:4px 10px;border-radius:999px;border:1px solid var(--contour);background:transparent;color:var(--mist)}
-  .pill.on{background:var(--teal);color:var(--night);border-color:var(--teal)}
-  .tabbar{display:flex;gap:2px;margin:20px 0 16px;border-bottom:1px solid var(--contour);overflow-x:auto}
-  .tab{font-size:11px;letter-spacing:.08em;padding:9px 14px;background:transparent;border:none;color:var(--dim);border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap;text-transform:uppercase}
-  .tab.on{color:var(--chalk);border-bottom-color:var(--teal)}
-  input,select,textarea{background:var(--night);border:1px solid var(--contour);border-radius:6px;color:var(--chalk);font-family:var(--mono);font-size:12px;padding:6px 8px;outline:none}
+  .pill{display:inline-flex;align-items:center;justify-content:center;line-height:1;font-size:10px;letter-spacing:.1em;padding:4px 10px;border-radius:999px;border:1px solid var(--c-contour);background:transparent;color:var(--c-mist)}
+  .pill.on{background:var(--c-teal);color:var(--c-night);border-color:var(--c-teal)}
+  .pill.badge{min-width:34px}   /* v1.32 — stadium not circle for short run-type ids (MP/ME) */
+  .tabbar{display:flex;gap:2px;margin:20px 0 16px;border-bottom:1px solid var(--c-contour);overflow-x:auto}
+  .tab{font-size:11px;letter-spacing:.08em;padding:9px 14px;background:transparent;border:none;color:var(--c-dim);border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap;text-transform:uppercase}
+  .tab.on{color:var(--c-chalk);border-bottom-color:var(--c-teal)}
+  input,select,textarea{background:var(--c-night);border:1px solid var(--c-contour);border-radius:6px;color:var(--c-chalk);font-family:var(--mono);font-size:12px;padding:6px 8px;outline:none}
+  input[type=number]{-moz-appearance:textfield}
+  input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
   label.f{display:flex;flex-direction:column;gap:4px}
-  label.f span{font-family:var(--mono);font-size:9px;letter-spacing:.12em;color:var(--dim);text-transform:uppercase}
+  label.f span{font-family:var(--mono);font-size:9px;letter-spacing:.12em;color:var(--c-dim);text-transform:uppercase}
   .row{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}
   .scroll{overflow-x:auto}
-  .note{font-family:var(--mono);font-size:9.5px;color:var(--dim);line-height:1.7}
-  .flash{font-family:var(--mono);font-size:11px;color:var(--teal);min-height:16px}
-  .tip{position:absolute;pointer-events:none;background:var(--ridge2);border:1px solid var(--contour);border-radius:8px;padding:10px 12px;max-width:240px;z-index:9;display:none}
+  .note{font-family:var(--mono);font-size:9.5px;color:var(--c-dim);line-height:1.7}
+  .flash{font-family:var(--mono);font-size:11px;color:var(--c-teal);min-height:16px}
+  .tip{position:absolute;pointer-events:none;background:var(--c-ridge2);border:1px solid var(--c-contour);border-radius:8px;padding:10px 12px;max-width:240px;z-index:9;display:none}
   table{width:100%;border-collapse:collapse}
-  td{border-bottom:1px solid var(--contour);padding:7px 0}
-  a{color:var(--teal)}
-  body.clinical{background:var(--paper);color:var(--ink)}
-  body.clinical .card{background:#fff;border-color:var(--paperline)}
-  body.clinical .eyebrow{color:var(--papersub)}
-  body.clinical td{border-color:var(--paperline)}
-  body.clinical input,body.clinical select{background:#fff;color:var(--ink);border-color:var(--paperline)}
+  td{border-bottom:1px solid var(--c-contour);padding:7px 0}
+  a{color:var(--c-teal)}
+  body.clinical{background:var(--c-paper);color:var(--c-ink)}
+  body.clinical .card{background:#fff;border-color:var(--c-paperline)}
+  body.clinical .eyebrow{color:var(--c-papersub)}
+  body.clinical td{border-color:var(--c-paperline)}
+  body.clinical input,body.clinical select{background:#fff;color:var(--c-ink);border-color:var(--c-paperline)}
   @media print{.no-print{display:none!important}body{background:#fff}}
   .lens-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-top:12px}
-  .lens-day{border:1px solid var(--contour);border-radius:8px;padding:6px 5px;display:flex;flex-direction:column;gap:5px;min-width:0}
-  .lens-dh{font-family:var(--mono);font-size:10px;color:var(--mist);display:flex;align-items:center;gap:4px}
+  .lens-day{border:1px solid var(--c-contour);border-radius:8px;padding:6px 5px;display:flex;flex-direction:column;gap:5px;min-width:0}
+  .lens-dh{font-family:var(--mono);font-size:10px;color:var(--c-mist);display:flex;align-items:center;gap:4px}
   .lens-chip{font-family:var(--mono);font-size:9.5px;line-height:1.25;padding:4px 5px;border-radius:5px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .lens-rest{border:1px dashed var(--contour);color:var(--dim)}
+  .lens-rest{border:1px dashed var(--c-contour);color:var(--c-dim)}
   .lens-dot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-left:auto}
   @media(max-width:560px){.lens-grid{grid-template-columns:repeat(7,minmax(56px,1fr));overflow-x:auto}.lens-chip{font-size:8.5px}}
+  /* ── #15 RESPONSIVE (G7 — S25 Ultra portrait ~412px & landscape ~915px;
+     DeX / split-screen out of scope). Portrait: tighter gutters, single-col
+     cards so nothing is cramped 2-wide; charts already viewBox+max-width:100%
+     so they reflow. Landscape reuses the ≥760px multi-col grid below. ── */
+  @media(max-width:480px){
+    .wrap{padding:16px 10px 64px}
+    .cols4{grid-template-columns:1fr}   /* stop forcing 2-wide on narrow portrait */
+    .card{padding:13px}
+    h1{font-size:20px!important}
+    .tab{padding:8px 11px}
+    .row{gap:8px}
+    /* #15: bump chart-text tokens so viewBox-downscaled SVG text stays legible on
+       narrow portrait. The chart helpers read these via cssvNum() at render time,
+       and the resize/orientation listener (bindResize) re-renders so the new value
+       actually takes — this is why the 860-unit wide charts don't shrink to ~4px. */
+    :root, :root[data-theme="dark"], :root[data-theme="light"]{ --fs-axis:12; --fs-ref:11; }
+    .btn, .pill{min-height:40px}   /* touch targets */
+  }
+  /* landscape phones (short height, wide-ish): keep 2-col where it fits, trim vertical padding */
+  @media(max-height:520px) and (orientation:landscape){
+    .wrap{padding:12px 14px 48px}
+    .cols2{grid-template-columns:1fr 1fr}
+  }
 </style>
 </head>
 <body>
@@ -110,6 +166,77 @@
    CHANGELOG
    v1.0  02/07/26  first HTML build (ported from React artifact)
    (v1.0–v1.6 archived — full history in OPERATING_BRIEF.md CHANGELOG)
+   v1.32  07/07/26 Sessions badge + SCHED.upper biceps continuity fix.
+                   [1] Run-type badge (.pill.on) rendered as a CIRCLE on phone
+                   for short 2-char ids (MP/ME) with text not vertically centred:
+                   .pill given display:inline-flex + align/justify-center +
+                   line-height:1 (global — benign on all single-line pills, also
+                   fixes the ≥40px touch-target centring); new scoped .pill.badge
+                   {min-width:34px} applied ONLY to the run-type badge so it stays
+                   wider-than-tall (stadium, not circle). No other pill site gets
+                   min-width.
+                   [2] photoOverlaySVG target (amber) contour stepped at the
+                   armpit split: the `upper` whole-body envelope was warped about
+                   the body midline by an AVERAGED bicep ratio, while the arm
+                   regions below warped the same physical outer-arm edge about the
+                   arm's own nearer centre — a warp-BASIS discontinuity no ratio
+                   match could close. Fix: SCHED.upper split into per-edge
+                   schedules (outer-left→bicepR, outer-right→bicepL), each edge
+                   warped by its own ratio about the region centre; arm regions
+                   given a short outer-edge anchor blend carrying the seam offset
+                   from the split, relaxing to 0 by the bicep landmark. Seam Δ
+                   drops from ~35/28px to <1px (sub-pixel, = raw-trace residual).
+                   rBicAvg removed. At r=1 anchor Δ=0 (no-delta invariant kept);
+                   amber still can't cross teal. Silhouette view fixed identically.
+                   node --check + DOM-shimmed harness (8 tabs × dark/light ×
+                   clinical) + badge + seam-continuity asserts: clean. STORE_KEY
+                   unchanged.
+   v1.31  07/07/26 Phase 2 CSS-var design-token layer (roadmap #14/#15/#16).
+                   Single source of colour truth: all hex now lives in :root as
+                   --c-* vars; the JS C object + LEAD_COLOR + LIFT_COLORS became
+                   live getComputedStyle readers (cssv/cssvNum, Proxies) that
+                   resolve at render time — so all ~190 C.* refs and every SVG
+                   chart re-theme automatically when [data-theme] flips. No
+                   callsite rewrite, no duplicated hex.
+                   #14: font/colour chart tokens promoted to global CSS vars
+                   (--fs-axis/--fs-ref/--c-axis/--c-line); chartSVG + chartSVGdash
+                   local FS_AXIS/FS_REF/COL_AXIS/COL_LINE now source from them.
+                   #16 (G8): dark default + light-mode toggle at page bottom,
+                   persisted via Store.pref (SEPARATE key andre-athlete-prefs —
+                   STORE_KEY + export JSON untouched), restored pre-first-paint.
+                   Light theme = paper surfaces + DEEPENED accents (teal/amber/
+                   violet/rose darkened so charts read on paper — palette-b).
+                   Clinical view stays a separate axis (own paper surfaces).
+                   #15 (G7): responsive breakpoints for S25 Ultra — ≤480px
+                   portrait (single-col cards, tighter gutters, smaller h1/tabs)
+                   + landscape short-height rule; DeX/split out of scope.
+                   Fixed stale Changelog-tab header ("v1.29 (current)"→v1.31).
+                   node --check + DOM-shimmed harness (both themes + clinical):
+                   clean. STORE_KEY unchanged. SCHED.upper biceps fix still open.
+   v1.30  07/07/26 Phase 1 chart cleanup batch (DASHBOARD_ROADMAP_v2.md §F).
+                   #1: removed "dashed = plan projection" legend text from
+                   chart area (load panel else-if branch) — toggle button kept.
+                   #2: projection dashed lines darkened (opacity 0.45→0.75,
+                   stroke-width 1.1→1.6) on all three proj paths (ATL/CTL/TSB).
+                   #3: phase band fill opacity 0.05→0.12; boundary stroke added
+                   (1px, 25% opacity, lead colour) between adjacent phase bands.
+                   #4: chartSVG + chartSVGdash last-label text-anchor flipped to
+                   "end" at i===n-1 — prevents right-edge clip on all tab charts.
+                   #5: High-Risk TSB band fill #8B0000→#FFB3B3 + per-band opacity
+                   field (op:0.18) so it renders clearly lighter than other bands.
+                   #6: raceTaperGates const + forEach removed from Form panel per
+                   G3 ruling — RACES array kept as data; plan-panel ▲ markers kept.
+                   #20: point-marker circles removed from solid trend lines in
+                   chartSVG (bar type and chartSVGdash unaffected).
+                   #33: Health "All entries" wrapped in <details><summary> —
+                   default collapsed; click to expand.
+                   #37: CSS added to hide native number-input spinners
+                   (webkit-inner/outer-spin-button + moz-appearance:textfield).
+                   Font-token groundwork: FF/FS_AXIS/FS_REF/COL_AXIS/COL_LINE
+                   constants added to top of chartSVG + chartSVGdash; inline
+                   literals in grid/axis/cat labels now reference tokens (Phase 2
+                   will sweep these into global CSS vars).
+                   node --check + render harness: clean.
    v1.29  06/07/26 Target explorer + interactive radar. GIRTH_TARGET_ANCHOR
                    (73/15 — the goal the explicit per-site targets were computed
                    for). App.targetGirths(): explicit targets ratio-scaled by
@@ -317,11 +444,41 @@
 ── */
 const EMBEDDED_STATE = null; // ← share-copies get the exported JSON here
 
-/* ── tokens (mirror CSS) ── */
-const C = { teal:"#5FA8A0", amber:"#DCA95C", violet:"#8E86C3", slate:"#4A5866",
+/* ── tokens (v1.31 — live CSS-var readers, single source of truth in :root) ──
+   C.teal etc. resolve the current computed value of --c-teal at ACCESS time, so
+   every chart string and inline style re-themes automatically when the root
+   [data-theme] attribute flips (#16) — no 190-callsite rewrite, no duplicated hex.
+   NOTE: all C.* access happens inside render functions (after <body> exists), and
+   LEAD_COLOR/LIFT_COLORS are Proxies too, so nothing reads a var before the DOM/
+   stylesheet is live. `cssv` falls back to a dark-palette literal if getComputedStyle
+   is unavailable (node harness has no real CSSOM) — keeps the render harness green. */
+const _CSS_FALLBACK = { teal:"#5FA8A0", amber:"#DCA95C", violet:"#8E86C3", slate:"#4A5866",
   rose:"#D0708B", chalk:"#E8EDF1", mist:"#93A4B1", dim:"#5C6B77", contour:"#2A3540",
-  night:"#0C1116", ink:"#1B1F24", papersub:"#5A6470", paperline:"#D8D5CC" };
-const LEAD_COLOR = { hyp:C.amber, end:C.teal, taper:C.violet, rec:C.slate };
+  night:"#0C1116", ridge:"#151C23", ridge2:"#1B242D", ink:"#1B1F24",
+  papersub:"#5A6470", paperline:"#D8D5CC", paper:"#FAF9F5", axis:"#5C6B77", line:"#2A3540" };
+function cssv(name){
+  try{
+    if(typeof getComputedStyle==="function" && typeof document!=="undefined" && document.documentElement){
+      const v=getComputedStyle(document.documentElement).getPropertyValue("--c-"+name).trim();
+      if(v) return v;
+    }
+  }catch(e){}
+  return _CSS_FALLBACK[name] || "#000";
+}
+/* numeric token reader (#14) — --fs-axis / --fs-ref are unitless numbers used as
+   SVG font-size values; fall back to the v1.30 literals under the node harness. */
+const _NUM_FALLBACK = { "fs-axis":9, "fs-ref":8.5 };
+function cssvNum(name){
+  try{
+    if(typeof getComputedStyle==="function" && typeof document!=="undefined" && document.documentElement){
+      const v=parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--"+name));
+      if(!isNaN(v)) return v;
+    }
+  }catch(e){}
+  return _NUM_FALLBACK[name];
+}
+const C = new Proxy({}, { get:(_,k)=> cssv(k) });
+const LEAD_COLOR = new Proxy({}, { get:(_,k)=> ({hyp:cssv("amber"),end:cssv("teal"),taper:cssv("violet"),rec:cssv("slate")})[k] });
 const LEAD_LABEL = { hyp:"hypertrophy lead", end:"endurance lead", taper:"taper / race", rec:"recover" };
 
 /* ── THE PLAN — locked 2 Jul 2026 · W1 = w/c Mon 29/06/26.
@@ -547,7 +704,9 @@ const MARKERS = [
 ];
 
 const KEY_LIFTS = ["Smith squat","Bulgarian split squat","Barbell RDL","Leg extension (slow ecc.)","Standing calf raise"];
-const LIFT_COLORS = [C.teal, C.amber, C.violet, C.chalk, C.rose];
+/* live-reading (see C proxy note above) — indexed by KEY_LIFTS position */
+const LIFT_COLORS = new Proxy(["teal","amber","violet","chalk","rose"], {
+  get:(t,k)=> (k in t && !isNaN(k)) ? cssv(t[k]) : Reflect.get(t,k) });
 
 /* GIRTHS registry — Renpho tape measure sites (cm), monthly cadence.
    λ = muscle-drive coefficient (1=fully muscle-driven, 0=structural/fat-driven).
@@ -808,12 +967,27 @@ const Store = {
       else if(this.mode==="local"){ localStorage.setItem(STORE_KEY,v); }
     }catch(e){ console.error("save failed",e); }
   },
+  /* UI-pref store (v1.31) — theme + view prefs. Deliberately a SEPARATE key from
+     STORE_KEY so it never touches the athlete data record or the export JSON.
+     Synchronous localStorage only (prefs are trivial + boot-critical to avoid a
+     theme flash); no-ops under window.storage / memory mode, so theme falls back
+     to the dark default there. */
+  PREF_KEY:"andre-athlete-prefs",
+  pref(k,v){
+    try{
+      if(v===undefined){ const raw=localStorage.getItem(this.PREF_KEY); return raw?JSON.parse(raw)[k]:undefined; }
+      const raw=localStorage.getItem(this.PREF_KEY); const o=raw?JSON.parse(raw):{}; o[k]=v; localStorage.setItem(this.PREF_KEY,JSON.stringify(o));
+    }catch(e){}
+  },
 };
 
 /* ── SVG chart helpers ── */
 function niceMax(v){ if(v<=0) return 1; const p=Math.pow(10,Math.floor(Math.log10(v))); const n=v/p; const m=n<=1?1:n<=2?2:n<=2.5?2.5:n<=5?5:10; return m*p; }
 
 function chartSVG(o){
+  // FONT/COLOR tokens — Phase 2 will sweep these into global CSS vars
+  // #14: font/colour tokens now sourced from global CSS vars (--fs-axis/--fs-ref/--c-axis/--c-line); per-call overrides (o.sub/o.line) still win.
+  const FF="var(--mono)", FS_AXIS=cssvNum("fs-axis"), FS_REF=cssvNum("fs-ref"), COL_AXIS=o.sub||cssv("axis"), COL_LINE=o.line||cssv("line");
   const W=o.w||460, H=o.h||200, P={l:44,r:12,t:14,b:26};
   const iw=W-P.l-P.r, ih=H-P.t-P.b, n=o.cats.length;
   let vals=[];
@@ -829,13 +1003,13 @@ function chartSVG(o){
   let g="";
   if(o.band) g+=`<rect x="${P.l}" y="${sy(o.band.hi)}" width="${iw}" height="${Math.max(0,sy(o.band.lo)-sy(o.band.hi))}" fill="${o.band.color||C.teal}" opacity="0.1"/>`;
   for(let i=0;i<=3;i++){ const v=lo+(hi-lo)*i/3, y=sy(v);
-    g+=`<line x1="${P.l}" x2="${W-P.r}" y1="${y}" y2="${y}" stroke="${o.line||C.contour}" stroke-opacity="0.35"/>`;
-    g+=`<text x="${P.l-6}" y="${y+3}" text-anchor="end" font-family="var(--mono)" font-size="9" fill="${o.sub||C.dim}">${fmt(v)}${o.yUnit?" "+o.yUnit:""}</text>`; }
+    g+=`<line x1="${P.l}" x2="${W-P.r}" y1="${y}" y2="${y}" stroke="${COL_LINE}" stroke-opacity="0.35"/>`;
+    g+=`<text x="${P.l-6}" y="${y+3}" text-anchor="end" font-family="${FF}" font-size="${FS_AXIS}" fill="${COL_AXIS}">${fmt(v)}${o.yUnit?" "+o.yUnit:""}</text>`; }
   const step=Math.ceil(n/8);
-  o.cats.forEach((c,i)=>{ if(i%step===0||i===n-1) g+=`<text x="${sx(i)}" y="${H-8}" text-anchor="middle" font-family="var(--mono)" font-size="9" fill="${o.sub||C.dim}">${esc(c)}</text>`; });
+  o.cats.forEach((c,i)=>{ if(i%step===0||i===n-1){ const lx=sx(i),anc=i===n-1?"end":"middle"; g+=`<text x="${lx}" y="${H-8}" text-anchor="${anc}" font-family="${FF}" font-size="${FS_AXIS}" fill="${COL_AXIS}">${esc(c)}</text>`; } });
   (o.refs||[]).forEach(r=>{ const y=sy(r.y);
     g+=`<line x1="${P.l}" x2="${W-P.r}" y1="${y}" y2="${y}" stroke="${r.color}" stroke-dasharray="4 3"/>`;
-    g+=`<text x="${W-P.r}" y="${y-4}" text-anchor="end" font-family="var(--mono)" font-size="8.5" fill="${r.color}">${esc(r.label)}</text>`; });
+    g+=`<text x="${W-P.r}" y="${y-4}" text-anchor="end" font-family="${FF}" font-size="${FS_REF}" fill="${r.color}">${esc(r.label)}</text>`; });
   const bars = o.series.filter(s=>s.type==="bar"), bw = bars.length ? Math.max(3,(iw/Math.max(1,n))/(bars.length+1.2)) : 0;
   o.series.forEach((s)=>{
     if(s.type==="bar"){
@@ -846,8 +1020,6 @@ function chartSVG(o){
       let path="", started=false;
       s.data.forEach((v,i)=>{ if(v==null){ return; } const x=sx(i),y=sy(v); path+=(started?"L":"M")+x+" "+y; started=true; });
       if(path) g+=`<path d="${path}" fill="none" stroke="${s.color}" stroke-width="1.6"/>`;
-      s.data.forEach((v,i)=>{ if(v==null) return;
-        g+=`<circle cx="${sx(i)}" cy="${sy(v)}" r="3" fill="${s.color}"><title>${esc(o.cats[i])} · ${esc(s.name)}: ${fmt(v)}${o.yUnit?" "+o.yUnit:""}</title></circle>`; });
     }
   });
   const legend = o.series.length>1 ? `<div style="display:flex;gap:14px;margin-top:6px;flex-wrap:wrap">${o.series.map(s=>`<span class="note" style="display:flex;align-items:center;gap:6px"><i style="width:8px;height:8px;border-radius:2px;background:${s.color};display:inline-block"></i>${esc(s.name)}</span>`).join("")}</div>` : "";
@@ -857,6 +1029,9 @@ function chartSVG(o){
 /* chartSVGdash — like chartSVG but supports per-series stroke-dasharray/opacity/width.
    Series entries may have: dash (string), opacity (0-1), width (px). */
 function chartSVGdash(o){
+  // FONT/COLOR tokens — Phase 2 will sweep these into global CSS vars
+  // #14: font/colour tokens now sourced from global CSS vars (--fs-axis/--fs-ref/--c-axis/--c-line); per-call overrides (o.sub/o.line) still win.
+  const FF="var(--mono)", FS_AXIS=cssvNum("fs-axis"), FS_REF=cssvNum("fs-ref"), COL_AXIS=o.sub||cssv("axis"), COL_LINE=o.line||cssv("line");
   const W=o.w||460, H=o.h||200, P={l:44,r:12,t:14,b:26};
   const iw=W-P.l-P.r, ih=H-P.t-P.b, n=o.cats.length;
   let vals=[];
@@ -870,13 +1045,13 @@ function chartSVGdash(o){
   const sy=v=>P.t+ih-(v-lo)/(hi-lo)*ih;
   let g="";
   for(let i=0;i<=3;i++){const v=lo+(hi-lo)*i/3,y=sy(v);
-    g+=`<line x1="${P.l}" x2="${W-P.r}" y1="${y}" y2="${y}" stroke="${o.line||C.contour}" stroke-opacity="0.35"/>`;
-    g+=`<text x="${P.l-6}" y="${y+3}" text-anchor="end" font-family="var(--mono)" font-size="9" fill="${o.sub||C.dim}">${fmt(v)}${o.yUnit?" "+o.yUnit:""}</text>`;}
+    g+=`<line x1="${P.l}" x2="${W-P.r}" y1="${y}" y2="${y}" stroke="${COL_LINE}" stroke-opacity="0.35"/>`;
+    g+=`<text x="${P.l-6}" y="${y+3}" text-anchor="end" font-family="${FF}" font-size="${FS_AXIS}" fill="${COL_AXIS}">${fmt(v)}${o.yUnit?" "+o.yUnit:""}</text>`;}
   const step=Math.ceil(n/8);
-  o.cats.forEach((c,i)=>{if(i%step===0||i===n-1) g+=`<text x="${sx(i)}" y="${H-8}" text-anchor="middle" font-family="var(--mono)" font-size="9" fill="${o.sub||C.dim}">${esc(c)}</text>`;});
+  o.cats.forEach((c,i)=>{if(i%step===0||i===n-1){const lx=sx(i),anc=i===n-1?"end":"middle"; g+=`<text x="${lx}" y="${H-8}" text-anchor="${anc}" font-family="${FF}" font-size="${FS_AXIS}" fill="${COL_AXIS}">${esc(c)}</text>`;} });
   (o.refs||[]).forEach(r=>{const y=sy(r.y);
     g+=`<line x1="${P.l}" x2="${W-P.r}" y1="${y}" y2="${y}" stroke="${r.color}" stroke-dasharray="4 3"/>`;
-    g+=`<text x="${W-P.r}" y="${y-4}" text-anchor="end" font-family="var(--mono)" font-size="8.5" fill="${r.color}">${esc(r.label)}</text>`;});
+    g+=`<text x="${W-P.r}" y="${y-4}" text-anchor="end" font-family="${FF}" font-size="${FS_REF}" fill="${r.color}">${esc(r.label)}</text>`;});
   o.series.forEach(s=>{
     const da=s.dash||null, op=s.opacity!=null?s.opacity:1, sw=s.width!=null?s.width:1.6;
     let path="",started=false;
@@ -957,7 +1132,7 @@ function girthSVG(todayG, targetG){
   return `<svg viewBox="0 0 ${Wf} ${Hf}" width="${Wf}" height="${Hf}" style="max-width:100%">
     ${render(targetG,C.amber,true)}
     ${render(todayG,C.teal,false,"rgba(94,234,212,.06)")}
-    <text x="${cx}" y="${Hf-1}" text-anchor="middle" font-size="8.5" fill="var(--dim)" font-family="var(--mono)">today (teal) vs target (amber) · widths photo+girth-calibrated · Δ×3 amplified</text>
+    <text x="${cx}" y="${Hf-1}" text-anchor="middle" font-size="8.5" fill="var(--c-dim)" font-family="var(--mono)">today (teal) vs target (amber) · widths photo+girth-calibrated · Δ×3 amplified</text>
   </svg>`;
 }
 
@@ -991,9 +1166,22 @@ function photoOverlaySVG(todayG, targetG, photoUrl){
   const rOf=id=>{ const cv=todayG?todayG[id]:null, tv=targetG?targetG[id]:null;
     if(cv==null||tv==null||cv===0) return 1;
     return Math.min(1.35,Math.max(0.75,tv/cv)); };
-  const rBicAvg=(rOf("bicepL")+rOf("bicepR"))/2;
+  /* v1.32 — SCHED.upper continuity fix. The `upper` region is a single
+     whole-body envelope; its image-left edge IS the subject's right outer
+     arm and its image-right edge IS the subject's left outer arm. Warping
+     the whole envelope about the body midline by one averaged bicep ratio
+     stepped the amber (target) line at the armpit split, because below the
+     split the same physical arm edge is warped about the ARM's own (much
+     nearer) centre by a much smaller half-width. Fix: give `upper` two
+     independent EDGE schedules — outer-left tracks bicepR, outer-right
+     tracks bicepL — and warp each edge by its own ratio (rL/rR) about the
+     region centre. Interior landmarks (neck/shoulder/chest) ramp identically
+     on both edges. This makes the split RATIOS match by construction; the
+     residual warp-BASIS jump is then closed by a short outer-edge anchor
+     blend on the arm regions (below). rBicAvg is gone — no averaging. */
   const SCHED={
-    upper:[[L.neck,1],[L.sho,rOf("shoulder")],[L.chest,rOf("chest")],[L.split,rBicAvg]],
+    upperL:[[L.neck,1],[L.sho,rOf("shoulder")],[L.chest,rOf("chest")],[L.split,rOf("bicepR")]],
+    upperR:[[L.neck,1],[L.sho,rOf("shoulder")],[L.chest,rOf("chest")],[L.split,rOf("bicepL")]],
     torso:[[L.chest,rOf("chest")],[L.waist,rOf("waist")],[L.abd,rOf("abdomen")],[L.hip,rOf("hip")],[L.crotch,rOf("hip")]],
     armR:[[L.split,rOf("bicepR")],[L.armBicep+40,rOf("bicepR")],[L.armForearm,rOf("forearmR")],[L.armWrist,1]],
     armL:[[L.split,rOf("bicepL")],[L.armBicep+40,rOf("bicepL")],[L.armForearm,rOf("forearmL")],[L.armWrist,1]],
@@ -1009,21 +1197,58 @@ function photoOverlaySVG(todayG, targetG, photoUrl){
     return 1;
   };
   const poly=pts=>"M"+pts.map(p=>fmt(p[0],1)+","+fmt(p[1],1)).join(" L ");
+  /* v1.32 — outer-edge anchor for the arms. At the split, the upper envelope's
+     outer edge lands at (centre_up − half_up · rBic); the arm region, warped
+     about its own nearer centre, would place the same edge at (centre_arm −
+     half_arm · rBic) — a jump of Δ even though the ratios agree. We carry that
+     Δ across the seam and relax it linearly to zero over [split, armBicep], so
+     the outer arm edge leaves the split C0-continuous with the upper envelope
+     and returns to the pure arm-centre warp by the bicep landmark. Inner
+     (armpit-facing) edges are untouched. armR's outer edge is its xl (left);
+     armL's outer edge is its xr (right). */
+  const upRows=PC.regions.upper, upSplit=upRows[upRows.length-1];
+  const upC=(upSplit[1]+upSplit[2])/2, upH=(upSplit[2]-upSplit[1])/2;
+  const rBicR=rOf("bicepR"), rBicL=rOf("bicepL");
+  const armAnchor={};
+  ["armR","armL"].forEach(k=>{
+    const f=PC.regions[k][0], cA=(f[1]+f[2])/2, hA=(f[2]-f[1])/2;
+    if(k==="armR"){ const upEdge=upC-upH*rBicR, armEdge=cA-hA*rBicR; armAnchor[k]=upEdge-armEdge; }
+    else          { const upEdge=upC+upH*rBicL, armEdge=cA+hA*rBicL; armAnchor[k]=upEdge-armEdge; }
+  });
+  const anchorEnd=L.armBicep;   // Δ relaxes to zero by the bicep landmark
   let cur="", tgt="";
   Object.keys(PC.regions).forEach(k=>{
-    const rows=PC.regions[k], sch=SCHED[k];
+    const rows=PC.regions[k];
     const cl=[],cr=[],tl=[],tr=[];
-    rows.forEach(p=>{ const y=p[0], xl=p[1], xr=p[2], c=(xl+xr)/2, h=(xr-xl)/2, r=evalR(sch,y);
-      cl.push([xl,y]); cr.push([xr,y]); tl.push([c-h*r,y]); tr.push([c+h*r,y]); });
+    if(k==="upper"){
+      /* per-edge ratios: left edge (subj right arm) → upperL, right edge → upperR */
+      rows.forEach(p=>{ const y=p[0], xl=p[1], xr=p[2], c=(xl+xr)/2, h=(xr-xl)/2,
+        rL=evalR(SCHED.upperL,y), rR=evalR(SCHED.upperR,y);
+        cl.push([xl,y]); cr.push([xr,y]); tl.push([c-h*rL,y]); tr.push([c+h*rR,y]); });
+    } else if(k==="armR"||k==="armL"){
+      const sch=SCHED[k], Δ0=armAnchor[k];
+      rows.forEach(p=>{ const y=p[0], xl=p[1], xr=p[2], c=(xl+xr)/2, h=(xr-xl)/2, r=evalR(sch,y);
+        /* anchor blend fades from Δ0 at the split to 0 at anchorEnd */
+        const w = y>=anchorEnd ? 0 : (anchorEnd-y)/(anchorEnd-L.split);
+        const off = Δ0*Math.max(0,Math.min(1,w));
+        cl.push([xl,y]); cr.push([xr,y]);
+        if(k==="armR"){ tl.push([c-h*r+off,y]); tr.push([c+h*r,y]); }   // outer = left (xl)
+        else          { tl.push([c-h*r,y]);     tr.push([c+h*r+off,y]); } // outer = right (xr)
+      });
+    } else {
+      const sch=SCHED[k];
+      rows.forEach(p=>{ const y=p[0], xl=p[1], xr=p[2], c=(xl+xr)/2, h=(xr-xl)/2, r=evalR(sch,y);
+        cl.push([xl,y]); cr.push([xr,y]); tl.push([c-h*r,y]); tr.push([c+h*r,y]); });
+    }
     cur+=`<path d="${poly(cl)}"/><path d="${poly(cr)}"/>`;
     tgt+=`<path d="${poly(tl)}"/><path d="${poly(tr)}"/>`;
   });
   const hasPhoto=!!photoUrl;
   const vb=hasPhoto?`0 0 ${IW} ${IH}`:`0 0 410 ${IH}`;   // crop to front figure when no photo
   const img=hasPhoto?`<image href="${photoUrl}" x="0" y="0" width="${IW}" height="${IH}"/>
-    <rect x="0" y="0" width="${IW}" height="${IH}" fill="var(--night)" opacity="0.14"/>`
-   :`<text x="205" y="120" text-anchor="middle" font-family="var(--mono)" font-size="15" fill="var(--dim)">no photo on this device</text>
-     <text x="205" y="142" text-anchor="middle" font-family="var(--mono)" font-size="11" fill="var(--dim)">contours still true — load the 06/07/26 baseline photo below</text>`;
+    <rect x="0" y="0" width="${IW}" height="${IH}" fill="var(--c-night)" opacity="0.14"/>`
+   :`<text x="205" y="120" text-anchor="middle" font-family="var(--mono)" font-size="15" fill="var(--c-dim)">no photo on this device</text>
+     <text x="205" y="142" text-anchor="middle" font-family="var(--mono)" font-size="11" fill="var(--c-dim)">contours still true — load the 06/07/26 baseline photo below</text>`;
   return `<svg viewBox="${vb}" style="width:100%;max-width:${hasPhoto?460:220}px;display:block;margin:0 auto" preserveAspectRatio="xMidYMid meet">
     ${img}
     <g fill="none" stroke="${C.teal}" stroke-width="2.5" opacity="0.85">${cur}</g>
@@ -1045,11 +1270,11 @@ function radarSVG(cur, tgt){
   const ang=i=>(-90+i*360/N)*Math.PI/180;
   const pt=(i,r)=>[c+r*Math.cos(ang(i)), c+r*Math.sin(ang(i))];
   const rings=[85,92,100,108].map(p=>{ const r=rOf(p);
-    return `<circle cx="${c}" cy="${c}" r="${fmt(r,1)}" fill="none" stroke="${p===100?C.amber:"var(--contour)"}" stroke-width="${p===100?1.4:0.6}" ${p===100?`stroke-dasharray="5 4"`:""} opacity="${p===100?0.9:0.6}"/>`; }).join("");
+    return `<circle cx="${c}" cy="${c}" r="${fmt(r,1)}" fill="none" stroke="${p===100?C.amber:"var(--c-contour)"}" stroke-width="${p===100?1.4:0.6}" ${p===100?`stroke-dasharray="5 4"`:""} opacity="${p===100?0.9:0.6}"/>`; }).join("");
   const spokes=GIRTHS.map((g,i)=>{ const [x,y]=pt(i,Rmax); const [lx,ly]=pt(i,Rmax+18);
     const short=g.name.replace("Upper Thigh","U.Thigh").replace("Lower Thigh","L.Thigh").replace("Forearm","F.arm").replace("Bicep ","Bi ");
-    return `<line x1="${c}" y1="${c}" x2="${fmt(x,1)}" y2="${fmt(y,1)}" stroke="var(--contour)" stroke-width="0.5" opacity="0.5"/>
-      <text x="${fmt(lx,1)}" y="${fmt(ly,1)}" text-anchor="middle" dominant-baseline="middle" font-size="7.5" fill="var(--mist)" font-family="var(--mono)">${esc(short)}</text>`; }).join("");
+    return `<line x1="${c}" y1="${c}" x2="${fmt(x,1)}" y2="${fmt(y,1)}" stroke="var(--c-contour)" stroke-width="0.5" opacity="0.5"/>
+      <text x="${fmt(lx,1)}" y="${fmt(ly,1)}" text-anchor="middle" dominant-baseline="middle" font-size="7.5" fill="var(--c-mist)" font-family="var(--mono)">${esc(short)}</text>`; }).join("");
   const pts=GIRTHS.map((g,i)=>{ const p=pctOf(g); return p==null?null:pt(i,rOf(p)); });
   const have=pts.filter(Boolean).length;
   const poly = have>=3 ? "M"+pts.map((p,i)=>p?fmt(p[0],1)+","+fmt(p[1],1):null).filter(Boolean).join(" L ")+" Z" : null;
@@ -1064,14 +1289,14 @@ function radarSVG(cur, tgt){
     const col=p==null?C.dim:(p>=98?C.teal:p>=92?C.amber:C.rose);
     const dv=(cv!=null&&tv!=null)?tv-cv:null;
     const dTxt=dv==null?"—":`${dv>0?"+":""}${fmt(dv,1)} cm ${down?(dv<0?"to lose":"over"):(dv>0?"to gain":"met")}`;
-    return `${p==null?"":`<circle data-dot="${g.id}" cx="${fmt(hx,1)}" cy="${fmt(hy,1)}" r="3.5" fill="${col}" stroke="var(--night)" stroke-width="0.8"/>`}
+    return `${p==null?"":`<circle data-dot="${g.id}" cx="${fmt(hx,1)}" cy="${fmt(hy,1)}" r="3.5" fill="${col}" stroke="var(--c-night)" stroke-width="0.8"/>`}
       <circle data-site="${g.id}" data-name="${esc(g.name)}" data-cur="${cv==null?"—":fmt(cv,1)+" cm"}" data-tgt="${tv==null?"—":fmt(tv,1)+" cm"}" data-delta="${esc(dTxt)}" data-pct="${p==null?"—":p+"%"}" data-lam="${g.λ}" cx="${fmt(hx,1)}" cy="${fmt(hy,1)}" r="13" fill="transparent" style="cursor:pointer"/>`;
   }).join("");
   return `<svg viewBox="0 0 ${S} ${S}" width="${S}" height="${S}" style="max-width:100%">
     ${rings}${spokes}
     ${poly?`<path d="${poly}" fill="rgba(94,234,212,.14)" stroke="${C.teal}" stroke-width="1.8" stroke-linejoin="round"/>`:""}
     ${dots}
-    <text x="${c}" y="${S-4}" text-anchor="middle" font-size="8.5" fill="var(--dim)" font-family="var(--mono)">amber ring = target (100%) · teal = current · waist/abdomen inverted</text>
+    <text x="${c}" y="${S-4}" text-anchor="middle" font-size="8.5" fill="var(--c-dim)" font-family="var(--mono)">amber ring = target (100%) · teal = current · waist/abdomen inverted</text>
   </svg>`;
 }
 
@@ -1112,13 +1337,13 @@ function perfRadarSVG(sc){
   let rings="";
   [0.5,0.75,1.0].forEach(f=>{
     const r=Rmax*f;
-    rings+=`<circle cx="${c}" cy="${c}" r="${fmt(r,1)}" fill="none" stroke="var(--contour)" stroke-width="${f===1?1.2:0.5}" opacity="${f===1?0.7:0.4}"/>`;
+    rings+=`<circle cx="${c}" cy="${c}" r="${fmt(r,1)}" fill="none" stroke="var(--c-contour)" stroke-width="${f===1?1.2:0.5}" opacity="${f===1?0.7:0.4}"/>`;
   });
   // spokes + labels
   let spokes=axes.map((a,i)=>{
     const [x,y]=pt(i,Rmax), [lx,ly]=pt(i,Rmax+20);
-    return `<line x1="${c}" y1="${c}" x2="${fmt(x,1)}" y2="${fmt(y,1)}" stroke="var(--contour)" stroke-width="0.5" opacity="0.5"/>
-      <text x="${fmt(lx,1)}" y="${fmt(ly,1)}" text-anchor="middle" dominant-baseline="middle" font-size="8" fill="var(--mist)" font-family="var(--mono)">${esc(a.label)}</text>`;
+    return `<line x1="${c}" y1="${c}" x2="${fmt(x,1)}" y2="${fmt(y,1)}" stroke="var(--c-contour)" stroke-width="0.5" opacity="0.5"/>
+      <text x="${fmt(lx,1)}" y="${fmt(ly,1)}" text-anchor="middle" dominant-baseline="middle" font-size="8" fill="var(--c-mist)" font-family="var(--mono)">${esc(a.label)}</text>`;
   }).join("");
   // polygon
   const pts=axes.map((a,i)=>{ const r=Rmax*(a.v==null?0:Math.min(1,Math.max(0,a.v))); return pt(i,r); });
@@ -1128,7 +1353,7 @@ function perfRadarSVG(sc){
     const v=a.v==null?0:Math.min(1,Math.max(0,a.v));
     const r=Rmax*v, [x,y]=pt(i,r);
     const col=v>=0.85?C.teal:v>=0.6?C.amber:C.rose;
-    return a.v==null?"":`<circle cx="${fmt(x,1)}" cy="${fmt(y,1)}" r="3" fill="${col}" stroke="var(--night)" stroke-width="0.8"/>`;
+    return a.v==null?"":`<circle cx="${fmt(x,1)}" cy="${fmt(y,1)}" r="3" fill="${col}" stroke="var(--c-night)" stroke-width="0.8"/>`;
   }).join("");
   return `<svg viewBox="0 0 ${S} ${S}" width="${S}" height="${S}" style="max-width:100%;display:block">
     ${rings}${spokes}
@@ -1260,7 +1485,8 @@ function overviewSVG(wStart, wEnd){
   PHASES.forEach(p=>{
     const x1=sx(Math.max(p.w1-0.5,Math.max(1,wStart)-0.5)),x2=sx(Math.min(p.w2+0.5,wEnd+0.5));
     if(x2<=x1)return;
-    g+=`<rect x="${x1}" y="${planT}" width="${x2-x1}" height="${wtB-planT}" fill="${LEAD_COLOR[p.lead]}" opacity="0.05"/>`;
+    g+=`<rect x="${x1}" y="${planT}" width="${x2-x1}" height="${wtB-planT}" fill="${LEAD_COLOR[p.lead]}" opacity="0.12"/>`;
+    g+=`<line x1="${x2}" x2="${x2}" y1="${planT}" y2="${wtB}" stroke="${LEAD_COLOR[p.lead]}" stroke-opacity="0.25" stroke-width="1"/>`;
     g+=`<rect x="${x1+1}" y="${planT-11}" width="${Math.max(0,x2-x1-2)}" height="4" rx="2" fill="${LEAD_COLOR[p.lead]}" opacity="0.85"><title>${esc(p.name)}</title></rect>`;});
 
   // Plan-start marker
@@ -1355,7 +1581,7 @@ function overviewSVG(wStart, wEnd){
   if(hasProj&&fv.proj){
     const drawProj=(key,col)=>{let p="",ok=false;
       projWeeks.forEach(w=>{const v=adjProj(w,key);if(v==null)return;const x=sx(w+0.5),y=syLoad(v);p+=(ok?"L":"M")+x+" "+y;ok=true;});
-      if(p)g+=`<path d="${p}" fill="none" stroke="${col}" stroke-width="1.1" stroke-dasharray="5 4" opacity="0.45"/>`;};
+      if(p)g+=`<path d="${p}" fill="none" stroke="${col}" stroke-width="1.6" stroke-dasharray="5 4" opacity="0.75"/>`;};
     if(fv.atl) drawProj("atl",C.rose);
     if(fv.ctl) drawProj("ctl",C.teal);
   }
@@ -1369,14 +1595,12 @@ function overviewSVG(wStart, wEnd){
   }
   if(!hasFFF&&!hasProj){
     g+=`<text x="${Pl+iw/2}" y="${loadT+hLoad/2}" text-anchor="middle" font-family="var(--mono)" font-size="9" fill="${C.dim}">import wellness JSON (Data tab) for live Fitness/Fatigue</text>`;
-  } else if(!hasFFF){
-    g+=`<text x="${Pl+iw/2}" y="${loadT+10}" text-anchor="middle" font-family="var(--mono)" font-size="9" fill="${C.dim}" opacity="0.5">dashed = plan projection · sync for live data</text>`;
   }
   g+=`<text x="14" y="${loadT+hLoad/2}" font-family="var(--mono)" font-size="8.5" fill="${C.dim}" transform="rotate(-90 14 ${loadT+hLoad/2})" text-anchor="middle">load/day</text>`;
 
   // ═══ PANEL 3: FORM (TSB + readiness bands) ═══════════════════════════════
   const tsbBands=[
-    {lo:-67.8, hi:-30, color:"#8B0000", label:"High Risk", lc:"#e07070"},
+    {lo:-67.8, hi:-30, color:"#FFB3B3", label:"High Risk", lc:"#e07070", op:0.18},
     {lo:-30,   hi:-10, color:"#4A7C59", label:"Optimal",   lc:"#6fbf8a"},
     {lo:-10,   hi:5,   color:"#2A3A2A", label:"Grey Zone", lc:"#8a9a8a"},
     {lo:5,     hi:25,  color:"#0A2535", label:"Fresh",     lc:"#5BB8D4"},
@@ -1386,7 +1610,7 @@ function overviewSVG(wStart, wEnd){
     if(b.hi<formLo||b.lo>formHi) return;
     const y1=syForm(Math.min(b.hi,formHi)), y2=syForm(Math.max(b.lo,formLo));
     if(y2<=y1) return;
-    g+=`<rect x="${Pl}" y="${y1}" width="${iw}" height="${y2-y1}" fill="${b.color}" opacity="0.5"/>`;
+    g+=`<rect x="${Pl}" y="${y1}" width="${iw}" height="${y2-y1}" fill="${b.color}" opacity="${b.op!=null?b.op:0.5}"/>`;
     const midY=(y1+y2)/2;
     if(midY>formT&&midY<formB)
       g+=`<text x="${W-Pr-3}" y="${midY+3}" text-anchor="end" font-family="var(--mono)" font-size="7.5" fill="${b.lc}" opacity="0.8">${b.label}</text>`;
@@ -1394,35 +1618,12 @@ function overviewSVG(wStart, wEnd){
   for(let i=0;i<=2;i++){const v=formLo+(formHi-formLo)*i/2,y=syForm(v);
     g+=`<text x="${Pl-6}" y="${y+3}" text-anchor="end" font-family="var(--mono)" font-size="8.5" fill="${C.dim}">${Math.round(v)}</text>`;}
   if(formLo<=0&&formHi>=0)g+=`<line x1="${Pl}" x2="${W-Pr}" y1="${syForm(0)}" y2="${syForm(0)}" stroke="${C.chalk}" stroke-dasharray="3 3" opacity="0.3"/>`;
-  // Race TSB gate bands — optimal freshness window shown only in taper weeks for each race
-  // [{race, taperW1, taperW2, tsbFloor, tsbCeil}]
-  const raceTaperGates=[
-    {name:"Sydney",  tw1:8,  tw2:9,  lo:5,  hi:20, col:C.rose},
-    {name:"UTK",     tw1:21, tw2:22, lo:10, hi:25, col:C.amber},
-    {name:"UTA",     tw1:44, tw2:46, lo:10, hi:30, col:C.teal},
-  ];
-  raceTaperGates.forEach(g2=>{
-    const x1=sx(Math.max(g2.tw1-0.5,Math.max(1,wStart)-0.5));
-    const x2=sx(Math.min(g2.tw2+0.5,wEnd+0.5));
-    if(x2<=x1) return;
-    const yLo=syForm(Math.min(g2.hi,formHi)), yHi=syForm(Math.max(g2.lo,formLo));
-    if(yHi<=yLo) return;
-    g+=`<rect x="${x1}" y="${yLo}" width="${x2-x1}" height="${yHi-yLo}" fill="${g2.col}" opacity="0.12"/>`;
-    // floor and ceiling dashed lines
-    if(g2.lo>=formLo&&g2.lo<=formHi)
-      g+=`<line x1="${x1}" x2="${x2}" y1="${syForm(g2.lo)}" y2="${syForm(g2.lo)}" stroke="${g2.col}" stroke-width="1" stroke-dasharray="3 3" opacity="0.6"/>`;
-    if(g2.hi>=formLo&&g2.hi<=formHi)
-      g+=`<line x1="${x1}" x2="${x2}" y1="${syForm(g2.hi)}" y2="${syForm(g2.hi)}" stroke="${g2.col}" stroke-width="1" stroke-dasharray="3 3" opacity="0.35"/>`;
-    // label at right edge of band
-    const labelY=Math.min(Math.max(syForm((g2.lo+g2.hi)/2),formT+8),formB-4);
-    if(x2>Pl+30)
-      g+=`<text x="${x2-2}" y="${labelY}" text-anchor="end" font-family="var(--mono)" font-size="7.5" fill="${g2.col}" opacity="0.7">${g2.name} gate</text>`;
-  });
+  // Race TSB gate bands removed per G3 ruling (06/07/26) — keep RACES array as data source
   // Projection TSB dashed line (bias-corrected to join real data seamlessly)
   if(hasProj&&fv.proj&&fv.tsb){
     let p="",ok=false;
     projWeeks.forEach(w=>{const v=adjProj(w,"tsb");if(v==null)return;const x=sx(w+0.5),y=syForm(v);p+=(ok?"L":"M")+x+" "+y;ok=true;});
-    if(p)g+=`<path d="${p}" fill="none" stroke="${C.violet}" stroke-width="1.1" stroke-dasharray="5 4" opacity="0.45"/>`;
+    if(p)g+=`<path d="${p}" fill="none" stroke="${C.violet}" stroke-width="1.6" stroke-dasharray="5 4" opacity="0.75"/>`;
   }
   // Real TSB solid line (on top)
   if(hasFFF&&fv.tsb){
@@ -1563,7 +1764,7 @@ function overviewTipHTML(w){
   });
   const wLabel=w>=1?`W${w}`:`W${w}`;
   return `<div style="font-family:var(--mono);font-size:11px;color:${C.chalk}">${wLabel} · w/c ${wc}</div>
-  ${ph?`<div style="font-family:var(--mono);font-size:10px;color:${LEAD_COLOR[ph.lead]};margin-top:2px">${esc(ph.name)} — ${LEAD_LABEL[ph.lead]}</div>`:"<div style=\"font-family:var(--mono);font-size:10px;color:var(--dim);margin-top:2px\">pre-plan history</div>"}
+  ${ph?`<div style="font-family:var(--mono);font-size:10px;color:${LEAD_COLOR[ph.lead]};margin-top:2px">${esc(ph.name)} — ${LEAD_LABEL[ph.lead]}</div>`:"<div style=\"font-family:var(--mono);font-size:10px;color:var(--c-dim);margin-top:2px\">pre-plan history</div>"}
   ${p?`<div style="font-family:var(--mono);font-size:11px;color:${C.mist};margin-top:6px">plan ${App.unit==="km"?p.km+" km":fmt(p.h)+" h"}${done!=null?` · <span style="color:${C.chalk}">done ${fmt(done)} ${App.unit==="km"?"km":"h"}</span>`:""}</div>`:""}
   ${p&&p.race?`<div style="font-family:var(--mono);font-size:10px;color:${C.rose};margin-top:4px">▲ ${esc(p.race.name)} — ${p.race.km} km</div>`:""}
   ${fffRow||projRow?`<div style="margin-top:7px;padding-top:6px;border-top:1px solid ${C.contour}">
@@ -1614,7 +1815,7 @@ const RUN_STYLE = {
   long:   {bg:C.teal,  fg:"#1b1f24", solid:1, lab:"Long"},
   quality:{bg:C.violet,fg:"#1b1f24", solid:1, lab:"Quality"},
   easy:   {bg:C.teal,  fg:C.teal,    solid:0, lab:"Easy"},
-  rest:   {bg:"transparent", fg:"var(--dim)", solid:0, lab:"Rest"},
+  rest:   {bg:"transparent", fg:"var(--c-dim)", solid:0, lab:"Rest"},
 };
 function plannedDay(w,i){ const ph=phaseOf(w), tpl=(WEEK_TEMPLATES[ph.id]||[])[i]||{}, o=(WEEK_OVERRIDES[w]||{})[i]||{};
   return { r:o.r||tpl.r||"—", g:o.g||tpl.g||null, L:tpl.L||o.L, H:tpl.H||o.H }; }
@@ -1646,7 +1847,7 @@ function weekStrip(w){
     const now=new Date(), todayIso=now.getFullYear()+"-"+String(now.getMonth()+1).padStart(2,"0")+"-"+String(now.getDate()).padStart(2,"0");
     const today = iso===todayIso;
     return `<div class="lens-day" style="${today?`border-color:${C.teal}`:""}">
-      <div class="lens-dh">${d}<span style="color:var(--dim);font-size:8px"> ${iso.slice(8)}/${iso.slice(5,7)}</span>${dot}</div>
+      <div class="lens-dh">${d}<span style="color:var(--c-dim);font-size:8px"> ${iso.slice(8)}/${iso.slice(5,7)}</span>${dot}</div>
       ${runChip}${gymChip}</div>`; }).join("");
   return `<div class="lens-grid">${cells}</div>
     ${gymDayCard(w)}
@@ -1660,10 +1861,10 @@ function gymDayCard(w){
   const {G}=sessionMaps(); const done=G[iso];
   const key=classifyGym(p.g)||classifyGym(done&&done.name)||"Gym";
   const S=GYM_SESSIONS[key]||GYM_SESSIONS["Gym"];
-  const rows=S.ex.length? S.ex.map(e=>`<tr><td style="font-size:12px;color:var(--chalk)">${esc(e[0])}</td>
-      <td style="font-family:var(--mono);font-size:11px;color:var(--mist);text-align:center">2 × <span style="color:var(--dim)">per sheet</span></td>
-      <td style="font-family:var(--mono);font-size:11px;color:var(--mist);text-align:center">RPE ${esc(e[1])}</td>
-      <td style="font-family:var(--mono);font-size:11px;color:var(--dim);text-align:right">${esc(e[2])}</td></tr>`).join("")
+  const rows=S.ex.length? S.ex.map(e=>`<tr><td style="font-size:12px;color:var(--c-chalk)">${esc(e[0])}</td>
+      <td style="font-family:var(--mono);font-size:11px;color:var(--c-mist);text-align:center">2 × <span style="color:var(--c-dim)">per sheet</span></td>
+      <td style="font-family:var(--mono);font-size:11px;color:var(--c-mist);text-align:center">RPE ${esc(e[1])}</td>
+      <td style="font-family:var(--mono);font-size:11px;color:var(--c-dim);text-align:right">${esc(e[2])}</td></tr>`).join("")
     : `<tr><td class="note">No fixed exercise list — see the plan note for this day.</td></tr>`;
   return `<div class="card" style="margin-top:10px;border-color:${C.amber}">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
@@ -1681,17 +1882,17 @@ function trendCard(title,unit,series,goodUp,target,invite){
   const last = series.length ? series[series.length-1].v : null;
   const base = series.length>1 ? series.slice(0,-1).reduce((s,p)=>s+p.v,0)/(series.length-1) : null;
   const delta = (last!=null&&base) ? ((last-base)/base)*100 : null;
-  let dHtml = `<span style="color:var(--dim)">—</span>`;
+  let dHtml = `<span style="color:var(--c-dim)">—</span>`;
   if(delta!=null){ const up=delta>=0, good=goodUp?up:!up;
     dHtml = `<span style="font-family:var(--mono);font-size:12px;color:${good?C.teal:C.rose}">${up?"▲":"▼"} ${fmt(Math.abs(delta))}%</span>`; }
   return `<div class="card">
     <div class="eyebrow">${esc(title)}</div>
     <div style="display:flex;align-items:baseline;gap:10px;margin-top:8px">
-      <span style="font-family:var(--mono);font-size:22px;color:${last!=null?"var(--chalk)":"var(--dim)"}">${last!=null?fmt(last):"—"}</span>
-      <span style="font-family:var(--mono);font-size:10px;color:var(--dim)">${esc(unit)}</span>${dHtml}
+      <span style="font-family:var(--mono);font-size:22px;color:${last!=null?"var(--c-chalk)":"var(--c-dim)"}">${last!=null?fmt(last):"—"}</span>
+      <span style="font-family:var(--mono);font-size:10px;color:var(--c-dim)">${esc(unit)}</span>${dHtml}
     </div>
     <div style="height:42px;margin-top:6px">${series.length>1 ? sparkSVG(series,C.teal) :
-      `<div style="border-bottom:1px dashed var(--contour);height:100%;display:flex;align-items:flex-end"><span class="note" style="padding-bottom:4px">${esc(invite)}</span></div>`}</div>
+      `<div style="border-bottom:1px dashed var(--c-contour);height:100%;display:flex;align-items:flex-end"><span class="note" style="padding-bottom:4px">${esc(invite)}</span></div>`}</div>
     ${target?`<div class="note" style="margin-top:8px">gate · ${esc(target)}</div>`:""}
   </div>`;
 }
@@ -1883,6 +2084,7 @@ function makeDemo(){
 const App = {
   state: norm(JSON.parse(JSON.stringify(EMPTY))),
   tab: "overview", unit: "km", clinical: false, selMarker: "ferritin",
+  theme: "dark",  // "dark" (G8 default) | "light"; persisted via Store.pref, applied in render()
   week: null, selSeg: "tr", selWeek: null,
   selType: null, gymDay: null, boardOpen: false, demo: false, _real: null,
   ovRange: {past:12, future:8},  // weeks back / forward from today shown in overview
@@ -1904,6 +2106,10 @@ const App = {
   segSorted(){ return [...this.state.segmental].sort((a,b)=>a.d.localeCompare(b.d)); },
 
   render(){
+    // #16: theme attribute on <html> drives every CSS var (and thus C.* / charts).
+    // Clinical view keeps its own paper surfaces via body.clinical (a separate axis)
+    // so it prints correctly whatever the screen theme is.
+    document.documentElement.setAttribute("data-theme", this.theme==="light" ? "light" : "dark");
     document.body.classList.toggle("clinical", this.clinical);
     qs("app").innerHTML = this.clinical ? this.viewClinical() : this.viewMain();
     this.bind();
@@ -1911,22 +2117,23 @@ const App = {
 
   viewMain(){
     const races = RACES.map(r=>{ const d=daysTo(r.date);
-      return `<div style="text-align:right"><div style="font-family:var(--mono);font-size:18px;color:${d<0?"var(--dim)":"var(--chalk)"}">${d<0?"✓":d}</div>
-      <div style="font-family:var(--mono);font-size:8.5px;letter-spacing:.14em;color:var(--dim);text-transform:uppercase">${d<0?esc(r.name):"days · "+esc(r.name.split(" ")[0])}</div></div>`; }).join("");
+      return `<div style="text-align:right"><div style="font-family:var(--mono);font-size:18px;color:${d<0?"var(--c-dim)":"var(--c-chalk)"}">${d<0?"✓":d}</div>
+      <div style="font-family:var(--mono);font-size:8.5px;letter-spacing:.14em;color:var(--c-dim);text-transform:uppercase">${d<0?esc(r.name):"days · "+esc(r.name.split(" ")[0])}</div></div>`; }).join("");
     const tabs=[["overview","Overview"],["running","Running"],["sessions","Sessions"],["strength","Strength"],["body","Body · Fuel"],["health","Health"],["data","Data"],["changelog","Changelog"]]
       .map(t=>`<button class="tab ${this.tab===t[0]?"on":""}" data-act="tab" data-v="${t[0]}">${t[1]}</button>`).join("");
     const storeNote = Store.mode==="memory" ? `<div class="note" style="color:${C.rose}">⚠ storage blocked in this context — data is session-only; use Export JSON to keep it</div>` : "";
     return `
     <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px">
-      <div><div class="eyebrow" style="color:var(--teal)">Longitudinal athlete record · n = 1</div>
-        <h1 style="font-family:var(--mono);font-size:24px;font-weight:600;margin:6px 0 0">ANDRE <span style="color:var(--dim)">→</span> UTA100 <span style="color:var(--teal)">2027</span></h1></div>
+      <div><div class="eyebrow" style="color:var(--c-teal)">Longitudinal athlete record · n = 1</div>
+        <h1 style="font-family:var(--mono);font-size:24px;font-weight:600;margin:6px 0 0">ANDRE <span style="color:var(--c-dim)">→</span> UTA100 <span style="color:var(--c-teal)">2027</span></h1></div>
       <div style="display:flex;gap:18px;align-items:center;flex-wrap:wrap">${races}
         <button class="btn no-print" data-act="clinical">⚕ CLINICAL VIEW</button></div>
     </div>
     ${storeNote}
     ${this.demo?`<div class="note" style="color:${C.rose};border:1px dashed ${C.rose};border-radius:8px;padding:8px 12px;margin-top:10px">⚠ DEMO MODE — synthetic preview data through W18 (invariant amendment signed off by Andre 04/07/26). Read-only: nothing is saved, exports are blocked. Toggle off at the bottom.</div>`:""}
     ${this.week ? this.viewWeek() : `<div class="tabbar no-print">${tabs}</div><div class="grid">${this["view_"+this.tab]()}</div>`}
-    <div class="no-print" style="display:flex;justify-content:center;margin-top:26px;padding-bottom:8px">
+    <div class="no-print" style="display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin-top:26px;padding-bottom:8px">
+      <button class="btn" data-act="themeToggle">${this.theme==="light"?"◐ THEME: LIGHT — tap for dark":"◑ THEME: DARK — tap for light"}</button>
       <button class="btn" data-act="demoToggle" style="${this.demo?`border-color:${C.rose};color:${C.rose}`:""}">DEMO MODE: ${this.demo?"ON — tap to return to real data":"OFF"}</button></div>`;
   },
 
@@ -1939,9 +2146,9 @@ const App = {
       const hard=base.H||o.H, legs=base.L||o.L;
       const badge= hard ? `<span class="pill" style="border-color:${C.rose};color:${C.rose};font-size:9px;padding:2px 7px">hard legs</span>`
         : legs ? `<span class="pill" style="border-color:${C.amber};color:${C.amber};font-size:9px;padding:2px 7px">legs loaded</span>` : "";
-      return `<tr><td style="font-family:var(--mono);font-size:11px;color:var(--dim);width:44px;vertical-align:top">${d}</td>
-        <td style="font-size:12.5px;color:var(--chalk);padding-right:10px">${esc(run)}</td>
-        <td style="font-size:12px;color:var(--mist)">${esc(gym)} ${badge}</td></tr>`; }).join("");
+      return `<tr><td style="font-family:var(--mono);font-size:11px;color:var(--c-dim);width:44px;vertical-align:top">${d}</td>
+        <td style="font-size:12.5px;color:var(--c-chalk);padding-right:10px">${esc(run)}</td>
+        <td style="font-size:12px;color:var(--c-mist)">${esc(gym)} ${badge}</td></tr>`; }).join("");
     return `<div class="grid" style="margin-top:16px">
     <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
@@ -1951,9 +2158,9 @@ const App = {
           <button class="btn" data-act="wknext" ${w>=49?"disabled":""}>W${w+1} ›</button></div></div>
       <div style="margin-top:14px">
         <div class="eyebrow" style="color:${LEAD_COLOR[ph.lead]}">W${w} · w/c ${p.wc} — ${esc(ph.name)} (${LEAD_LABEL[ph.lead]})</div>
-        <div style="font-family:var(--mono);font-size:12px;color:var(--mist);margin-top:6px">plan ${p.km} km · ${fmt(p.h)} h run${a&&a.km!=null?` · <span style="color:var(--chalk)">executed ${fmt(a.km)} km${a.h!=null?" · "+fmt(a.h)+" h":""}</span>`:""}</div>
+        <div style="font-family:var(--mono);font-size:12px;color:var(--c-mist);margin-top:6px">plan ${p.km} km · ${fmt(p.h)} h run${a&&a.km!=null?` · <span style="color:var(--c-chalk)">executed ${fmt(a.km)} km${a.h!=null?" · "+fmt(a.h)+" h":""}</span>`:""}</div>
         ${p.race?`<div style="font-family:var(--mono);font-size:11px;color:${C.rose};margin-top:4px">▲ ${esc(p.race.name)} — ${p.race.km} km</div>`:""}
-        ${(p.note||ov.note)?`<div style="font-size:12px;color:var(--dim);margin-top:4px">${esc([p.note,ov.note].filter(Boolean).join(" · "))}</div>`:""}
+        ${(p.note||ov.note)?`<div style="font-size:12px;color:var(--c-dim);margin-top:4px">${esc([p.note,ov.note].filter(Boolean).join(" · "))}</div>`:""}
       </div>
       ${weekStrip(w)}
       <table style="margin-top:12px"><tbody>${rows}</tbody></table>
@@ -1986,9 +2193,9 @@ const App = {
       return `<div class="card" style="padding:0;overflow:hidden">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;padding:16px 18px 4px;flex-wrap:wrap;gap:10px">
         <div>
-          <div class="eyebrow" style="color:var(--teal)">The plan · Fitness/Fatigue · Form · Weight</div>
-          <div style="font-size:11px;color:var(--dim);margin-top:3px">Plan volume (solid=past, dashed=future) · run history · CTL/ATL · TSB form</div>
-          <div style="font-size:11px;color:var(--dim);margin-top:1px">Bands = race TSB gates · weight · one shared timeline · tap any week</div>
+          <div class="eyebrow" style="color:var(--c-teal)">The plan · Fitness/Fatigue · Form · Weight</div>
+          <div style="font-size:11px;color:var(--c-dim);margin-top:3px">Plan volume (solid=past, dashed=future) · run history · CTL/ATL · TSB form</div>
+          <div style="font-size:11px;color:var(--c-dim);margin-top:1px">Bands = race TSB gates · weight · one shared timeline · tap any week</div>
         </div>
         <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">
           <div style="display:flex;gap:6px">
@@ -1998,17 +2205,17 @@ const App = {
           <div style="display:flex;gap:10px;align-items:flex-end">
             <div style="display:flex;flex-direction:column;gap:3px;min-width:130px">
               <div style="display:flex;justify-content:space-between">
-                <span style="font-family:var(--mono);font-size:9px;color:var(--dim);text-transform:uppercase;letter-spacing:.1em">past</span>
-                <span style="font-family:var(--mono);font-size:9px;color:var(--mist)">${past} wk</span>
+                <span style="font-family:var(--mono);font-size:9px;color:var(--c-dim);text-transform:uppercase;letter-spacing:.1em">past</span>
+                <span style="font-family:var(--mono);font-size:9px;color:var(--c-mist)">${past} wk</span>
               </div>
-              <input type="range" min="4" max="156" step="1" value="${past}" data-act="rangePast" style="width:100%;accent-color:var(--teal)">
+              <input type="range" min="4" max="156" step="1" value="${past}" data-act="rangePast" style="width:100%;accent-color:var(--c-teal)">
             </div>
             <div style="display:flex;flex-direction:column;gap:3px;min-width:130px">
               <div style="display:flex;justify-content:space-between">
-                <span style="font-family:var(--mono);font-size:9px;color:var(--dim);text-transform:uppercase;letter-spacing:.1em">future</span>
-                <span style="font-family:var(--mono);font-size:9px;color:var(--mist)">${future} wk</span>
+                <span style="font-family:var(--mono);font-size:9px;color:var(--c-dim);text-transform:uppercase;letter-spacing:.1em">future</span>
+                <span style="font-family:var(--mono);font-size:9px;color:var(--c-mist)">${future} wk</span>
               </div>
-              <input type="range" min="2" max="52" step="1" value="${future}" data-act="rangeFuture" style="width:100%;accent-color:var(--teal)">
+              <input type="range" min="2" max="52" step="1" value="${future}" data-act="rangeFuture" style="width:100%;accent-color:var(--c-teal)">
             </div>
           </div>
         </div>
@@ -2044,12 +2251,12 @@ const App = {
     const dec=rows.filter(r=>r.decoup!=null);
     const vert=rows.filter(r=>r.vert!=null||r.desc!=null);
     const zone=rows.filter(r=>r.z12!=null);
-    const anchors = ANCHORS.map(a=>`<div style="display:flex;justify-content:space-between;gap:12px;border-bottom:1px solid var(--contour);padding-bottom:8px;flex-wrap:wrap">
-      <span style="font-size:12.5px;color:var(--mist)">${esc(a.k)}</span>
-      <span style="font-family:var(--mono);font-size:12px;color:var(--chalk)">${esc(a.v)}</span>
+    const anchors = ANCHORS.map(a=>`<div style="display:flex;justify-content:space-between;gap:12px;border-bottom:1px solid var(--c-contour);padding-bottom:8px;flex-wrap:wrap">
+      <span style="font-size:12.5px;color:var(--c-mist)">${esc(a.k)}</span>
+      <span style="font-family:var(--mono);font-size:12px;color:var(--c-chalk)">${esc(a.v)}</span>
       <span class="note" style="width:100%;text-align:right">${esc(a.n)}</span></div>`).join("");
     return `
-    <div class="card"><div class="eyebrow" style="color:var(--teal)">Durability — Pw:HR decoupling per long run</div>
+    <div class="card"><div class="eyebrow" style="color:var(--c-teal)">Durability — Pw:HR decoupling per long run</div>
       ${dec.length ? `<div style="margin-top:10px">${chartSVG({cats:dec.map(r=>"W"+r.w),yUnit:"%",series:[{name:"decoupling",color:C.teal,data:dec.map(r=>r.decoup)}],refs:[{y:5,label:"5% frontier",color:C.rose}]})}</div>`
       : `<div class="empty">◦ First long run ≥2 h populates this. The number to move: how long you last before Pw:HR breaches 5%. Race fade reference: UTA 2026 went 199→100 W.</div>`}</div>
     <div class="cols2">
@@ -2185,11 +2392,11 @@ const App = {
       data:dates.map(d=>{ const e=this.state.lifts.find(x=>x.lift===l&&x.d===d); return e?e.e1rm:null; })}))
       .filter(s=>s.data.some(v=>v!=null));
     return `
-    <div class="card"><div class="eyebrow" style="color:var(--amber)">The five ultra-relevant lifts — est. 1RM trend</div>
+    <div class="card"><div class="eyebrow" style="color:var(--c-amber)">The five ultra-relevant lifts — est. 1RM trend</div>
       ${series.length ? `<div style="margin-top:10px">${chartSVG({cats:dates.map(d=>d.slice(5)),yUnit:"kg",h:230,series})}</div>`
       : `<div class="empty">◦ Populates from the monthly MacroFactor Granular Export (or quick-add in Data). Gate: progression in hypertrophy blocks, retention everywhere else. Prior numbers are stale by design — rebuild toward.</div>`}</div>
     <div class="card"><div class="eyebrow">Block context</div>
-      <div style="font-size:12.5px;color:var(--mist);line-height:1.75;margin-top:8px">Hypertrophy leads W1–3, W12–17, W26–31 (amber bands on the plan). Failure protocol from Nippard wk 2; the standing rule — any week the long run exceeds 3 h, Sunday Legs holds 1–2 RIR. ME layer (weighted carries 6.5 → 13 kg) lives only in the UTK- and UTA-specific blocks and counts as a hard leg day.</div></div>`;
+      <div style="font-size:12.5px;color:var(--c-mist);line-height:1.75;margin-top:8px">Hypertrophy leads W1–3, W12–17, W26–31 (amber bands on the plan). Failure protocol from Nippard wk 2; the standing rule — any week the long run exceeds 3 h, Sunday Legs holds 1–2 RIR. ME layer (weighted carries 6.5 → 13 kg) lives only in the UTK- and UTA-specific blocks and counts as a hard leg day.</div></div>`;
   },
 
   view_body(){
@@ -2201,7 +2408,7 @@ const App = {
     return `
     <div class="card">
       <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px">
-        <div class="eyebrow" style="color:var(--amber)">Bodyweight — weekly AM average · 4-pt rolling mean</div>
+        <div class="eyebrow" style="color:var(--c-amber)">Bodyweight — weekly AM average · 4-pt rolling mean</div>
         <span class="note">current block gate · ${cur.lead==="hyp"?"+0.2–0.25% BW/wk":"hold stable"}</span></div>
       ${pts.length>1 ? `<div style="margin-top:10px">${chartSVG({cats:pts.map(p=>p.d.slice(5)),yUnit:"kg",h:220,
         series:[{name:"raw",color:C.dim,data:pts.map(p=>p.kg)},{name:"trend",color:C.amber,data:roll}]})}</div>`
@@ -2210,10 +2417,10 @@ const App = {
     ${this.girthCard()}
     <div class="cols3">
       <div class="card"><div class="eyebrow">Lean mass (BIA-est.)</div>
-        <div style="font-family:var(--mono);font-size:22px;margin-top:8px">≈ 52 <span style="font-size:11px;color:var(--dim)">kg ±2–3</span></div>
+        <div style="font-family:var(--mono);font-size:22px;margin-top:8px">≈ 52 <span style="font-size:11px;color:var(--c-dim)">kg ±2–3</span></div>
         <div class="note" style="margin-top:8px">UTA taper milestone: +0.7–1.2 kg (ceiling 1.5) · +5.4 kg lean = 73 kg @ 15% long-horizon goal (4–7+ yr arc)</div></div>
       <div class="card"><div class="eyebrow">Protein target</div>
-        <div style="font-family:var(--mono);font-size:22px;margin-top:8px">136–146 <span style="font-size:11px;color:var(--dim)">g/d</span></div>
+        <div style="font-family:var(--mono);font-size:22px;margin-top:8px">136–146 <span style="font-size:11px;color:var(--c-dim)">g/d</span></div>
         <div class="note" style="margin-top:8px">hypertrophy blocks · ≥125 g elsewhere (1.8–2.2 g/kg @ 67.79 kg)</div></div>
       <div class="card"><div class="eyebrow">Nutrition oversight</div>
         <div style="font-family:var(--mono);font-size:22px;margin-top:8px">MacroFactor</div>
@@ -2221,8 +2428,8 @@ const App = {
     </div>
     <div class="card"><div class="eyebrow">Protocol log — dated interventions, attributed</div>
       ${prot.length ? `<table style="margin-top:10px"><tbody>${[...prot].sort((a,b)=>b.d.localeCompare(a.d)).map(x=>`<tr>
-        <td style="font-family:var(--mono);font-size:11px;color:var(--dim);width:86px;vertical-align:top">${esc(x.d)}</td>
-        <td style="font-size:12.5px;color:var(--chalk)">${esc(x.change)}${x.reason?`<div class="note">${esc(x.reason)}</div>`:""}</td>
+        <td style="font-family:var(--mono);font-size:11px;color:var(--c-dim);width:86px;vertical-align:top">${esc(x.d)}</td>
+        <td style="font-size:12.5px;color:var(--c-chalk)">${esc(x.change)}${x.reason?`<div class="note">${esc(x.reason)}</div>`:""}</td>
         <td style="text-align:right;width:100px;vertical-align:top"><span class="pill" style="font-size:9px;padding:2px 8px;border-color:${byCol(x.by)};color:${byCol(x.by)}">${esc(x.by)}</span></td></tr>`).join("")}</tbody></table>`
       : `<div class="empty">◦ Nutrition/fuelling protocol changes land here with attribution (nutritionist · coach · andre) — the intervention layer worth trending against the charts above. Mirror entries to NUTRITION.md.</div>`}</div>`;
   },
@@ -2347,11 +2554,11 @@ const App = {
         <span class="eyebrow" style="color:${C.amber}">Target explorer</span>
         <span style="display:flex;gap:5px;align-items:center">
           <button class="pill" data-act="tgtAdj" data-v="kg-">−</button>
-          <span style="font-family:var(--mono);font-size:13px;min-width:64px;text-align:center;color:${whatIf?C.amber:"var(--chalk)"}">${fmt(tgt.kg,1)} kg</span>
+          <span style="font-family:var(--mono);font-size:13px;min-width:64px;text-align:center;color:${whatIf?C.amber:"var(--c-chalk)"}">${fmt(tgt.kg,1)} kg</span>
           <button class="pill" data-act="tgtAdj" data-v="kg+">+</button></span>
         <span style="display:flex;gap:5px;align-items:center">
           <button class="pill" data-act="tgtAdj" data-v="bf-">−</button>
-          <span style="font-family:var(--mono);font-size:13px;min-width:56px;text-align:center;color:${whatIf?C.amber:"var(--chalk)"}">${fmt(tgt.bf,1)} %</span>
+          <span style="font-family:var(--mono);font-size:13px;min-width:56px;text-align:center;color:${whatIf?C.amber:"var(--c-chalk)"}">${fmt(tgt.bf,1)} %</span>
           <button class="pill" data-act="tgtAdj" data-v="bf+">+</button></span>
         ${whatIf?`<button class="btn" data-act="tgtAdj" data-v="reset">↺ back to adopted ${fmt(adopted.kg,0)}/${fmt(adopted.bf,0)}%</button>
           <button class="btn" data-act="tgtAdopt" style="border-color:${C.amber};color:${C.amber}">adopt as target</button>`
@@ -2369,7 +2576,7 @@ const App = {
         :`<div>${girthSVG(last, targetG)}
           <div class="note" style="text-align:center;margin-top:4px">silhouette calibrated from the 04/07/26 baseline photos —<br>waist/shoulder + leg line photo-measured; other widths girth-proportioned · Δ×3 amplified</div></div>`}
         <div id="radarWrap" style="position:relative">${radarSVG(last, targetG)}
-          <div id="radarTip" style="display:none;position:absolute;z-index:5;pointer-events:none;background:var(--night);border:1px solid var(--contour);border-radius:8px;padding:8px 11px;font-size:11.5px;line-height:1.55;min-width:150px;box-shadow:0 4px 14px rgba(0,0,0,.45)"></div>
+          <div id="radarTip" style="display:none;position:absolute;z-index:5;pointer-events:none;background:var(--c-night);border:1px solid var(--c-contour);border-radius:8px;padding:8px 11px;font-size:11.5px;line-height:1.55;min-width:150px;box-shadow:0 4px 14px rgba(0,0,0,.45)"></div>
           <div class="note" style="text-align:center;margin-top:4px">100% = at target · direction-aware<br>(waist/abdomen: lower is better) · hover / tap a vertex for the site card · tap selects the trend below</div></div></div>
       <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:12px">${pctChips}</div>
       <div style="margin-top:14px"><div class="eyebrow">Site trend — ${esc(selDef.name)}</div>
@@ -2457,10 +2664,10 @@ const App = {
           "img_mri_foot":"MRI · Right foot","img_physio_report":"Physio assessment",
           "img_echo":"Echocardiogram","img_dxa":"DXA body composition","img_ultrasound":"Ultrasound"};
         const label=labelMap[e.marker]||e.marker.replace(/^img_/,"").replace(/_/g," ");
-        return `<div style="padding:10px 0;border-top:1px solid var(--contour)">
+        return `<div style="padding:10px 0;border-top:1px solid var(--c-contour)">
           <div style="display:flex;gap:12px;align-items:baseline;flex-wrap:wrap">
             <span style="font-family:var(--mono);font-size:11px;color:${sub}">${esc(e.d)}</span>
-            <span class="pill" style="font-size:9px;background:var(--contour)">${esc(label)}</span>
+            <span class="pill" style="font-size:9px;background:var(--c-contour)">${esc(label)}</span>
             ${e.note?`<span class="note">${esc(e.note)}</span>`:""}
           </div>
           <div style="font-size:12.5px;color:${ink};margin-top:8px;line-height:1.6;white-space:pre-wrap">${esc(String(e.value||""))}</div>
@@ -2479,20 +2686,20 @@ const App = {
     <div class="card"><div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px">${pills}</div>
       <div class="note" style="color:${sub}">${esc(m.name)}${refText(m)} · ${esc(m.why)}</div>
       <div style="margin-top:10px">${chart}</div></div>
-    <div class="card"><div class="eyebrow">All entries</div>${tbl}</div>
+    <div class="card"><details><summary style="font-family:var(--mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--c-dim);cursor:pointer;list-style:none;display:flex;align-items:center;gap:6px"><span style="font-size:9px">▸</span>All entries</summary>${tbl}</details></div>
     ${imgBlock}
     <div class="note" style="color:${sub}">Self-tracked records prepared for consultation. Reference ranges are general endurance-athlete starting points — defer to the reporting lab's ranges and the treating physician. Not a medical document.</div>`;
   },
 
   viewClinical(){
     return `<div style="max-width:860px;margin:0 auto">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid var(--ink);padding-bottom:14px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid var(--c-ink);padding-bottom:14px">
         <div><div class="eyebrow">Clinical view · self-tracked records</div>
           <div style="font-size:22px;font-weight:600;margin-top:6px">Andre — health markers over time</div>
-          <div style="font-family:var(--mono);font-size:11px;color:var(--papersub);margin-top:4px">Endurance athlete (ultra-trail) · concurrent resistance training · heavy sweater · prepared ${new Date().toLocaleDateString("en-AU")}</div></div>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--c-papersub);margin-top:4px">Endurance athlete (ultra-trail) · concurrent resistance training · heavy sweater · prepared ${new Date().toLocaleDateString("en-AU")}</div></div>
         <div style="display:flex;gap:8px" class="no-print">
-          <button class="btn" data-act="print" style="color:var(--papersub);border-color:var(--paperline)">print / PDF</button>
-          <button class="btn" data-act="clinical" style="color:var(--papersub);border-color:var(--paperline)">exit view</button></div>
+          <button class="btn" data-act="print" style="color:var(--c-papersub);border-color:var(--c-paperline)">print / PDF</button>
+          <button class="btn" data-act="clinical" style="color:var(--c-papersub);border-color:var(--c-paperline)">exit view</button></div>
       </div>
       <div class="grid" style="margin-top:18px">${this.healthHTML(true)}</div>
     </div>`;
@@ -2502,7 +2709,7 @@ const App = {
     const f=(id,lab,w,ph)=>`<label class="f"><span>${lab}</span><input id="${id}" style="width:${w}px" placeholder="${ph||""}"></label>`;
     return `
     <div class="flash" id="flash"></div>
-    <div class="card"><div class="eyebrow" style="color:var(--teal)">Log a training week (actuals)</div>
+    <div class="card"><div class="eyebrow" style="color:var(--c-teal)">Log a training week (actuals)</div>
       <div class="row" style="margin-top:12px">
         ${f("wk_w","week #",60,"1–46")}${f("wk_km","km",60)}${f("wk_h","hours",60)}${f("wk_vert","vert m",64)}${f("wk_desc","desc m",64)}
         ${f("wk_long","long h",60)}${f("wk_dec","decoup %",70)}${f("wk_ef","EF W/bpm",72)}${f("wk_z","% ≤AeT",64)}
@@ -2565,7 +2772,7 @@ const App = {
       <div class="note" style="margin-top:8px">The Worker URL field overrides the in-file constant for this session only. To make it permanent, edit <code>WORKER_URL</code> near the top of the file. The Worker holds your API key as a Cloudflare secret — it never appears here or in storage.</div>
       ${(()=>{ const ls=this.lastSync; if(!ls) return ""; const cov=ls.coverage, dd=ls.detailDiag;
         const row=(k,v)=>`<div style="display:flex;justify-content:space-between;gap:12px"><span class="note">${esc(k)}</span><span style="font-family:var(--mono);font-size:11px;color:${v?C.mist:C.dim}">${esc(v||"none")}</span></div>`;
-        return `<div style="margin-top:12px;padding:10px 12px;border:1px solid var(--contour);border-radius:8px">
+        return `<div style="margin-top:12px;padding:10px 12px;border:1px solid var(--c-contour);border-radius:8px">
           <div class="eyebrow" style="color:${C.teal}">Last sync — coverage reveal</div>
           ${cov?`<div style="margin-top:8px;display:grid;gap:4px">
             ${row("wellness rows",cov.rows!=null?String(cov.rows):null)}
@@ -2577,10 +2784,10 @@ const App = {
             ${row("Body Battery back to",cov.first_bodyBattery)}
             ${row("Body Battery key",cov.bodyBattery_key_found||"(none found yet)")}
           </div>`:""}
-          ${dd?`<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--contour)">
+          ${dd?`<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--c-contour)">
             <div class="note">activity-detail probe (last ${dd.window_days} d): ${dd.recent_runs} recent run${dd.recent_runs===1?"":"s"}, ${dd.runs_with_detail} with FIT detail fields — ${dd.detailAvailable===null?"<span style=\'color:"+C.dim+"\'>no recent runs to judge</span>":dd.detailAvailable?"<span style=\'color:"+C.teal+"\'>detail available ✓</span>":"<span style=\'color:"+C.amber+"\'>⚑ no detail — summary-only holds, revert the detail half</span>"}</div></div>`:""}
         </div>`; })()}</div>
-    <div class="card"><div class="eyebrow" style="color:var(--teal)">Import sessions (feeds the Week Lens ✓)</div>
+    <div class="card"><div class="eyebrow" style="color:var(--c-teal)">Import sessions (feeds the Week Lens ✓)</div>
       <textarea id="sess_io" rows="4" style="width:100%;margin-top:10px" placeholder='Paste runs.json (whole file or {"runs":[…]}) and/or {"gym":[{"d":"2026-07-04","name":"Upper (strength)"}]} — merges by date'></textarea>
       <div style="display:flex;gap:8px;margin-top:10px;align-items:center;flex-wrap:wrap">
         <button class="btn solid" data-act="importSess">Merge sessions</button>
@@ -2597,7 +2804,7 @@ const App = {
         <button class="btn" data-act="import">Import pasted state</button>
         <button class="btn danger" id="resetBtn" data-act="reset">Reset data</button></div></div>
     <div class="card"><div class="eyebrow">Method notes</div>
-      <div style="font-size:12.5px;color:var(--mist);line-height:1.8;margin-top:8px">W1 = week commencing Mon 29/06/26. Planned km are derived from the hours-native plan at assumed blended paces (road ≈6:15/km, trail ≈8:00/km) and get recalibrated each block against executed pace — a derived estimate, flagged as such. Race weeks include race distance. Trends outrank points everywhere: rolling means on body data, deltas vs baseline on site cards. Device rule: one device per metric trend — Withings weekly total weight · Renpho monthly tape girths (cm) · Garmin chest strap + power throughout. Girth target model: girth ∝ √(λ·lean_scale·1.193 + (1−λ)·fat_scale·0.842), heuristic v1, replaces itself with measured slopes at ≥3 entries. Long-horizon physique goal: 73 kg @ 15% BF (formally adopted 04/07/26); UTA taper milestone: +0.7–1.2 kg lean. Extending the dashboard = adding one entry to a registry (GIRTHS, MARKERS, KEY_LIFTS) — built to grow. Storage mode: <b>${Store.mode}</b>.</div></div>`;
+      <div style="font-size:12.5px;color:var(--c-mist);line-height:1.8;margin-top:8px">W1 = week commencing Mon 29/06/26. Planned km are derived from the hours-native plan at assumed blended paces (road ≈6:15/km, trail ≈8:00/km) and get recalibrated each block against executed pace — a derived estimate, flagged as such. Race weeks include race distance. Trends outrank points everywhere: rolling means on body data, deltas vs baseline on site cards. Device rule: one device per metric trend — Withings weekly total weight · Renpho monthly tape girths (cm) · Garmin chest strap + power throughout. Girth target model: girth ∝ √(λ·lean_scale·1.193 + (1−λ)·fat_scale·0.842), heuristic v1, replaces itself with measured slopes at ≥3 entries. Long-horizon physique goal: 73 kg @ 15% BF (formally adopted 04/07/26); UTA taper milestone: +0.7–1.2 kg lean. Extending the dashboard = adding one entry to a registry (GIRTHS, MARKERS, KEY_LIFTS) — built to grow. Storage mode: <b>${Store.mode}</b>.</div></div>`;
   },
 
   /* ── actions ── */
@@ -2844,7 +3051,7 @@ const App = {
   overviewRadarCard(){
     const sc=this.scores();
     const dot=v=>v==null?C.dim:(v>=0.85?C.teal:v>=0.6?C.amber:C.rose);
-    const pill=(lab,val,sub,col)=>`<div style="display:flex;flex-direction:column;gap:2px;padding:8px 12px;border:1px solid var(--contour);border-radius:10px;min-width:100px">
+    const pill=(lab,val,sub,col)=>`<div style="display:flex;flex-direction:column;gap:2px;padding:8px 12px;border:1px solid var(--c-contour);border-radius:10px;min-width:100px">
       <div class="eyebrow" style="margin-bottom:2px;font-size:9px">${lab}</div>
       <div style="font-family:var(--mono);font-size:18px;color:${col}">${val==null?"—":val}</div>
       <div class="note" style="font-size:9px;margin-top:2px">${sub}</div></div>`;
@@ -2917,9 +3124,9 @@ const App = {
     const members=BOARD.filter(b=>b.id!=="ceo").map(b=>{ const n=latest[b.id];
       const live=sig?sig.items.filter(s=>s.persona===b.id):[];
       const liveHTML=live.map(s=>`<div style="font-size:12px;margin-top:4px;color:${s.sev==="action"?C.amber:C.mist}">${s.sev==="action"?"⚑ ":"· "}<span style="color:${C.dim}">live:</span> ${esc(s.text)}</div>`).join("");
-      return `<div style="padding:8px 0;border-top:1px solid var(--contour)">
+      return `<div style="padding:8px 0;border-top:1px solid var(--c-contour)">
         <div class="eyebrow" style="color:${C.violet}">${esc(b.role)}${n?` · ${esc(n.d)}`:""}</div>
-        <div style="font-size:12.5px;color:var(--chalk);margin-top:4px">${n?esc(n.note):"<span class=\'note\'>no note on file</span>"}</div>${liveHTML}</div>`; }).join("");
+        <div style="font-size:12.5px;color:var(--c-chalk);margin-top:4px">${n?esc(n.note):"<span class=\'note\'>no note on file</span>"}</div>${liveHTML}</div>`; }).join("");
     // CEO action promotions: only action-severity live signals surface up top
     const ceoActions=sig&&sig.ceo.length?sig.ceo:[];
     return `<div class="card">
@@ -2928,10 +3135,10 @@ const App = {
         <button class="btn" data-act="board">${this.boardOpen?"collapse ▴":"all 9 member notes ▾"}</button></div>
       ${ceo?`<div style="margin-top:10px;padding:12px;border:1px solid ${C.violet};border-radius:10px">
         <div class="eyebrow" style="color:${C.violet}">CEO synthesis · ${esc(ceo.d)}</div>
-        <div style="font-size:13px;color:var(--chalk);margin-top:6px;line-height:1.55">${esc(ceo.note)}</div>
+        <div style="font-size:13px;color:var(--c-chalk);margin-top:6px;line-height:1.55">${esc(ceo.note)}</div>
         ${ceoActions.length?`<div style="margin-top:10px;padding-top:10px;border-top:1px dashed ${C.violet}">
           <div class="eyebrow" style="color:${C.amber}">Live signals needing a call (${ceoActions.length})</div>
-          ${ceoActions.map(t=>`<div style="font-size:12.5px;color:var(--chalk);margin-top:5px;line-height:1.5">⚑ ${esc(t)}</div>`).join("")}</div>`
+          ${ceoActions.map(t=>`<div style="font-size:12.5px;color:var(--c-chalk);margin-top:5px;line-height:1.5">⚑ ${esc(t)}</div>`).join("")}</div>`
         :sig?`<div class="note" style="margin-top:8px;color:${C.teal}">Live wellness signals: nothing at action threshold — details sit in the member notes.</div>`:""}</div>`:""}
       ${this.boardOpen?`<div style="margin-top:10px">${members}</div>`:""}
       <div class="note" style="margin-top:8px">Charter personas (athletic_board_charter.md) · dated notes are coach-authored from the record. Lines tagged <span style="color:${C.dim}">live</span> are computed from the latest Sync (trend-vs-own-baseline) — only action-level items are promoted to the CEO.</div>
@@ -2945,20 +3152,20 @@ const App = {
       const items=RUN_TYPES.filter(t=>t.grp===gr).map(t=>`
         <div class="card" id="type_${t.id}" style="padding:14px;${t.id===sel?`border-color:${C.teal}`:""}">
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-            <span class="pill on" style="font-size:9px">${t.id.toUpperCase()}</span>
-            <span style="font-family:var(--mono);font-size:14px;color:var(--chalk)">${esc(t.name)}</span></div>
-          <div style="font-size:12.5px;color:var(--chalk);margin-top:8px">${esc(t.purpose)}</div>
-          <div style="font-size:12px;margin-top:8px"><span style="font-family:var(--mono);color:${C.teal};font-size:10px;letter-spacing:.1em">RX </span><span style="color:var(--mist)">${esc(t.rx)}</span></div>
-          <div style="font-size:12px;margin-top:4px"><span style="font-family:var(--mono);color:${C.amber};font-size:10px;letter-spacing:.1em">STRUCTURE </span><span style="color:var(--mist)">${esc(t.structure)}</span></div>
+            <span class="pill on badge" style="font-size:9px">${t.id.toUpperCase()}</span>
+            <span style="font-family:var(--mono);font-size:14px;color:var(--c-chalk)">${esc(t.name)}</span></div>
+          <div style="font-size:12.5px;color:var(--c-chalk);margin-top:8px">${esc(t.purpose)}</div>
+          <div style="font-size:12px;margin-top:8px"><span style="font-family:var(--mono);color:${C.teal};font-size:10px;letter-spacing:.1em">RX </span><span style="color:var(--c-mist)">${esc(t.rx)}</span></div>
+          <div style="font-size:12px;margin-top:4px"><span style="font-family:var(--mono);color:${C.amber};font-size:10px;letter-spacing:.1em">STRUCTURE </span><span style="color:var(--c-mist)">${esc(t.structure)}</span></div>
           <div class="note" style="margin-top:4px">log: ${esc(t.log)}</div>
         </div>`).join("");
       return `<div><div class="eyebrow" style="margin:6px 0">${gr}</div><div class="cols3">${items}</div></div>`; }).join("");
     const tn=[...(this.state.taxNotes||[])].sort((a,b)=>b.d.localeCompare(a.d));
     const noteRows=tn.length?tn.map(n=>`<tr>
-      <td style="font-family:var(--mono);font-size:11px;color:var(--dim);width:86px;vertical-align:top">${esc(n.d)}</td>
+      <td style="font-family:var(--mono);font-size:11px;color:var(--c-dim);width:86px;vertical-align:top">${esc(n.d)}</td>
       <td style="width:110px;vertical-align:top"><span class="pill" style="font-size:9px">${esc((TYPE_BY_ID[n.type]||{name:n.type}).name)}</span></td>
-      <td style="font-family:var(--mono);font-size:11px;color:var(--dim);width:36px;vertical-align:top">P${esc(String(n.phase||"—"))}</td>
-      <td style="font-size:12.5px;color:var(--chalk)">${esc(n.note)}</td></tr>`).join(""):"";
+      <td style="font-family:var(--mono);font-size:11px;color:var(--c-dim);width:36px;vertical-align:top">P${esc(String(n.phase||"—"))}</td>
+      <td style="font-size:12.5px;color:var(--c-chalk)">${esc(n.note)}</td></tr>`).join(""):"";
     const typeOpts=RUN_TYPES.map(t=>`<option value="${t.id}">${esc(t.name)}</option>`).join("");
     return `
     <div class="card"><div class="eyebrow" style="color:${C.teal}">Run taxonomy — the standard session language</div>
@@ -2973,7 +3180,41 @@ const App = {
         <button class="btn solid" data-act="taxAdd">Add note</button></div></div>`;
   },
   view_changelog(){
-    const log=`v1.29  06/07/26  Target explorer + interactive radar. kg/BF%
+    const log=`v1.32  07/07/26  Sessions badge + body-overlay biceps continuity.
+                   [1] The teal run-type badge in this tab rendered as a circle on
+                   phone for short 2-letter codes (MP/ME), with the text sitting
+                   high. Now a proper stadium pill with centred text — the fix also
+                   tidies vertical centring on every pill toggle across the app.
+                   [2] Body Map photo overlay: the amber target outline stepped at
+                   the armpit where the upper body meets the arms. Root cause was a
+                   maths seam — the torso outline was scaled about the body's centre
+                   while the arms were scaled about their own centre, so the shared
+                   arm edge jumped. Rebuilt so each arm edge is scaled by its own
+                   bicep target and stitched continuously to the arm below. The two
+                   arms can now grow independently (left/right bicep targets differ)
+                   with no break in the line. Silhouette view fixed the same way.
+v1.31  07/07/26  Phase 2 — CSS-var design-token layer (#14/#15/#16).
+                   One source of colour truth: all hex moved into :root as --c-*
+                   vars; the JS colour object + lead/lift palettes became live CSS
+                   readers, so charts and inline styles re-theme instantly when the
+                   theme flips. #14: chart font/colour tokens promoted to global CSS
+                   vars. #16: dark default + a light-mode toggle at the page bottom
+                   (persisted separately from your data — export JSON untouched);
+                   light theme uses paper surfaces with deepened accents so charts
+                   stay crisp. Clinical print view is unchanged. #15: responsive
+                   layout for S25 Ultra portrait + landscape.
+v1.30  07/07/26  Phase 1 chart cleanup batch. #1: projection
+                   legend text removed from chart area. #2: dashed projection
+                   lines darkened (opacity 0.75, width 1.6). #3: phase bands
+                   higher contrast (opacity 0.12 + boundary strokes). #4: last
+                   x-axis label anchored to edge — no more clipping. #5: High-
+                   Risk TSB band lightened (#FFB3B3, op 0.18). #6: TSB gate
+                   bands removed from Form panel (RACES array + plan markers
+                   kept). #20: point markers removed from solid trend lines.
+                   #33: Health "All entries" collapsed by default. #37: number-
+                   input spinners hidden via CSS. Font-token groundwork: FF/
+                   FS_AXIS/FS_REF/COL_AXIS/COL_LINE in chartSVG+chartSVGdash.
+v1.29  06/07/26  Target explorer + interactive radar. kg/BF%
                    steppers on the Body Map card re-derive every site target
                    live (anchored λ-model — canonical numbers at the adopted
                    73/15 goal) across photo contour, silhouette, radar, chips;
@@ -3058,8 +3299,8 @@ v1.5  04/07/26   Scorecard, Athletic Board, Body Map, demo mode, girth radar.
 v1.0–v1.4  02–04/07/26  Initial build; ported from React artifact.
                    Full early history in OPERATING_BRIEF.md.`;
     return `<div class="card">
-      <div class="eyebrow" style="color:${C.teal};margin-bottom:12px">Dashboard changelog — v1.29 (current) → v1.0</div>
-      <pre style="font-family:var(--mono);font-size:11px;color:var(--mist);line-height:1.7;white-space:pre-wrap;margin:0">${esc(log)}</pre>
+      <div class="eyebrow" style="color:${C.teal};margin-bottom:12px">Dashboard changelog — v1.32 (current) → v1.0</div>
+      <pre style="font-family:var(--mono);font-size:11px;color:var(--c-mist);line-height:1.7;white-space:pre-wrap;margin:0">${esc(log)}</pre>
     </div>`;
   },
   taxAdd(){
@@ -3102,6 +3343,7 @@ v1.0–v1.4  02–04/07/26  Initial build; ported from React artifact.
         if(a==="tab"){ this.tab=v; this.week=null; this.render(); }
         else if(a==="unit"){ this.unit=v; this.render(); }
         else if(a==="clinical"){ this.clinical=!this.clinical; this.render(); }
+        else if(a==="themeToggle"){ this.theme=(this.theme==="light"?"dark":"light"); Store.pref("theme",this.theme); this.render(); }
         else if(a==="marker"){ this.selMarker=v; this.render(); }
         else if(a==="seg"){ this.selSeg=v; this.render(); }
         else if(a==="print"){ window.print(); }
@@ -3211,10 +3453,26 @@ v1.0–v1.4  02–04/07/26  Initial build; ported from React artifact.
 /* ── boot ── */
 (async function(){
   Store.init();
+  const savedTheme = Store.pref("theme");        // #16: restore theme before first paint (no flash)
+  if(savedTheme==="light"||savedTheme==="dark") App.theme=savedTheme;
   const saved = await Store.load();
   if(saved) App.state=norm(saved);
   else if(EMBEDDED_STATE) App.state=norm(EMBEDDED_STATE);
   App.render();
+  // #15: re-render on width-band change / orientation so viewBox charts recompute
+  // against the media-query-bumped --fs-axis/--fs-ref (fixed-coordinate SVG text
+  // would otherwise shrink ~50% on narrow portrait). Debounced; only fires when the
+  // <480 breakpoint is actually crossed, so normal desktop resizes are free.
+  (function bindResize(){
+    if(typeof window==="undefined"||!window.addEventListener) return;
+    let narrow = (window.innerWidth||9999) <= 480, t=null;
+    const onResize=()=>{ clearTimeout(t); t=setTimeout(()=>{
+      const now=(window.innerWidth||9999)<=480;
+      if(now!==narrow){ narrow=now; if(!App.week) App.render(); }
+    }, 180); };
+    window.addEventListener("resize", onResize);
+    window.addEventListener("orientationchange", onResize);
+  })();
   // Auto-sync on open if Worker is configured — silent background pull
   if(WORKER_URL){ App.syncICU(); }
 })();
