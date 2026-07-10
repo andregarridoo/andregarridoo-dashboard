@@ -166,6 +166,32 @@
    CHANGELOG
    v1.0  02/07/26  first HTML build (ported from React artifact)
    (v1.0–v1.6 archived — full history in OPERATING_BRIEF.md CHANGELOG)
+   v1.35  10/07/26 Build 2 — dynamic km-derivation pace engine.
+                   Planned km are now derived at render time from the actual run
+                   history (runs.json v1.1, imported via Data tab). Road: 8-week
+                   GAP-weighted rolling average. Trail: 12-week window. Sparse-
+                   window blend (D2): n less than 3 falls back to static (road
+                   6:15/km, trail 8:00/km); n 3-5 blends linearly toward rolling;
+                   n 6+ is 100% rolling. Race weeks keep their explicit km.
+                   Exclusions (D3): quarantined + test runs excluded; race rows
+                   0.5x weight. GAP primary, raw avg_pace fallback (D1). Recompute
+                   every render, no cache (D4). Import extended to preserve terrain
+                   + gap_pace for each run. Source tag and n shown in week view
+                   header. Static constants remain as fallback inside derivePace.
+                   No state-shape change, STORE_KEY unchanged. node --check +
+                   DOM-shimmed harness (34 cases + 3 new engine asserts): clean.
+   v1.34  09/07/26 HR-break rule correction (text/notes only, no logic change).
+                   The "3 Jul 2026 = chest-strap adopted, pre-break wrist HR
+                   reference-only / clean series begins 3 Jul" rule was WRONG
+                   (3 Jul = project-start, not device-adoption). A change-point
+                   scan of the HR series found no device step-change → HR is
+                   trended continuously, no hard break. Four in-file strings
+                   corrected: changelog note (2026-07-04 data), FFF chart note,
+                   wellness-panel note, and the boardSignals code comment. No
+                   state/logic/threshold change — none of the code actually cut
+                   the series at 3 Jul, so this is purely honest-text. node
+                   --check + DOM-shimmed harness: clean. STORE_KEY unchanged.
+                   (Part of the runs.json v1.1 + five-file HR sweep, 9 Jul.)
    v1.33  08/07/26 Ph13 hypertrophy base added (Season 2) — roadmap #7.
                    Macro extended past Ph12 Recover into Ph13 (W50–W62,
                    07/06–05/09 2027, 13 wk, Nippard Phase 1 lead). Season
@@ -599,6 +625,90 @@ const RACES = [
   {name:"UTA100 2027", date:"2027-05-15", w:46},
 ];
 
+/* ── BUILD 2 — Dynamic km-derivation pace engine (v1.35, 10/07/26) ──────────
+   derivePace(surface) reads App.state.sessions.runs[] and computes a weighted
+   rolling average GAP-pace (grade-adjusted) for the given surface, then blends
+   with static fallback constants when the window is sparse.
+
+   Locked decisions (signed off 9 Jul 2026):
+   D1 — GAP primary, raw avg_pace fallback per run.
+   D2 — Blend: n<3 → 100% static; 3≤n<6 → linear blend w=(n−3)/3; n≥6 → 100% rolling.
+   D3 — Exclude quarantined + run_type:test; keep race at 0.5× weight; terrain:null excluded.
+        backfill rows (run_type:null) → weight 1.0×.
+   D4 — Recompute every render (pure reduce, no cache).
+   Windows: road 8 wk, trail 12 wk. Floor ≥3 effective-n (Σ wt_i).
+   Static fallback: road 375 s/km (6:15), trail 480 s/km (8:00). ── */
+const PACE_STATIC = {road:375, trail:480};
+const PACE_WINDOW_WK = {road:8, trail:12};
+/* Phase terrain: lead type → dominant surface for km derivation.
+   end/taper phases are trail-dominant; hyp/rec are road-dominant. */
+const PHASE_TERRAIN = {end:"trail", taper:"trail", hyp:"road", rec:"road"};
+
+function parsePaceStr(s){
+  /* "M:SS" → seconds/km. Returns null if unparseable. */
+  if(!s||typeof s!=="string") return null;
+  const m=s.match(/^(\d+):(\d{2})$/);
+  if(!m) return null;
+  return parseInt(m[1],10)*60+parseInt(m[2],10);
+}
+
+function derivePace(surface){
+  /* Returns {pace_sec_per_km, source, n, window_wk}.
+     source: 'static' | 'blend' | 'rolling'. n = effective-n (Σ wt_i). */
+  if(surface!=="road"&&surface!=="trail") return {pace_sec_per_km:PACE_STATIC.road,source:"static",n:0,window_wk:PACE_WINDOW_WK.road};
+  const STATIC=PACE_STATIC[surface];
+  const WIN_WK=PACE_WINDOW_WK[surface];
+  const cutoff=new Date(); cutoff.setDate(cutoff.getDate()-WIN_WK*7);
+  const cutStr=cutoff.toISOString().slice(0,10);
+  const runs=(App&&App.state&&App.state.sessions&&App.state.sessions.runs)||[];
+  let sumPaceWt=0, sumWt=0;
+  runs.forEach(r=>{
+    // Exclusions (D3)
+    if(!r.d||r.d<cutStr) return;               // outside window
+    if(r.quarantined) return;                   // quarantine flag
+    if(r.run_type==="test") return;             // test runs
+    if(!r.terrain||r.terrain!==surface) return; // wrong surface or null terrain
+    // Weight (D3 race 0.5×, backfill null 1.0×, normal 1.0×)
+    const wt = r.run_type==="race" ? 0.5 : 1.0;
+    // Pace: GAP primary (D1), raw avg_pace fallback
+    const paceS = parsePaceStr(r.gap_s_str||null) || parsePaceStr(r.avg_pace);
+    if(!paceS||paceS<=0||paceS>1800) return;   // sanity guard (>30 min/km = garbage)
+    sumPaceWt += paceS * wt;
+    sumWt     += wt;
+  });
+  const effN = sumWt; // Σ wt_i
+  if(effN < 3) return {pace_sec_per_km:STATIC, source:"static", n:effN, window_wk:WIN_WK};
+  const rolling = sumPaceWt / sumWt;
+  if(effN >= 6) return {pace_sec_per_km:rolling, source:"rolling", n:effN, window_wk:WIN_WK};
+  // Blend (D2): 3 ≤ n < 6 → w=(n−3)/3
+  const w = (effN - 3) / 3;
+  const blended = STATIC * (1 - w) + rolling * w;
+  return {pace_sec_per_km:blended, source:"blend", n:effN, window_wk:WIN_WK};
+}
+
+function planKm(p){
+  /* Returns the dynamic km for a plan row. Race weeks keep their explicit km
+     (actual race distance). All other weeks: h × 3600 / derivePace(surface). */
+  if(p.race&&p.race.km!=null) return p.race.km;
+  const ph = phaseOf(p.w);
+  const surface = (ph && PHASE_TERRAIN[ph.lead]) || "road";
+  const dp = derivePace(surface);
+  if(!p.h||p.h<=0) return 0;
+  return Math.round(p.h * 3600 / dp.pace_sec_per_km * 10) / 10;
+}
+
+/* Derive a human-readable note for the km-derivation mode shown in-app. */
+function derivePaceNote(surface){
+  const dp = derivePace(surface);
+  const minSec = dp.pace_sec_per_km;
+  const m = Math.floor(minSec/60), s = Math.round(minSec%60);
+  const pStr = m+":"+(s<10?"0"+s:s)+"/km";
+  if(dp.source==="static")  return "km derived · static "+pStr+" ("+surface+", n="+Math.round(dp.n*10)/10+"&lt;3)";
+  if(dp.source==="blend")   return "km derived · blend "+pStr+" ("+surface+", n="+Math.round(dp.n*10)/10+", "+dp.window_wk+"wk)";
+  return "km derived · rolling "+pStr+" ("+surface+", n="+Math.round(dp.n*10)/10+", "+dp.window_wk+"wk)";
+}
+/* ── end Build 2 ── */
+
 /* ── FFF_PROJ — plan-derived CTL/ATL/TSB projection (Bannister impulse-response)
    Method v2 (05/07/26): TSS/day derived from PLAN hours × per-week IF. Every down
    week, race-sim, and recovery week in PLAN is reflected automatically. Race weeks:
@@ -890,7 +1000,7 @@ const BOARD_SEED = [
  {d:"2026-07-04",m:"cmo", note:"Ferritin before the UTK load — mid-Oct draw. Time CRP ≥48 h after hard sessions or it reads as noise. Watch energy availability once volume climbs against the surplus."},
  {d:"2026-07-04",m:"diet",note:"130–140 g/d protein while hypertrophy leads; surplus gated to +0.2–0.25% BW/wk in lifting blocks only. Gut training toward 90–120 g CHO/h starts with the first ≥2 h long runs — practise, don't improvise."},
  {d:"2026-07-04",m:"coo", note:"Sleep is the hypertrophy lever a full-time job squeezes first. The weekly check-in is now on the dashboard — three taps. If stress slides two weeks running, we cut volume before adaptation fails, not after."},
- {d:"2026-07-04",m:"data",note:"Chest-strap HR is the clean series from 3 Jul — never trend across the break. Zones come from the wk-3 and wk-6 tests, not Garmin's auto-LT. Upload the account history so baseline load is measured, not guessed."},
+ {d:"2026-07-04",m:"data",note:"HR: chest strap (HRM-Pro) on most runs — trended continuously, no 3-Jul break (corrected 9 Jul; a change-point scan found no device step-change). Zones come from the wk-3 and wk-6 tests, not Garmin's auto-LT. Upload the account history so baseline load is measured, not guessed."},
  {d:"2026-07-04",m:"crew",note:"W18–19 race-sims are protocol rehearsals, not fitness tests: full mandatory kit, real aid timing, fuelling as written. UTK 2026 is the dress rehearsal — checkpoint drills count as training."},
  {d:"2026-07-04",m:"mind",note:"The hard rep this month is running slow on purpose. Anchor to the 46-week arc: July pace numbers are noise; the athlete who wins May 2027 is built by boring Tuesdays."},
 ];
@@ -1420,8 +1530,9 @@ function overviewSVG(wStart, wEnd){
   const unit=App.unit, pk=unit, ak=unit==="km"?"akm":"ah";
 
   // ── Plan data ────────────────────────────────────────────────────────────
+  // Build 2 (v1.35): km field replaced by derivePace-based planKm() at render time.
   const planData=PLAN.map(p=>{ const a=App.state.actualWeeks[p.w];
-    return {...p, akm:a&&a.km!=null?a.km:null, ah:a&&a.h!=null?a.h:null}; });
+    return {...p, km:planKm(p), akm:a&&a.km!=null?a.km:null, ah:a&&a.h!=null?a.h:null}; });
 
   const runsByWeek={};
   const W1d=new Date(2026,5,29);
@@ -1810,7 +1921,7 @@ function overviewTipHTML(w){
   const wLabel=w>=1?`W${w}`:`W${w}`;
   return `<div style="font-family:var(--mono);font-size:11px;color:${C.chalk}">${wLabel} · w/c ${wc}</div>
   ${ph?`<div style="font-family:var(--mono);font-size:10px;color:${LEAD_COLOR[ph.lead]};margin-top:2px">${esc(ph.name)} — ${LEAD_LABEL[ph.lead]}</div>`:"<div style=\"font-family:var(--mono);font-size:10px;color:var(--c-dim);margin-top:2px\">pre-plan history</div>"}
-  ${p?`<div style="font-family:var(--mono);font-size:11px;color:${C.mist};margin-top:6px">plan ${App.unit==="km"?p.km+" km":fmt(p.h)+" h"}${done!=null?` · <span style="color:${C.chalk}">done ${fmt(done)} ${App.unit==="km"?"km":"h"}</span>`:""}</div>`:""}
+  ${p?`<div style="font-family:var(--mono);font-size:11px;color:${C.mist};margin-top:6px">plan ${App.unit==="km"?planKm(p)+" km":fmt(p.h)+" h"}${done!=null?` · <span style="color:${C.chalk}">done ${fmt(done)} ${App.unit==="km"?"km":"h"}</span>`:""}</div>`:""}
   ${p&&p.race?`<div style="font-family:var(--mono);font-size:10px;color:${C.rose};margin-top:4px">▲ ${esc(p.race.name)} — ${p.race.km} km</div>`:""}
   ${fffRow||projRow?`<div style="margin-top:7px;padding-top:6px;border-top:1px solid ${C.contour}">
     <div style="font-family:var(--mono);font-size:9px;color:${C.dim};letter-spacing:.1em;text-transform:uppercase;margin-bottom:3px">Fitness · Fatigue · Form</div>
@@ -2203,7 +2314,7 @@ const App = {
           <button class="btn" data-act="wknext" ${w>=62?"disabled":""}>W${w+1} ›</button></div></div>
       <div style="margin-top:14px">
         <div class="eyebrow" style="color:${LEAD_COLOR[ph.lead]}">W${w} · w/c ${p.wc} — ${esc(ph.name)} (${LEAD_LABEL[ph.lead]})</div>
-        <div style="font-family:var(--mono);font-size:12px;color:var(--c-mist);margin-top:6px">plan ${p.km} km · ${fmt(p.h)} h run${a&&a.km!=null?` · <span style="color:var(--c-chalk)">executed ${fmt(a.km)} km${a.h!=null?" · "+fmt(a.h)+" h":""}</span>`:""}</div>
+        <div style="font-family:var(--mono);font-size:12px;color:var(--c-mist);margin-top:6px">plan ${planKm(p)} km · ${fmt(p.h)} h run${a&&a.km!=null?` · <span style="color:var(--c-chalk)">executed ${fmt(a.km)} km${a.h!=null?" · "+fmt(a.h)+" h":""}</span>`:""}${(()=>{if(p.race&&p.race.km!=null)return"";const ph2=phaseOf(p.w);const sf=(ph2&&PHASE_TERRAIN[ph2.lead])||"road";const dp=derivePace(sf);const src=dp.source;const nn=Math.round(dp.n*10)/10;return` <span style="font-size:10px;color:var(--c-dim)">[km: ${src}, n=${nn}]</span>`;})()}</div>
         ${p.race?`<div style="font-family:var(--mono);font-size:11px;color:${C.rose};margin-top:4px">▲ ${esc(p.race.name)} — ${p.race.km} km</div>`:""}
         ${(p.note||ov.note)?`<div style="font-size:12px;color:var(--c-dim);margin-top:4px">${esc([p.note,ov.note].filter(Boolean).join(" · "))}</div>`:""}
       </div>
@@ -2428,7 +2539,7 @@ const App = {
       }
       return chartSVGdash({w:860,h:180,cats,series,refs:[{y:0,label:"TSB=0",color:C.dim}]});
     })()}</div>
-    <div class="note" style="margin-top:8px">Solid = live (intervals.icu computed) · dashed = plan projection (05/07/26 baseline, Bannister τ CTL=42/ATL=7), bias-corrected to join seamlessly at the last real data point. Divergence shape = calibration signal — log deltas in FFF_PROJECTION_BASELINE.md §4. Wrist HR pre-2026-07-03 inflates load scores; chest-strap series begins 3 Jul 2026.</div></div>`;
+    <div class="note" style="margin-top:8px">Solid = live (intervals.icu computed) · dashed = plan projection (05/07/26 baseline, Bannister τ CTL=42/ATL=7), bias-corrected to join seamlessly at the last real data point. Divergence shape = calibration signal — log deltas in FFF_PROJECTION_BASELINE.md §4. HR is chest-strap on most runs and trended continuously — no 3-Jul break (corrected 9 Jul 2026).</div></div>`;
   },
 
   view_strength(){
@@ -2683,7 +2794,7 @@ const App = {
       <div class="note" style="margin-top:8px;color:${C.dim}">${esc(sel.name)}${sel.unit?` (${esc(sel.unit)})`:""} · ${esc(sel.why)} · ${view==="day"?"trailing 120 days":"macro-week means (axis matches the plan)"}</div>
       <div style="margin-top:8px">${chartSVG(Object.assign({w:860,h:180,cats,yUnit:sel.unit||"",
         series:[{name:sel.name,color:sel.color,data}]},yOpt))}</div>
-      <div class="note" style="margin-top:8px">Trend-vs-own-baseline only — HRV/RHR absolute numbers aren't comparable between people, and none of this is trended across the 3 Jul chest-strap break. Depth is provisional: these channels reach back only as far as intervals.icu stored them.</div></div>
+      <div class="note" style="margin-top:8px">Trend-vs-own-baseline only — HRV/RHR absolute numbers aren't comparable between people. HR is trended continuously across history (no 3-Jul device break — corrected 9 Jul 2026). Depth is provisional: these channels reach back only as far as intervals.icu stored them.</div></div>
       <div class="note" style="color:${C.dim};margin:4px 0 14px">— clinical labs below —</div>`;
   },
 
@@ -2849,7 +2960,7 @@ const App = {
         <button class="btn" data-act="import">Import pasted state</button>
         <button class="btn danger" id="resetBtn" data-act="reset">Reset data</button></div></div>
     <div class="card"><div class="eyebrow">Method notes</div>
-      <div style="font-size:12.5px;color:var(--c-mist);line-height:1.8;margin-top:8px">W1 = week commencing Mon 29/06/26. Planned km are derived from the hours-native plan at assumed blended paces (road ≈6:15/km, trail ≈8:00/km) and get recalibrated each block against executed pace — a derived estimate, flagged as such. Race weeks include race distance. Trends outrank points everywhere: rolling means on body data, deltas vs baseline on site cards. Device rule: one device per metric trend — Withings weekly total weight · Renpho monthly tape girths (cm) · Garmin chest strap + power throughout. Girth target model: girth ∝ √(λ·lean_scale·1.193 + (1−λ)·fat_scale·0.842), heuristic v1, replaces itself with measured slopes at ≥3 entries. Long-horizon physique goal: 73 kg @ 15% BF (formally adopted 04/07/26); UTA taper milestone: +0.7–1.2 kg lean. Extending the dashboard = adding one entry to a registry (GIRTHS, MARKERS, KEY_LIFTS) — built to grow. Storage mode: <b>${Store.mode}</b>.</div></div>`;
+      <div style="font-size:12.5px;color:var(--c-mist);line-height:1.8;margin-top:8px">W1 = week commencing Mon 29/06/26. Planned km are derived at render time from the hours-native plan using the Build 2 pace engine (v1.35): road = 8-week GAP-weighted rolling average; trail = 12-week window. Sparse-window blend: n&lt;3 → static fallback (road 6:15/km · trail 8:00/km); 3≤n&lt;6 → linear blend toward rolling; n≥6 → 100% rolling. Source tag and n shown in week view. Race weeks show actual race distance. To activate the live engine, re-import runs.json v1.1 (Data tab → Merge sessions). Trends outrank points everywhere: rolling means on body data, deltas vs baseline on site cards. Device rule: one device per metric trend — Withings weekly total weight · Renpho monthly tape girths (cm) · Garmin chest strap + power throughout. Girth target model: girth ∝ √(λ·lean_scale·1.193 + (1−λ)·fat_scale·0.842), heuristic v1, replaces itself with measured slopes at ≥3 entries. Long-horizon physique goal: 73 kg @ 15% BF (formally adopted 04/07/26); UTA taper milestone: +0.7–1.2 kg lean. Extending the dashboard = adding one entry to a registry (GIRTHS, MARKERS, KEY_LIFTS) — built to grow. Storage mode: <b>${Store.mode}</b>.</div></div>`;
   },
 
   /* ── actions ── */
@@ -2922,7 +3033,13 @@ const App = {
         upsert(S.runs,{ d, type:r.type||r.run_type||null,
           km: r.km!=null?r.km:(r.dist_km!=null?r.dist_km:null),
           h:  r.h!=null?r.h:(r.time_s!=null?Math.round(r.time_s/36)/100:null),
-          quarantined: isQ });
+          quarantined: isQ,
+          // Build 2: terrain + GAP preserved for derivePace engine
+          terrain: r.terrain||null,
+          run_type: r.run_type||r.type||null,
+          avg_pace: r.avg_pace||null,
+          gap_s_str: r.gap_pace||null  // "M:SS" string; parsePaceStr reads it at derive time
+        });
         if(isQ) skipped++; else nr++; });
       const rawGym = (p.sessions&&p.sessions.gym) || p.gym || [];
       rawGym.forEach(g=>{ if(!g||!(g.d||g.date)) return; upsert(S.gym,{d:g.d||g.date, name:g.name||null}); ng++; });
@@ -3123,7 +3240,7 @@ const App = {
        coach-authored dated entries; fabricating them would break the no-invented-
        data rule). Each signal has a severity; only `action`-severity items are
        promoted to the CEO banner. All thresholds are trend-vs-own-baseline, never
-       cross-athlete and never across the 3 Jul chest-strap break. Returns
+       cross-athlete (HR trended continuously — no 3-Jul device break, corrected 9 Jul). Returns
        {items:[{persona,role,text,sev}], ceo:[…action texts…]} or null if no data. */
     const fff=(this.state.fff||[]).filter(r=>r.date);
     if(!fff.length) return null;
@@ -3225,7 +3342,30 @@ const App = {
         <button class="btn solid" data-act="taxAdd">Add note</button></div></div>`;
   },
   view_changelog(){
-    const log=`v1.33  08/07/26  Ph13 hypertrophy base added — Season 2 (#7).
+    const log=`v1.35  10/07/26  Build 2 — dynamic km-derivation pace engine.
+                   Planned km are now self-calibrating from your run history
+                   (runs.json v1.1). Road pace uses an 8-week GAP-weighted rolling
+                   average; trail uses a 12-week window. Sparse-window blend: fewer
+                   than 3 runs per surface falls back to static (road 6:15/km,
+                   trail 8:00/km); 3-5 runs blend linearly toward rolling; 6+ runs
+                   are 100% rolling. Race weeks always show actual race distance.
+                   Source mode and n are shown in the week view header so the
+                   derivation stays auditable. Quarantined and test runs are
+                   excluded; race rows count at 0.5x weight. The engine recomputes
+                   on every render — no cache, no state change, STORE_KEY unchanged.
+                   Import run history via Data tab (Merge sessions) to activate.
+
+v1.34  09/07/26  HR-break rule correction (notes/text only).
+                   The "3 Jul 2026 = chest-strap adopted, prior HR reference-only,
+                   clean series begins 3 Jul" rule was wrong — 3 Jul was the
+                   project-start date, not a device change. A change-point scan of
+                   the HR series found no device step-change, so HR is trended
+                   continuously with no hard break. Four display/comment strings
+                   were corrected; no state, logic, or threshold changed (the code
+                   never actually cut the series at 3 Jul). Part of the 9 Jul
+                   runs.json v1.1 rebuild + five-file HR sweep.
+
+v1.33  08/07/26  Ph13 hypertrophy base added — Season 2 (#7).
                    The plan now extends past the post-UTA recovery into a new
                    13-week hypertrophy base: Ph13, W50–W62 (7 Jun–5 Sep 2027),
                    Nippard Phase 1 lead. New season model — a season runs from
@@ -3361,7 +3501,7 @@ v1.5  04/07/26   Scorecard, Athletic Board, Body Map, demo mode, girth radar.
 v1.0–v1.4  02–04/07/26  Initial build; ported from React artifact.
                    Full early history in OPERATING_BRIEF.md.`;
     return `<div class="card">
-      <div class="eyebrow" style="color:${C.teal};margin-bottom:12px">Dashboard changelog — v1.33 (current) → v1.0</div>
+      <div class="eyebrow" style="color:${C.teal};margin-bottom:12px">Dashboard changelog — v1.35 (current) → v1.0</div>
       <pre style="font-family:var(--mono);font-size:11px;color:var(--c-mist);line-height:1.7;white-space:pre-wrap;margin:0">${esc(log)}</pre>
     </div>`;
   },
