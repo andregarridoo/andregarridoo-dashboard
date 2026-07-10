@@ -166,6 +166,26 @@
    CHANGELOG
    v1.0  02/07/26  first HTML build (ported from React artifact)
    (v1.0–v1.6 archived — full history in OPERATING_BRIEF.md CHANGELOG)
+   v1.36  10/07/26 Sync now feeds the pace engine (D020). syncICU() run
+                   ingest was writing only {d,type,km,h} — no terrain, no
+                   pace — so after every Sync derivePace() saw n=0 and fell
+                   back to static constants, and a full-row upsert silently
+                   overwrote terrain/GAP a runs.json import had set. Fixed:
+                   live run rows now carry terrain (fork 1a: TrailRun→trail,
+                   Run/VirtualRun→road), avg_pace (fork 2a: derived M:SS from
+                   dist/time — the engine's designed fallback; GAP stays a
+                   runs.json-rebuild field), real run_type default, and a
+                   quarantined flag. upsertR split into two precedence classes:
+                   volume (type/km/h) refreshed every Sync; pace-engine fields
+                   (terrain/run_type/avg_pace/gap_s_str/quarantined) FILL-ONLY —
+                   Sync never overwrites a value runs.json set (fork 3a). Net:
+                   the pace engine updates on every Sync with no manual step;
+                   the runs.json rebuild is demoted from prerequisite to a
+                   periodic GAP/run_type accuracy refresh. No Worker change (it
+                   already returned the full activity list). No state-shape
+                   change (live rows now match the importSessions shape),
+                   STORE_KEY unchanged. node --check + DOM-shimmed harness
+                   (+ new Sync-feed asserts): clean.
    v1.35  10/07/26 Build 2 — dynamic km-derivation pace engine.
                    Planned km are now derived at render time from the actual run
                    history (runs.json v1.1, imported via Data tab). Road: 8-week
@@ -2960,7 +2980,7 @@ const App = {
         <button class="btn" data-act="import">Import pasted state</button>
         <button class="btn danger" id="resetBtn" data-act="reset">Reset data</button></div></div>
     <div class="card"><div class="eyebrow">Method notes</div>
-      <div style="font-size:12.5px;color:var(--c-mist);line-height:1.8;margin-top:8px">W1 = week commencing Mon 29/06/26. Planned km are derived at render time from the hours-native plan using the Build 2 pace engine (v1.35): road = 8-week GAP-weighted rolling average; trail = 12-week window. Sparse-window blend: n&lt;3 → static fallback (road 6:15/km · trail 8:00/km); 3≤n&lt;6 → linear blend toward rolling; n≥6 → 100% rolling. Source tag and n shown in week view. Race weeks show actual race distance. To activate the live engine, re-import runs.json v1.1 (Data tab → Merge sessions). Trends outrank points everywhere: rolling means on body data, deltas vs baseline on site cards. Device rule: one device per metric trend — Withings weekly total weight · Renpho monthly tape girths (cm) · Garmin chest strap + power throughout. Girth target model: girth ∝ √(λ·lean_scale·1.193 + (1−λ)·fat_scale·0.842), heuristic v1, replaces itself with measured slopes at ≥3 entries. Long-horizon physique goal: 73 kg @ 15% BF (formally adopted 04/07/26); UTA taper milestone: +0.7–1.2 kg lean. Extending the dashboard = adding one entry to a registry (GIRTHS, MARKERS, KEY_LIFTS) — built to grow. Storage mode: <b>${Store.mode}</b>.</div></div>`;
+      <div style="font-size:12.5px;color:var(--c-mist);line-height:1.8;margin-top:8px">W1 = week commencing Mon 29/06/26. Planned km are derived at render time from the hours-native plan using the Build 2 pace engine (v1.35): road = 8-week GAP-weighted rolling average; trail = 12-week window. Sparse-window blend: n&lt;3 → static fallback (road 6:15/km · trail 8:00/km); 3≤n&lt;6 → linear blend toward rolling; n≥6 → 100% rolling. Source tag and n shown in week view. Race weeks show actual race distance. The engine is fed automatically on every Sync (v1.36) — a runs.json v1.1 rebuild (Data tab → Merge sessions) is a periodic accuracy refresh for grade-adjusted pace and run type, no longer a prerequisite. Trends outrank points everywhere: rolling means on body data, deltas vs baseline on site cards. Device rule: one device per metric trend — Withings weekly total weight · Renpho monthly tape girths (cm) · Garmin chest strap + power throughout. Girth target model: girth ∝ √(λ·lean_scale·1.193 + (1−λ)·fat_scale·0.842), heuristic v1, replaces itself with measured slopes at ≥3 entries. Long-horizon physique goal: 73 kg @ 15% BF (formally adopted 04/07/26); UTA taper milestone: +0.7–1.2 kg lean. Extending the dashboard = adding one entry to a registry (GIRTHS, MARKERS, KEY_LIFTS) — built to grow. Storage mode: <b>${Store.mode}</b>.</div></div>`;
   },
 
   /* ── actions ── */
@@ -3096,7 +3116,28 @@ const App = {
       // Ingest activities → sessions.runs + body weight (icu_weight, kg, when present)
       let nr=0, nf=0, nw=0, skipped=0;
       const S=this.state.sessions;
-      const upsertR=(arr,e)=>{ const i=arr.findIndex(x=>x.d===e.d); if(i>=0) arr[i]=e; else arr.push(e); };
+      // Run upsert (v1.36, fork 3a). Two precedence classes:
+      //  · VOLUME fields (type/km/h) — live Sync always refreshes when non-null
+      //    (freshest distance/time wins; these aren't pace-engine authority).
+      //  · PACE-ENGINE fields (terrain/run_type/avg_pace/gap_s_str/quarantined)
+      //    — runs.json is authoritative. Sync FILLS them only when the existing
+      //    row has no value; it NEVER overwrites a value a runs.json import set.
+      //    So a rebuild's GAP, real run_type (long/quality/race/test), corrected
+      //    terrain, and quarantine flag all survive every future Sync.
+      const RUN_FILL_ONLY=["terrain","run_type","avg_pace","gap_s_str","quarantined"];
+      const upsertR=(arr,e)=>{ const i=arr.findIndex(x=>x.d===e.d);
+        if(i<0){ arr.push(e); return; }
+        const cur=arr[i];
+        Object.keys(e).forEach(k=>{ if(k==="d") return;
+          if(RUN_FILL_ONLY.includes(k)){
+            // fill-only: set only if the existing row lacks a value
+            if((cur[k]==null)&&e[k]!=null) cur[k]=e[k];
+          } else {
+            // volume/label: refresh when incoming is non-null
+            if(e[k]!=null) cur[k]=e[k];
+          }
+        });
+      };
       const upsertBdy=(arr,e)=>{ const i=arr.findIndex(x=>x.d===e.d);
         if(i>=0){ if(e.kg!=null) arr[i].kg=e.kg; } // weight-only: never overwrite existing bf%
         else arr.push({d:e.d, kg:e.kg}); };
@@ -3111,8 +3152,34 @@ const App = {
         const dist_m=r.distance||r.Distance||r.icu_distance||r.dist_m||null;
         const dist_km=dist_m?Math.round(dist_m/10)/100:null;
         const time_s=r.moving_time||r.elapsed_time||r["Moving Time"]||r.time_s||null;
-        upsertR(S.runs,{ d, type:type==="TrailRun"?"easy":type==="Run"?"easy":"easy", km:dist_km,
-          h: time_s?Math.round(time_s/36)/100:null });
+        // ── Pace-engine feed (v1.36) ────────────────────────────────────────
+        // terrain (fork 1a): activity type → surface. TrailRun→trail, Run/
+        //   VirtualRun→road. As good as Garmin activity-type labelling; a
+        //   mislabelled run is self-correctable at source. GAP/gain heuristics
+        //   were deferred (see D020 / OPERATING_BRIEF §3).
+        const terrain = type==="TrailRun" ? "trail" : "road";
+        // avg_pace (fork 2a): derive "M:SS"/km from dist+time so derivePace has
+        //   its designed fallback on live rows. GAP (gap_s_str) is NOT set here —
+        //   it's a FIT-derived field authoritative only via a runs.json rebuild,
+        //   so live rows carry avg_pace and the engine falls back to it (D1).
+        //   On trail this is noisier than GAP (terrain-corrupted) until the next
+        //   rebuild refreshes GAP; the field-preserving upsert keeps any GAP a
+        //   prior import set.
+        let avg_pace=null;
+        if(dist_km&&dist_km>0&&time_s&&time_s>0){
+          const spk=time_s/dist_km, mm=Math.floor(spk/60), ss=Math.round(spk%60);
+          const mm2=ss===60?mm+1:mm, ss2=ss===60?0:ss;
+          avg_pace=mm2+":"+(ss2<10?"0"+ss2:ss2);
+        }
+        // run_type (fork: real type, not hardcoded "easy"). intervals.icu has no
+        //   easy/long/quality field live, so live rows are "easy" by default but
+        //   a prior runs.json import's run_type (long/quality/race/test) is
+        //   preserved by the field-preserving upsert. Race/test weighting in
+        //   derivePace therefore relies on the runs.json rebuild, as designed.
+        upsertR(S.runs,{ d, type:"easy", km:dist_km,
+          h: time_s?Math.round(time_s/36)/100:null,
+          terrain, run_type:"easy", avg_pace,
+          quarantined:false });
         nr++;
       });
       // Ingest wellness → fff (CTL/ATL/TSB/rampRate + daily wellness channels).
@@ -3342,7 +3409,23 @@ const App = {
         <button class="btn solid" data-act="taxAdd">Add note</button></div></div>`;
   },
   view_changelog(){
-    const log=`v1.35  10/07/26  Build 2 — dynamic km-derivation pace engine.
+    const log=`v1.36  10/07/26  Sync now keeps the pace engine fresh.
+                   Before this, syncing from intervals.icu pulled your runs but
+                   dropped the two things the km-derivation engine needs — the
+                   terrain (road/trail) and the pace — so after every Sync the
+                   engine quietly fell back to the static 6:15/8:00 defaults, and
+                   a Sync could even overwrite the better data a runs.json import
+                   had loaded. Now each synced run carries terrain (Trail Run to
+                   trail, Run to road) and a pace derived from its distance and
+                   time, so the engine updates on every Sync with no manual step.
+                   The high-fidelity fields from a runs.json rebuild — grade-
+                   adjusted pace, real run type, quarantine flags — are protected:
+                   a Sync fills them only when they are missing and never
+                   overwrites them. So you no longer have to rebuild and re-import
+                   runs.json for the engine to work — that rebuild is now just a
+                   periodic accuracy refresh. No state change, STORE_KEY unchanged.
+
+v1.35  10/07/26  Build 2 — dynamic km-derivation pace engine.
                    Planned km are now self-calibrating from your run history
                    (runs.json v1.1). Road pace uses an 8-week GAP-weighted rolling
                    average; trail uses a 12-week window. Sparse-window blend: fewer
@@ -3501,7 +3584,7 @@ v1.5  04/07/26   Scorecard, Athletic Board, Body Map, demo mode, girth radar.
 v1.0–v1.4  02–04/07/26  Initial build; ported from React artifact.
                    Full early history in OPERATING_BRIEF.md.`;
     return `<div class="card">
-      <div class="eyebrow" style="color:${C.teal};margin-bottom:12px">Dashboard changelog — v1.35 (current) → v1.0</div>
+      <div class="eyebrow" style="color:${C.teal};margin-bottom:12px">Dashboard changelog — v1.36 (current) → v1.0</div>
       <pre style="font-family:var(--mono);font-size:11px;color:var(--c-mist);line-height:1.7;white-space:pre-wrap;margin:0">${esc(log)}</pre>
     </div>`;
   },
