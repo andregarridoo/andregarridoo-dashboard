@@ -166,6 +166,26 @@
    CHANGELOG
    v1.0  02/07/26  first HTML build (ported from React artifact)
    (v1.0–v1.6 archived — full history in OPERATING_BRIEF.md CHANGELOG)
+   v1.37  11/07/26 Same-date multi-session fix. Merge keyed on DATE ALONE, so
+                   two runs on one day (AM+PM double) collided — the 2nd
+                   overwrote the 1st (surfaced 11/07: 2 runs synced, W2 showed
+                   1). Same bug on gym import (last-wins) and, separately, in
+                   the render: sessionMaps() mapped date→one session, so even a
+                   kept 2nd row was dropped on display. Fixed on all three:
+                   (1) runs now id-keyed (intervals.icu activity id), date-
+                   fallback with id-backfill so a legacy runs.json row and its
+                   later live twin converge to one row, not a duplicate; live
+                   ingest + importSessions both carry id. (2) gym keyed on
+                   d+name+tod — two different sessions/day coexist; tod optional
+                   (degrades to d+name), long-term dump should emit AM/PM/HH:MM.
+                   (3) sessionMaps() now date→ARRAY; week strip aggregates
+                   (sum km, ×N badge), gymDayCard + scorecard read arrays.
+                   Downstream week-card + pace engine already looped rows, so
+                   both runs feed volume + pace once merged. State-shape: runs
+                   gain optional id; STORE_KEY unchanged (id-less rows still
+                   valid via date-fallback). runs.json §8a should emit per-row
+                   id next rebuild. node --check + DOM-shimmed harness
+                   (+ same-date run/gym asserts): clean.
    v1.36  10/07/26 Sync now feeds the pace engine (D020). syncICU() run
                    ingest was writing only {d,type,km,h} — no terrain, no
                    pace — so after every Sync derivePace() saw n=0 and fell
@@ -1995,28 +2015,39 @@ const RUN_STYLE = {
 };
 function plannedDay(w,i){ const ph=phaseOf(w), tpl=(WEEK_TEMPLATES[ph.id]||[])[i]||{}, o=(WEEK_OVERRIDES[w]||{})[i]||{};
   return { r:o.r||tpl.r||"—", g:o.g||tpl.g||null, L:tpl.L||o.L, H:tpl.H||o.H }; }
+// v1.37: date → ARRAY of sessions (was one-per-date, which dropped AM+PM
+//   doubles on render even after the merge kept both rows). Callers aggregate.
 function sessionMaps(){ const R={},G={};
-  (App.state.sessions.runs||[]).forEach(s=>{ if(s&&s.d) R[s.d]=s; });
-  (App.state.sessions.gym||[]).forEach(s=>{ if(s&&s.d) G[s.d]=s; });
+  (App.state.sessions.runs||[]).forEach(s=>{ if(s&&s.d){ (R[s.d]=R[s.d]||[]).push(s); } });
+  (App.state.sessions.gym||[]).forEach(s=>{ if(s&&s.d){ (G[s.d]=G[s.d]||[]).push(s); } });
   return {R,G}; }
+// aggregate a day's runs into the single summary the week-strip chip shows
+function dayRunAgg(list){ if(!list||!list.length) return null;
+  let km=0,hasKm=false; list.forEach(r=>{ if(r.km!=null){ km+=r.km; hasKm=true; } });
+  const key=list.find(r=>["long","quality","race","test"].includes(r.run_type))||list[0];
+  return { n:list.length, km:hasKm?km:null, type:key.type||key.run_type||null,
+           run_type:key.run_type||null, multi:list.length>1 }; }
 function weekStrip(w){
   const {R,G}=sessionMaps();
   const cells=DAYS.map((d,i)=>{ const p=plannedDay(w,i), iso=dayISO(w,i);
     const cat=classifyRun(p.r), st=RUN_STYLE[cat];
-    const run=R[iso], gym=G[iso];
-    const runDone=!!run, gymDone=!!gym;
+    const run=dayRunAgg(R[iso]); const gymList=G[iso]||[];
+    const runDone=!!run, gymDone=gymList.length>0;
+    const runMulti=run&&run.multi?` <span style="opacity:.6">×${run.n}</span>`:"";
+    const gymMulti=gymList.length>1?` <span style="opacity:.6">×${gymList.length}</span>`:"";
+    const gym=gymList[0]||null; // representative for name/classify
     let runChip;
     if(cat==="rest"&&!runDone){ runChip=`<div class="lens-chip lens-rest" title="Rest">·</div>`; }
-    else if(cat==="rest"&&runDone){ runChip=`<div class="lens-chip" title="unplanned run — ${esc(run.type||"")} ${fmt(run.km)} km" style="background:transparent;color:${C.teal};border:1px solid ${C.teal}">✓ unplanned${run.km!=null?` <span style="opacity:.75">${fmt(run.km)}k</span>`:""}</div>`; }
+    else if(cat==="rest"&&runDone){ runChip=`<div class="lens-chip" title="unplanned run — ${esc(run.type||"")}${run.km!=null?` ${fmt(run.km)} km`:""}${run.multi?` · ${run.n} runs`:""}" style="background:transparent;color:${C.teal};border:1px solid ${C.teal}">✓ unplanned${run.km!=null?` <span style="opacity:.75">${fmt(run.km)}k</span>`:""}${runMulti}</div>`; }
     else { const tid=typeFor(p.r);
-      runChip=`<div class="lens-chip" ${tid?`data-act="runtype" data-v="${tid}" style="cursor:pointer;`:`style="`}background:${st.solid?st.bg:"transparent"};color:${st.solid?st.fg:st.bg};border:1px ${st.solid?"solid":"dashed"} ${st.bg}" title="${esc(p.r)}${runDone&&run.km!=null?` — done: ${fmt(run.km)} km`:""}${tid?" · tap for session definition":""}">
-           ${runDone?"✓ ":""}${st.lab}${runDone&&run.km!=null?` <span style="opacity:.75">${fmt(run.km)}k</span>`:""}</div>`; }
+      runChip=`<div class="lens-chip" ${tid?`data-act="runtype" data-v="${tid}" style="cursor:pointer;`:`style="`}background:${st.solid?st.bg:"transparent"};color:${st.solid?st.fg:st.bg};border:1px ${st.solid?"solid":"dashed"} ${st.bg}" title="${esc(p.r)}${runDone&&run.km!=null?` — done: ${fmt(run.km)} km`:""}${runDone&&run.multi?` (${run.n} runs)`:""}${tid?" · tap for session definition":""}">
+           ${runDone?"✓ ":""}${st.lab}${runDone&&run.km!=null?` <span style="opacity:.75">${fmt(run.km)}k</span>`:""}${runMulti}</div>`; }
     const gLab=classifyGym(p.g);
     const gymChip = gLab
-      ? `<div class="lens-chip" data-act="gymday" data-v="${w}-${i}" title="${esc(p.g)}${gymDone?" — done":""} · tap for exercises"
-           style="cursor:pointer;background:${gymDone?C.amber:"transparent"};color:${gymDone?"#1b1f24":C.amber};border:1px ${gymDone?"solid":"dashed"} ${C.amber}">${gymDone?"✓ ":""}${gLab}</div>`
+      ? `<div class="lens-chip" data-act="gymday" data-v="${w}-${i}" title="${esc(p.g)}${gymDone?" — done":""}${gymList.length>1?` · ${gymList.length} sessions`:""} · tap for exercises"
+           style="cursor:pointer;background:${gymDone?C.amber:"transparent"};color:${gymDone?"#1b1f24":C.amber};border:1px ${gymDone?"solid":"dashed"} ${C.amber}">${gymDone?"✓ ":""}${gLab}${gymMulti}</div>`
       : gymDone
-        ? `<div class="lens-chip" data-act="gymday" data-v="${w}-${i}" title="unplanned gym — ${esc(gym.name||"")}" style="cursor:pointer;background:${C.amber};color:#1b1f24;border:1px solid ${C.amber}">✓ ${esc(classifyGym(gym.name)||"Gym")}</div>`
+        ? `<div class="lens-chip" data-act="gymday" data-v="${w}-${i}" title="unplanned gym — ${esc(gymList.map(x=>x.name||"").filter(Boolean).join(", "))}" style="cursor:pointer;background:${C.amber};color:#1b1f24;border:1px solid ${C.amber}">✓ ${esc(classifyGym(gym.name)||"Gym")}${gymMulti}</div>`
         : `<div class="lens-chip lens-rest">·</div>`;
     const dot = p.H?`<i class="lens-dot" style="background:${C.rose}" title="hard legs"></i>`
               : p.L?`<i class="lens-dot" style="background:${C.amber}" title="legs loaded"></i>`:"";
@@ -2034,7 +2065,7 @@ function weekStrip(w){
 function gymDayCard(w){
   const gd=App.gymDay; if(!gd||gd.w!==w) return "";
   const p=plannedDay(w,gd.i), iso=dayISO(w,gd.i);
-  const {G}=sessionMaps(); const done=G[iso];
+  const {G}=sessionMaps(); const doneList=G[iso]||[]; const done=doneList[0]||null;
   const key=classifyGym(p.g)||classifyGym(done&&done.name)||"Gym";
   const S=GYM_SESSIONS[key]||GYM_SESSIONS["Gym"];
   const rows=S.ex.length? S.ex.map(e=>`<tr><td style="font-size:12px;color:var(--c-chalk)">${esc(e[0])}</td>
@@ -3043,14 +3074,34 @@ const App = {
     try{
       const p=JSON.parse(qs("sess_io").value); let nr=0, ng=0, skipped=0;
       const S=this.state.sessions;
-      const upsert=(arr,e)=>{ const i=arr.findIndex(x=>x.d===e.d); if(i>=0) arr[i]=e; else arr.push(e); };
+      // v1.37: runs id-keyed on import too. A rebuilt runs.json emitting a per-
+      //   row id keeps AM+PM doubles on one date as two rows; id-less legacy
+      //   rows still key by date. Import stays runs.json-authoritative (full-row
+      //   replace), so no field-preserving merge here — the pasted file wins.
+      const upsertRunI=(arr,e)=>{
+        let i=-1;
+        if(e.id!=null){
+          i=arr.findIndex(x=>x.id!=null&&x.id===e.id);
+          if(i<0) i=arr.findIndex(x=>x.id==null&&x.d===e.d); // adopt legacy same-date
+        } else { i=arr.findIndex(x=>x.d===e.d); }
+        if(i>=0) arr[i]=e; else arr.push(e);
+      };
+      // Gym keyed on d + name + tod: two DIFFERENT sessions on one day coexist
+      //   (e.g. AM Push / PM Pull, or two Push blocks with tod set). Re-importing
+      //   the same {d,name,tod} updates in place. tod is optional — absent tod
+      //   degrades the key to d+name (identical id-less gym rows are preserved,
+      //   not collapsed). Long-term: emit tod ("AM"/"PM"/"HH:MM") in the dump.
+      const gymKey=g=>`${g.d}|${(g.name||"").toLowerCase()}|${g.tod||""}`;
+      const upsertGymI=(arr,e)=>{ const k=gymKey(e);
+        const i=arr.findIndex(x=>gymKey(x)===k); if(i>=0) arr[i]=e; else arr.push(e); };
       const rawRuns = (p.sessions&&p.sessions.runs) || p.runs || [];
       rawRuns.forEach(r=>{ if(!r) return;
         const d=r.d||r.date; if(!d) return;
         // Quarantined runs (e.g. UTK 2025, injury-skewed) are KEPT for volume
         // display but tagged so any fitness/trend calc can exclude them.
         const isQ=(r.scale_flags||[]).some(f=>String(f).includes("quarantine"));
-        upsert(S.runs,{ d, type:r.type||r.run_type||null,
+        upsertRunI(S.runs,{ d, id:(r.id!=null?String(r.id):(r.activity_id!=null?String(r.activity_id):null)),
+          type:r.type||r.run_type||null,
           km: r.km!=null?r.km:(r.dist_km!=null?r.dist_km:null),
           h:  r.h!=null?r.h:(r.time_s!=null?Math.round(r.time_s/36)/100:null),
           quarantined: isQ,
@@ -3062,7 +3113,7 @@ const App = {
         });
         if(isQ) skipped++; else nr++; });
       const rawGym = (p.sessions&&p.sessions.gym) || p.gym || [];
-      rawGym.forEach(g=>{ if(!g||!(g.d||g.date)) return; upsert(S.gym,{d:g.d||g.date, name:g.name||null}); ng++; });
+      rawGym.forEach(g=>{ if(!g||!(g.d||g.date)) return; upsertGymI(S.gym,{d:g.d||g.date, name:g.name||null, tod:g.tod||null}); ng++; });
       if(!nr&&!ng){ this.flash("Nothing recognised — expected runs.json and/or {gym:[…]}"); return; }
       S.runs.sort((a,b)=>a.d.localeCompare(b.d)); S.gym.sort((a,b)=>a.d.localeCompare(b.d));
       this.persist(); this.render();
@@ -3125,10 +3176,30 @@ const App = {
       //    So a rebuild's GAP, real run_type (long/quality/race/test), corrected
       //    terrain, and quarantine flag all survive every future Sync.
       const RUN_FILL_ONLY=["terrain","run_type","avg_pace","gap_s_str","quarantined"];
-      const upsertR=(arr,e)=>{ const i=arr.findIndex(x=>x.d===e.d);
+      // v1.37: id-keyed merge. intervals.icu activities carry a unique id, so
+      //   two runs on the SAME DATE (e.g. an AM + PM double) are distinct rows
+      //   instead of the 2nd silently overwriting the 1st (the old date-only key).
+      //   Precedence when locating the row to merge into:
+      //     1. incoming id matches an existing id → that row
+      //     2. incoming has an id but no id-match → adopt a legacy id-less row on
+      //        the same date (backfill its id) so a runs.json import row and its
+      //        later live-sync twin converge to ONE row, not a duplicate
+      //     3. otherwise push a new row
+      //   Legacy incoming (no id, e.g. an older runs.json paste) still keys by
+      //   date so historical behaviour is unchanged.
+      const findRun=(arr,e)=>{
+        if(e.id!=null){
+          let i=arr.findIndex(x=>x.id!=null&&x.id===e.id); if(i>=0) return i;
+          i=arr.findIndex(x=>x.id==null&&x.d===e.d);
+          if(i>=0){ arr[i].id=e.id; return i; }   // adopt legacy row, backfill id
+          return -1;
+        }
+        return arr.findIndex(x=>x.d===e.d);        // legacy: date-keyed
+      };
+      const upsertR=(arr,e)=>{ const i=findRun(arr,e);
         if(i<0){ arr.push(e); return; }
         const cur=arr[i];
-        Object.keys(e).forEach(k=>{ if(k==="d") return;
+        Object.keys(e).forEach(k=>{ if(k==="d"||k==="id") return;
           if(RUN_FILL_ONLY.includes(k)){
             // fill-only: set only if the existing row lacks a value
             if((cur[k]==null)&&e[k]!=null) cur[k]=e[k];
@@ -3176,7 +3247,7 @@ const App = {
         //   a prior runs.json import's run_type (long/quality/race/test) is
         //   preserved by the field-preserving upsert. Race/test weighting in
         //   derivePace therefore relies on the runs.json rebuild, as designed.
-        upsertR(S.runs,{ d, type:"easy", km:dist_km,
+        upsertR(S.runs,{ d, id:(r.id!=null?String(r.id):null), type:"easy", km:dist_km,
           h: time_s?Math.round(time_s/36)/100:null,
           terrain, run_type:"easy", avg_pace,
           quarantined:false });
@@ -3239,8 +3310,8 @@ const App = {
     const {R,G}=sessionMaps();
     let gp=0,gd=0,rp=0,rd=0;
     for(let i=0;i<=di;i++){ const p=plannedDay(cw,i), iso=dayISO(cw,i);
-      if(classifyGym(p.g)){ gp++; if(G[iso]) gd++; }
-      if(classifyRun(p.r)!=="rest"){ rp++; if(R[iso]) rd++; } }
+      if(classifyGym(p.g)){ gp++; if((G[iso]||[]).length) gd++; }
+      if(classifyRun(p.r)!=="rest"){ rp++; if((R[iso]||[]).length) rd++; } }
     // protein: last 7 calendar days, days ≥117 g
     const wk=[...Array(7)].map((_,k)=>{ const d=new Date(Date.now()-k*864e5);
       return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); });
@@ -3409,7 +3480,23 @@ const App = {
         <button class="btn solid" data-act="taxAdd">Add note</button></div></div>`;
   },
   view_changelog(){
-    const log=`v1.36  10/07/26  Sync now keeps the pace engine fresh.
+    const log=`v1.37  11/07/26  Two runs (or two gym sessions) on the same day
+                   no longer overwrite each other. The dashboard used to file
+                   every session under its date alone, so an AM + PM double
+                   landed on one slot — the second run replaced the first, and
+                   the day showed one run instead of two (exactly what happened
+                   on 11/07: two runs synced, the week showed one). Runs are now
+                   filed by their intervals.icu activity ID, so each run is its
+                   own row; older runs already imported still work and merge
+                   cleanly with their synced twin instead of duplicating. Gym
+                   sessions are filed by day + name + time-of-day, so two
+                   different sessions in a day both show (add an AM/PM or time
+                   to the gym dump to separate two same-named sessions). The
+                   week strip now sums a day's runs and shows a ×N badge when
+                   there's more than one. Nothing you've logged changes; days
+                   with a single session look exactly as before.
+
+v1.36  10/07/26  Sync now keeps the pace engine fresh.
                    Before this, syncing from intervals.icu pulled your runs but
                    dropped the two things the km-derivation engine needs — the
                    terrain (road/trail) and the pace — so after every Sync the
@@ -3584,7 +3671,7 @@ v1.5  04/07/26   Scorecard, Athletic Board, Body Map, demo mode, girth radar.
 v1.0–v1.4  02–04/07/26  Initial build; ported from React artifact.
                    Full early history in OPERATING_BRIEF.md.`;
     return `<div class="card">
-      <div class="eyebrow" style="color:${C.teal};margin-bottom:12px">Dashboard changelog — v1.36 (current) → v1.0</div>
+      <div class="eyebrow" style="color:${C.teal};margin-bottom:12px">Dashboard changelog — v1.37 (current) → v1.0</div>
       <pre style="font-family:var(--mono);font-size:11px;color:var(--c-mist);line-height:1.7;white-space:pre-wrap;margin:0">${esc(log)}</pre>
     </div>`;
   },
