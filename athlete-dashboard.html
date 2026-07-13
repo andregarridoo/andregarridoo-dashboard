@@ -100,7 +100,9 @@
     .cols4{grid-template-columns:1fr}   /* stop forcing 2-wide on narrow portrait */
     .card{padding:13px}
     h1{font-size:20px!important}
-    .tab{padding:8px 11px}
+    /* #R17 (v1.38): tab bar wraps to 2 rows of 4 instead of horizontal scroll. */
+    .tabbar{flex-wrap:wrap;row-gap:0;overflow-x:visible}
+    .tab{flex:1 1 25%;min-height:44px;display:inline-flex;align-items:center;justify-content:center;padding:8px 6px}
     .row{gap:8px}
     /* #15: bump chart-text tokens so viewBox-downscaled SVG text stays legible on
        narrow portrait. The chart helpers read these via cssvNum() at render time,
@@ -1076,7 +1078,7 @@ const GIRTH_SEED = {  // real measure 04/07/26 — Renpho tape, AM, fasted
 };
 const EMPTY = {
   version:1,
-  actualWeeks:{},                                   // {w:{km,h,vert,desc,longH,decoup,ef,z12}}
+  actualWeeks:{},                                   // {w:{km,h,vert,desc,longH,decoup,ef,z12,z3,z45}} — z3/z45 additive+nullable (#R4e, v1.38)
   body:[{d:"2026-07-03",kg:67.79,bf:16.4}],          // real seed — Withings 3 Jul 19:40, trend-grade
   labs:[], lifts:[], protein:[],
   protocol:[],                                      // {d, by, change, reason?}
@@ -1107,6 +1109,9 @@ const norm = s => {
 const todayWeek = () => { const w1=new Date(2026,5,29); const d=Math.floor((Date.now()-w1.getTime())/864e5); return Math.min(46,Math.max(1,Math.floor(d/7)+1)); };
 const daysTo = iso => Math.ceil((new Date(iso+"T00:00:00").getTime()-Date.now())/864e5);
 const fmt = (n,d=1) => (n==null||isNaN(n)) ? "—" : Number(n).toFixed(d).replace(/\.0$/,"");
+/* #R2: display-format helpers. NEVER apply to ISO strings used as keys/sort values. */
+function fmtD(iso){ if(!iso||iso.length<10) return iso||""; return iso.slice(8,10)+"/"+iso.slice(5,7)+"/"+iso.slice(2,4); }   // DD/MM/YY
+function fmtDshort(iso){ if(!iso||iso.length<10) return iso||""; return iso.slice(8,10)+"/"+iso.slice(5,7); }                  // DD/MM (chart axes)
 const num = s => { const v=parseFloat(s); return isNaN(v)?null:v; };
 const esc = s => String(s==null?"":s).replace(/[&<>"']/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
 const qs = id => document.getElementById(id);
@@ -1137,7 +1142,7 @@ function aggregateWellness(rows, key, view){
     return { cats:ws.map(w=>"W"+w),
              data:ws.map(w=>{ const a=byW[w]; return a.length?+(a.reduce((s,v)=>s+v,0)/a.length).toFixed(2):null; }) };
   }
-  return { cats:pts.map(r=>r.date.slice(5)), data:pts.map(r=>+r[key]) };
+  return { cats:pts.map(r=>fmtDshort(r.date)), data:pts.map(r=>+r[key]) };
 }
 
 /* ── storage adapter: Claude → localStorage → memory ── */
@@ -1179,20 +1184,39 @@ const Store = {
 /* ── SVG chart helpers ── */
 function niceMax(v){ if(v<=0) return 1; const p=Math.pow(10,Math.floor(Math.log10(v))); const n=v/p; const m=n<=1?1:n<=2?2:n<=2.5?2.5:n<=5?5:10; return m*p; }
 
+/* #R4d (v1.38): best-fit y-domain. vals = visible numeric values only (nulls pre-filtered).
+   opts: {yMin,yMax} hard bounds from the call site (respected verbatim). */
+function yDomain(vals, opts){
+  opts=opts||{};
+  if(!vals.length) vals=[0,1];
+  let lo=Math.min(...vals), hi=Math.max(...vals);
+  if(lo===hi){ lo-=1; hi+=1; }
+  const pad=(hi-lo)*0.12;
+  if(opts.yMin==null) lo-=pad; else lo=opts.yMin;
+  if(opts.yMax==null) hi+=pad; else hi=opts.yMax;
+  // nice-number snap (only on the free sides): step from ~3 intervals
+  const nice=v=>{const p=Math.pow(10,Math.floor(Math.log10(Math.max(1e-9,v))));const n=v/p;return (n<=1?1:n<=2?2:n<=2.5?2.5:n<=5?5:10)*p;};
+  const step=nice((hi-lo)/3);
+  if(opts.yMin==null) lo=Math.floor(lo/step)*step;
+  if(opts.yMax==null) hi=Math.ceil(hi/step)*step;
+  if(lo===hi) hi=lo+step;
+  return {lo,hi};
+}
 function chartSVG(o){
   // FONT/COLOR tokens — Phase 2 will sweep these into global CSS vars
   // #14: font/colour tokens now sourced from global CSS vars (--fs-axis/--fs-ref/--c-axis/--c-line); per-call overrides (o.sub/o.line) still win.
-  const FF="var(--mono)", FS_AXIS=cssvNum("fs-axis"), FS_REF=cssvNum("fs-ref"), COL_AXIS=o.sub||cssv("axis"), COL_LINE=o.line||cssv("line");
+  // #R3/#R4b (v1.38): apparent font-size normalisation — viewBox scaling was distorting apparent
+  // size on w:860 charts and cols2 half-width charts. FSCALE corrects for both.
+  const isMob = (typeof matchMedia!=="undefined") && matchMedia("(max-width:480px)").matches;
+  const FSCALE = ((o.w||460)/460) * (isMob ? 1 : (o.cols||1));
+  const FF="var(--mono)", FS_AXIS=cssvNum("fs-axis")*FSCALE, FS_REF=cssvNum("fs-ref")*FSCALE, COL_AXIS=o.sub||cssv("axis"), COL_LINE=o.line||cssv("line");
   const W=o.w||460, H=o.h||200, P={l:44,r:12,t:14,b:26};
   const iw=W-P.l-P.r, ih=H-P.t-P.b, n=o.cats.length;
   let vals=[];
   o.series.forEach(s=>s.data.forEach(v=>{ if(v!=null) vals.push(v); }));
   (o.refs||[]).forEach(r=>vals.push(r.y));
   if(o.band){ vals.push(o.band.lo, o.band.hi); }
-  if(!vals.length) vals=[0,1];
-  let lo = o.yMin!=null ? o.yMin : Math.min(...vals), hi = o.yMax!=null ? o.yMax : Math.max(...vals);
-  if(lo===hi){ lo-=1; hi+=1; }
-  const pad=(hi-lo)*0.12; if(o.yMin==null) lo-=pad; if(o.yMax==null) hi+=pad;
+  const {lo,hi} = yDomain(vals,{yMin:o.yMin,yMax:o.yMax});
   const sx = i => n<=1 ? P.l+iw/2 : P.l + i*(iw/(n-1));
   const sy = v => P.t + ih - (v-lo)/(hi-lo)*ih;
   let g="";
@@ -1205,6 +1229,17 @@ function chartSVG(o){
   (o.refs||[]).forEach(r=>{ const y=sy(r.y);
     g+=`<line x1="${P.l}" x2="${W-P.r}" y1="${y}" y2="${y}" stroke="${r.color}" stroke-dasharray="4 3"/>`;
     g+=`<text x="${W-P.r}" y="${y-4}" text-anchor="end" font-family="${FF}" font-size="${FS_REF}" fill="${r.color}">${esc(r.label)}</text>`; });
+  if(o.stacked){
+    // #R4e (v1.38): stacked bar path — series in stack order, bottom→top, one shared x per category.
+    const sbw = Math.max(3, (iw/Math.max(1,n))*0.62);
+    const running = new Array(n).fill(0);
+    o.series.forEach(s=>{
+      s.data.forEach((v,i)=>{ if(v==null) return; const base=running[i], top=base+v;
+        const y0=sy(base), y1=sy(top), x=sx(i)-sbw/2;
+        g+=`<rect x="${x}" y="${Math.min(y0,y1)}" width="${sbw}" height="${Math.max(1,Math.abs(y0-y1))}" fill="${s.color}" opacity="${s.opacity!=null?s.opacity:1}" rx="1"><title>${esc(o.cats[i])} · ${esc(s.name)}: ${fmt(v)}${o.yUnit?" "+o.yUnit:""}</title></rect>`;
+        running[i]=top; });
+    });
+  } else {
   const bars = o.series.filter(s=>s.type==="bar"), bw = bars.length ? Math.max(3,(iw/Math.max(1,n))/(bars.length+1.2)) : 0;
   o.series.forEach((s)=>{
     if(s.type==="bar"){
@@ -1217,6 +1252,7 @@ function chartSVG(o){
       if(path) g+=`<path d="${path}" fill="none" stroke="${s.color}" stroke-width="1.6"/>`;
     }
   });
+  }
   const legend = o.series.length>1 ? `<div style="display:flex;gap:14px;margin-top:6px;flex-wrap:wrap">${o.series.map(s=>`<span class="note" style="display:flex;align-items:center;gap:6px"><i style="width:8px;height:8px;border-radius:2px;background:${s.color};display:inline-block"></i>${esc(s.name)}</span>`).join("")}</div>` : "";
   return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="display:block">${g}</svg>${legend}`;
 }
@@ -1226,16 +1262,16 @@ function chartSVG(o){
 function chartSVGdash(o){
   // FONT/COLOR tokens — Phase 2 will sweep these into global CSS vars
   // #14: font/colour tokens now sourced from global CSS vars (--fs-axis/--fs-ref/--c-axis/--c-line); per-call overrides (o.sub/o.line) still win.
-  const FF="var(--mono)", FS_AXIS=cssvNum("fs-axis"), FS_REF=cssvNum("fs-ref"), COL_AXIS=o.sub||cssv("axis"), COL_LINE=o.line||cssv("line");
+  // #R3/#R4b (v1.38): apparent font-size normalisation, mirrors chartSVG.
+  const isMob = (typeof matchMedia!=="undefined") && matchMedia("(max-width:480px)").matches;
+  const FSCALE = ((o.w||460)/460) * (isMob ? 1 : (o.cols||1));
+  const FF="var(--mono)", FS_AXIS=cssvNum("fs-axis")*FSCALE, FS_REF=cssvNum("fs-ref")*FSCALE, COL_AXIS=o.sub||cssv("axis"), COL_LINE=o.line||cssv("line");
   const W=o.w||460, H=o.h||200, P={l:44,r:12,t:14,b:26};
   const iw=W-P.l-P.r, ih=H-P.t-P.b, n=o.cats.length;
   let vals=[];
   o.series.forEach(s=>s.data.forEach(v=>{ if(v!=null) vals.push(v); }));
   (o.refs||[]).forEach(r=>vals.push(r.y));
-  if(!vals.length) vals=[0,1];
-  let lo=o.yMin!=null?o.yMin:Math.min(...vals), hi=o.yMax!=null?o.yMax:Math.max(...vals);
-  if(lo===hi){lo-=1;hi+=1;}
-  const pad=(hi-lo)*0.12; if(o.yMin==null) lo-=pad; if(o.yMax==null) hi+=pad;
+  const {lo,hi} = yDomain(vals,{yMin:o.yMin,yMax:o.yMax});
   const sx=i=>n<=1?P.l+iw/2:P.l+i*(iw/(n-1));
   const sy=v=>P.t+ih-(v-lo)/(hi-lo)*ih;
   let g="";
@@ -2054,7 +2090,7 @@ function weekStrip(w){
     const now=new Date(), todayIso=now.getFullYear()+"-"+String(now.getMonth()+1).padStart(2,"0")+"-"+String(now.getDate()).padStart(2,"0");
     const today = iso===todayIso;
     return `<div class="lens-day" style="${today?`border-color:${C.teal}`:""}">
-      <div class="lens-dh">${d}<span style="color:var(--c-dim);font-size:8px"> ${iso.slice(8)}/${iso.slice(5,7)}</span>${dot}</div>
+      <div class="lens-dh">${d}<span style="color:var(--c-dim);font-size:8px"> ${fmtDshort(iso)}</span>${dot}</div>
       ${runChip}${gymChip}</div>`; }).join("");
   return `<div class="lens-grid">${cells}</div>
     ${gymDayCard(w)}
@@ -2075,7 +2111,7 @@ function gymDayCard(w){
     : `<tr><td class="note">No fixed exercise list — see the plan note for this day.</td></tr>`;
   return `<div class="card" style="margin-top:10px;border-color:${C.amber}">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
-      <div><div class="eyebrow" style="color:${C.amber}">${esc(S.name)} · ${DAYS[gd.i]} ${iso.slice(8)}/${iso.slice(5,7)} ${done?"· ✓ done":""}</div>
+      <div><div class="eyebrow" style="color:${C.amber}">${esc(S.name)} · ${DAYS[gd.i]} ${fmtDshort(iso)} ${done?"· ✓ done":""}</div>
         <div class="note" style="margin-top:4px">plan says: ${esc(p.g||done&&done.name||"—")} · wk 1 of a block = intro, wk 2+ last set to failure · reps per the Nippard sheet (rep cells corrupted in the text-dump conversion — read them there)</div></div>
       <button class="btn" data-act="gymclose">close ✕</button></div>
     ${S.watch?`<div class="note" style="color:${C.rose};margin-top:8px">⚑ ${esc(S.watch)}</div>`:""}
@@ -2297,6 +2333,7 @@ const App = {
   ovRange: {past:12, future:8},  // weeks back / forward from today shown in overview
   fffViz: {ctl:true, atl:true, tsb:true, proj:true}, // which FFF series are visible; proj = projection overlay
   readyView: "day",   // Training Readiness card x-axis resolution: "day" | "week"
+  vertShow: {asc:true, desc:true}, // #R4c (v1.38): Weekly vert chart series toggles; in-memory only, not persisted
   wellMetric: "rhr",  // Health→Wellness section: which daily channel is charted
   wellView: "day",    // Wellness section x-axis resolution: "day" | "week"
   bodyView: "photo",  // Body Map card view: "photo" (baseline photo + contours) | "sil" (schematic silhouette)
@@ -2463,19 +2500,33 @@ const App = {
       <span style="font-family:var(--mono);font-size:12px;color:var(--c-chalk)">${esc(a.v)}</span>
       <span class="note" style="width:100%;text-align:right">${esc(a.n)}</span></div>`).join("");
     return `
+    ${this.viewFFF()}
     <div class="card"><div class="eyebrow" style="color:var(--c-teal)">Durability — Pw:HR decoupling per long run</div>
       ${dec.length ? `<div style="margin-top:10px">${chartSVG({cats:dec.map(r=>"W"+r.w),yUnit:"%",series:[{name:"decoupling",color:C.teal,data:dec.map(r=>r.decoup)}],refs:[{y:5,label:"5% frontier",color:C.rose}]})}</div>`
       : `<div class="empty">◦ First long run ≥2 h populates this. The number to move: how long you last before Pw:HR breaches 5%. Race fade reference: UTA 2026 went 199→100 W.</div>`}</div>
     <div class="cols2">
-      <div class="card"><div class="eyebrow">Weekly vert · descent (m)</div>
-        ${vert.length ? `<div style="margin-top:10px">${chartSVG({cats:vert.map(r=>"W"+r.w),yMin:0,series:[{name:"ascent",color:C.teal,type:"bar",data:vert.map(r=>r.vert||0)},{name:"descent",color:C.violet,type:"bar",data:vert.map(r=>r.desc||0)}]})}</div>`
-        : `<div class="empty">◦ Descent metres are tracked separately — the 25-minute lever gets its own bar.</div>`}</div>
-      <div class="card"><div class="eyebrow">Zone discipline — % time ≤ AeT</div>
-        ${zone.length ? `<div style="margin-top:10px">${chartSVG({cats:zone.map(r=>"W"+r.w),yMin:50,yMax:100,yUnit:"%",series:[{name:"% ≤AeT",color:C.chalk,data:zone.map(r=>r.z12)}],refs:[{y:85,label:"85% floor",color:C.amber}]})}</div>`
+      <div class="card"><div class="eyebrow">Weekly vert (m)</div>
+        <div style="display:flex;gap:8px;margin-top:6px">
+          <button class="pill ${this.vertShow.asc?"on":""}" data-act="vertShow" data-v="asc" style="opacity:${this.vertShow.asc?1:0.35}">ASCENT</button>
+          <button class="pill ${this.vertShow.desc?"on":""}" data-act="vertShow" data-v="desc" style="opacity:${this.vertShow.desc?1:0.35}">DESCENT</button>
+        </div>
+        ${vert.length && (this.vertShow.asc||this.vertShow.desc) ? `<div style="margin-top:10px">${chartSVG({cats:vert.map(r=>"W"+r.w),yMin:0,cols:2,series:[
+          ...(this.vertShow.asc?[{name:"ascent",color:C.teal,type:"bar",data:vert.map(r=>r.vert||0)}]:[]),
+          ...(this.vertShow.desc?[{name:"descent",color:C.violet,type:"bar",data:vert.map(r=>r.desc||0)}]:[])
+        ]})}</div>`
+        : !vert.length ? `<div class="empty">◦ Descent metres are tracked separately — the 25-minute lever gets its own bar.</div>`
+        : `<div class="empty">◦ Both series hidden — toggle ASCENT or DESCENT above.</div>`}</div>
+      <div class="card"><div class="eyebrow">Zone discipline — stacked % time</div>
+        ${zone.length ? `<div style="margin-top:10px">${chartSVG({cats:zone.map(r=>"W"+r.w),yMin:0,yMax:100,yUnit:"%",cols:2,stacked:true,series:[
+          {name:"Z1+Z2",color:C.teal,type:"bar",data:zone.map(r=>r.z12)},
+          {name:"Z3",color:C.amber,type:"bar",data:zone.map(r=>r.z3)},
+          {name:"Z4+Z5",color:C.rose,type:"bar",data:zone.map(r=>r.z45)},
+          {name:"unsplit",color:"var(--c-contour)",opacity:0.35,type:"bar",data:zone.map(r=>(r.z3==null&&r.z45==null&&r.z12!=null)?Math.max(0,100-r.z12):null)}
+        ],refs:[{y:85,label:"85% floor",color:C.amber}]})}</div>
+        <div class="note" style="margin-top:6px">unsplit = week logged before Z3/Z4-5 capture existed</div>`
         : `<div class="empty">◦ Zones exist after the wk-3 AeT test — then ≥85–90% ≤AeT is the base/hybrid gate.</div>`}</div>
     </div>
-    <div class="card"><div class="eyebrow">Reference anchors</div><div style="margin-top:10px;display:grid;gap:8px">${anchors}</div></div>
-    ${this.viewFFF()}`;
+    <div class="card"><div class="eyebrow">Reference anchors</div><div style="margin-top:10px;display:grid;gap:8px">${anchors}</div></div>`;
   },
 
   readyCard(){
@@ -2530,7 +2581,7 @@ const App = {
     const cutoff = new Date(); cutoff.setDate(cutoff.getDate()-90);
     const cutStr = cutoff.toISOString().slice(0,10);
     const recent = fff.filter(r=>r.date>=cutStr);
-    const cats = recent.map(r=>r.date.slice(5)); // MM-DD
+    const cats = recent.map(r=>fmtDshort(r.date)); // DD/MM
     const ctls = recent.map(r=>r.ctl);
     const atls = recent.map(r=>r.atl);
     const tsbs = recent.map(r=>r.tsb);
@@ -2600,7 +2651,7 @@ const App = {
       .filter(s=>s.data.some(v=>v!=null));
     return `
     <div class="card"><div class="eyebrow" style="color:var(--c-amber)">The five ultra-relevant lifts — est. 1RM trend</div>
-      ${series.length ? `<div style="margin-top:10px">${chartSVG({cats:dates.map(d=>d.slice(5)),yUnit:"kg",h:230,series})}</div>`
+      ${series.length ? `<div style="margin-top:10px">${chartSVG({cats:dates.map(fmtDshort),yUnit:"kg",h:230,series})}</div>`
       : `<div class="empty">◦ Populates from the monthly MacroFactor Granular Export (or quick-add in Data). Gate: progression in hypertrophy blocks, retention everywhere else. Prior numbers are stale by design — rebuild toward.</div>`}</div>
     <div class="card"><div class="eyebrow">Block context</div>
       <div style="font-size:12.5px;color:var(--c-mist);line-height:1.75;margin-top:8px">Hypertrophy leads W1–3, W12–17, W26–31 (amber bands on the plan). Failure protocol from Nippard wk 2; the standing rule — any week the long run exceeds 3 h, Sunday Legs holds 1–2 RIR. ME layer (weighted carries 6.5 → 13 kg) lives only in the UTK- and UTA-specific blocks and counts as a hard leg day.</div></div>`;
@@ -2617,7 +2668,7 @@ const App = {
       <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px">
         <div class="eyebrow" style="color:var(--c-amber)">Bodyweight — weekly AM average · 4-pt rolling mean</div>
         <span class="note">current block gate · ${cur.lead==="hyp"?"+0.2–0.25% BW/wk":"hold stable"}</span></div>
-      ${pts.length>1 ? `<div style="margin-top:10px">${chartSVG({cats:pts.map(p=>p.d.slice(5)),yUnit:"kg",h:220,
+      ${pts.length>1 ? `<div style="margin-top:10px">${chartSVG({cats:pts.map(p=>fmtDshort(p.d)),yUnit:"kg",h:220,
         series:[{name:"raw",color:C.dim,data:pts.map(p=>p.kg)},{name:"trend",color:C.amber,data:roll}]})}</div>`
       : `<div class="empty">◦ One real point so far: 67.79 kg · 16.4% BF (03/07, Withings). The trend line starts at entry two — weekly same-condition AM average. BIA is trend-grade: read the slope, not the points.</div>`}
     </div>
@@ -2744,7 +2795,7 @@ const App = {
     const sitePts=entries.filter(e=>e[sel]!=null);
     const siteTarget=targetG[sel];
     const trend = sitePts.length>1 ? `<div style="margin-top:10px">${chartSVG({
-      cats:sitePts.map(e=>e.d.slice(5)), yUnit:"cm", h:160,
+      cats:sitePts.map(e=>fmtDshort(e.d)), yUnit:"cm", h:160,
       series:[{name:esc(selDef.name),color:C.teal,data:sitePts.map(e=>e[sel])}],
       refs:siteTarget!=null?[{y:siteTarget,label:"target "+fmt(siteTarget,1)+" cm",color:C.amber}]:[]
     })}</div>` : `<div class="note" style="margin-top:8px">◦ ${esc(selDef.name)}: trend starts at the second monthly measure${last&&last[sel]!=null?` — current ${fmt(last[sel],1)} cm${siteTarget!=null?` · target ${fmt(siteTarget,1)}`:""}`:""}.</div>`;
@@ -2859,7 +2910,7 @@ const App = {
     if(m.lo!=null&&m.hi!=null) band={lo:m.lo,hi:m.hi,color:clin?"#8FBF9F":C.teal};
     else if(m.hi!=null) refs.push({y:m.hi,label:"upper ref",color:C.rose});
     else if(m.lo!=null) refs.push({y:m.lo,label:"lower ref",color:C.rose});
-    const chart = pts.length ? chartSVG({cats:pts.map(p=>p.d.slice(2)),yUnit:m.unit,h:210,
+    const chart = pts.length ? chartSVG({cats:pts.map(p=>fmtDshort(p.d)),yUnit:m.unit,h:210,
         series:[{name:m.name,color:ac,data:pts.map(p=>p.value)}], band, refs, line, sub})
       : `<div class="empty" style="color:${sub}">◦ No entries for this marker yet. Planned draws: mid-Oct (pre-UTK, ferritin priority) · Feb–Mar (peak load). Log results here and in HEALTH_EXAMS.md.</div>`;
     const imgExams=[...this.state.labs].filter(l=>l.marker&&l.marker.startsWith("img_")).sort((a,b)=>a.d.localeCompare(b.d));
@@ -2919,7 +2970,7 @@ const App = {
     <div class="card"><div class="eyebrow" style="color:var(--c-teal)">Log a training week (actuals)</div>
       <div class="row" style="margin-top:12px">
         ${f("wk_w","week #",60,"1–46")}${f("wk_km","km",60)}${f("wk_h","hours",60)}${f("wk_vert","vert m",64)}${f("wk_desc","desc m",64)}
-        ${f("wk_long","long h",60)}${f("wk_dec","decoup %",70)}${f("wk_ef","EF W/bpm",72)}${f("wk_z","% ≤AeT",64)}
+        ${f("wk_long","long h",60)}${f("wk_dec","decoup %",70)}${f("wk_ef","EF W/bpm",72)}${f("wk_z","% ≤AeT",64)}${f("wk_z3","% Z3",60)}${f("wk_z45","% Z4-5",64)}
         <button class="btn solid" data-act="addWeek">Save week</button></div>
       <div class="note" style="margin-top:10px">Any field can be left blank — partial weeks merge. Executed line on the plan chart appears from the first saved week.</div></div>
     <div class="cols3">
@@ -3017,7 +3068,7 @@ const App = {
   /* ── actions ── */
   addWeek(){
     const w=parseInt(qs("wk_w").value); if(!w||w<1||w>62) return this.flash("Week must be 1–62");
-    const map={km:"wk_km",h:"wk_h",vert:"wk_vert",desc:"wk_desc",longH:"wk_long",decoup:"wk_dec",ef:"wk_ef",z12:"wk_z"};
+    const map={km:"wk_km",h:"wk_h",vert:"wk_vert",desc:"wk_desc",longH:"wk_long",decoup:"wk_dec",ef:"wk_ef",z12:"wk_z",z3:"wk_z3",z45:"wk_z45"};
     const entry={}; Object.keys(map).forEach(k=>{ const v=num(qs(map[k]).value); if(v!=null) entry[k]=v; });
     this.state.actualWeeks[w]={...(this.state.actualWeeks[w]||{}),...entry};
     this.persist(); this.render(); this.flash("W"+w+" saved");
@@ -3480,7 +3531,30 @@ const App = {
         <button class="btn solid" data-act="taxAdd">Add note</button></div></div>`;
   },
   view_changelog(){
-    const log=`v1.37  11/07/26  Two runs (or two gym sessions) on the same day
+    const log=`v1.38  13/07/26  Phase 1a — chart cleanup + polish batch.
+                   Dates: all chart axes and card labels now read DD/MM or
+                   DD/MM/YY consistently (shared fmtD/fmtDshort helpers); no
+                   internal date keys were touched. Chart fonts: axis/ref text
+                   now renders at a consistent apparent size across chart
+                   widths (a w:860 chart used to look half the size of a
+                   standard 460 chart; a shared FSCALE factor fixes this).
+                   Fitness·Fatigue·Form card moved to the top of the Running
+                   tab (was last). Weekly vert chart: Ascent/Descent are now
+                   independently toggle-able, y-axis best-fits whichever
+                   series are visible. Zone discipline card is now a stacked
+                   bar (Z1+Z2 / Z3 / Z4+Z5), with a light "unsplit" block on
+                   weeks logged before the Z3/Z4-5 split existed — two new
+                   optional week-log fields (% Z3, % Z4-5) added, nothing
+                   existing changes shape. Y-axis rescaling is now a shared
+                   rule (yDomain helper) used by every chart. Tab bar wraps
+                   to two rows on narrow phones instead of scrolling
+                   sideways. FFF Running-tab TSB taper-gate reference lines
+                   (F14) deferred to v1.39 — the source constants that
+                   ruling assumed still existed were removed from the
+                   Overview chart on 06/07/26 (G3); needs a fresh look before
+                   building it, not a forced fit. STORE_KEY unchanged.
+
+v1.37  11/07/26  Two runs (or two gym sessions) on the same day
                    no longer overwrite each other. The dashboard used to file
                    every session under its date alone, so an AM + PM double
                    landed on one slot — the second run replaced the first, and
@@ -3671,7 +3745,7 @@ v1.5  04/07/26   Scorecard, Athletic Board, Body Map, demo mode, girth radar.
 v1.0–v1.4  02–04/07/26  Initial build; ported from React artifact.
                    Full early history in OPERATING_BRIEF.md.`;
     return `<div class="card">
-      <div class="eyebrow" style="color:${C.teal};margin-bottom:12px">Dashboard changelog — v1.37 (current) → v1.0</div>
+      <div class="eyebrow" style="color:${C.teal};margin-bottom:12px">Dashboard changelog — v1.38 (current) → v1.0</div>
       <pre style="font-family:var(--mono);font-size:11px;color:var(--c-mist);line-height:1.7;white-space:pre-wrap;margin:0">${esc(log)}</pre>
     </div>`;
   },
@@ -3745,6 +3819,7 @@ v1.0–v1.4  02–04/07/26  Initial build; ported from React artifact.
         else if(a==="importSess") this.importSessions();
         else if(a==="importFFF") this.importFFF();
         else if(a==="fffToggle"){ if(v&&this.fffViz.hasOwnProperty(v)){ this.fffViz[v]=!this.fffViz[v]; this.render(); } }
+        else if(a==="vertShow"){ if(v&&this.vertShow.hasOwnProperty(v)){ this.vertShow[v]=!this.vertShow[v]; this.render(); } }
         else if(a==="readyView"){ if(v==="day"||v==="week"){ this.readyView=v; this.render(); } }
         else if(a==="wellMetric"){ if(v){ this.wellMetric=v; this.render(); } }
         else if(a==="wellView"){ if(v==="day"||v==="week"){ this.wellView=v; this.render(); } }
