@@ -62,6 +62,7 @@
   .pill{display:inline-flex;align-items:center;justify-content:center;line-height:1;font-size:10px;letter-spacing:.1em;padding:4px 10px;border-radius:999px;border:1px solid var(--c-contour);background:transparent;color:var(--c-mist)}
   .pill.on{background:var(--c-teal);color:var(--c-night);border-color:var(--c-teal)}
   .pill.badge{min-width:34px}   /* v1.32 — stadium not circle for short run-type ids (MP/ME) */
+  .pill.info{min-width:24px;padding:2px 7px}   /* #R1 (v1.39) — compact ? button, scoped like .pill.badge */
   .tabbar{display:flex;gap:2px;margin:20px 0 16px;border-bottom:1px solid var(--c-contour);overflow-x:auto}
   .tab{font-size:11px;letter-spacing:.08em;padding:9px 14px;background:transparent;border:none;color:var(--c-dim);border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap;text-transform:uppercase}
   .tab.on{color:var(--c-chalk);border-bottom-color:var(--c-teal)}
@@ -667,6 +668,38 @@ const RACES = [
   {name:"UTA100 2027", date:"2027-05-15", w:46},
 ];
 
+/* #R1 (v1.39): static card-info registry — What/Source/Why, texts verbatim from
+   DASHBOARD_PHASE1_BLUEPRINT.md §5 (Andre-approved). infoBtn(id)/infoPanel(id) render
+   against this; registry-parity asserted by the harness (every infoBtn id has an entry). */
+const CARD_INFO = {
+  week_lens:{what:"The current macro week — planned sessions vs what's actually logged, with completion ticks.",src:"PLAN/PHASES (the locked macro) + logged sessions from Sync/import.",why:"The week is the unit of execution; if it's not on this strip, it won't happen."},
+  plan_chart:{what:"The full 46-week plan as load bands, with executed load, CTL/ATL/TSB and weight overlaid.",src:"RUNNING_PLAN.md macro + intervals.icu FFF + Withings weekly points.",why:"One picture of plan vs body — where you are in the season and whether the load is landing."},
+  ready:{what:"Garmin/intervals.icu daily training-readiness score (0–100).",src:"intervals.icu via Sync; depth limited to what the device recorded.",why:"A cheap daily gate — a low score before a quality day is a flag to check sleep/HRV before pushing."},
+  boardroom:{what:"The 13-persona athletic board's standing asks + CEO synthesis of live signals.",src:"athletic_board_charter.md; signals computed from logged data.",why:"Self-coached means no second set of eyes — this card is the institutionalised second look."},
+  score:{what:"Composite scorecard across all fronts, logged data only.",src:"Every logged channel (runs, gym, protein, mind check-ins, wellness).",why:"Trends beat absolutes — one number per front keeps drift visible early."},
+  fff:{what:"Fitness (CTL), Fatigue (ATL), Form (TSB) daily model.",src:"intervals.icu via Sync (2-year window).",why:"The ramp governor — CTL climb rate and TSB troughs are where overreach shows first; historical peak CTL ~73.6 preceded injury."},
+  dur:{what:"Pw:HR decoupling per long run (≥2 h).",src:"Per-run analysis (runs.json rebuild / logged weeks).",why:"THE ultra metric — how long you hold aerobic coupling before drift; the sub-14h lever is moving this curve right."},
+  vert:{what:"Weekly ascent and descent metres.",src:"Logged weeks + synced runs.",why:"Descent capacity is the binding UTA constraint — descent metres are the eccentric-load dose, tracked separately on purpose."},
+  zone:{what:"Weekly intensity distribution — % time Z1+Z2 / Z3 / Z4+Z5.",src:"Weekly log (zone split fields; pre-split weeks show unsplit remainder).",why:"Base discipline gate — ≥85–90% ≤AeT is what makes the aerobic engine durable rather than merely fit."},
+  anchors:{what:"The current physiological reference anchors (LTHR, benchmarks, race-fade reference).",src:"Field tests + race data; staleness flagged per anchor.",why:"Zones and pacing hang off these — a stale anchor silently mis-calibrates everything downstream."},
+  taxonomy:{what:"The standard session language — every run type, defined once.",src:"RUNNING_PLAN.md method layer.",why:"Consistent naming is what makes years of sessions comparable."},
+  focus_notes:{what:"Dated, per-type period focus notes.",src:"Coach/Andre entries per block.",why:"The \"why this block\" memory — intent survives even when the calendar is remade."},
+  lifts:{what:"Estimated 1RM trend for the five ultra-relevant lifts.",src:"MacroFactor logged sets (key-lift points entered on the Data tab).",why:"Strength is the durability floor — these five map to descent braking, climbing drive and trunk integrity."},
+  block_context:{what:"Where the current gym block sits in the season's alternating lead structure.",src:"PLAN/PHASES lead markers.",why:"Running and hypertrophy alternate the lead — this card says which one is allowed to win this block."},
+  weight:{what:"Bodyweight trend — AM readings with a 4-pt rolling mean.",src:"Withings scale (weekly points; full history importable).",why:"The 73 kg @ 15% arc is a multi-year build — the rolling mean is the signal, single readings are noise."},
+  lean:{what:"BIA-estimated lean mass.",src:"Withings body-comp (trend-grade only, not clinical).",why:"The physique goal is lean-mass gain under racing interference — this is its (noisy) tracker; DEXA anchors it when convenient."},
+  protein:{what:"The current protein target band.",src:"NUTRITION.md ruling (117–143 g/d; 136–146 in hypertrophy blocks).",why:"The single highest-leverage nutrition compliance number for concurrent training."},
+  oversight:{what:"Nutritionist oversight status and shared-view arrangement.",src:"NUTRITION.md; KV shared backend (D021) when Phase 9 ships.",why:"Nutrition is externally supervised — this card records who's watching and through what."},
+  protocol_log:{what:"Dated nutrition/fuelling interventions, attributed.",src:"Manual entries (Data tab).",why:"When performance shifts, this log is how cause gets attributed instead of guessed."},
+  body_map:{what:"Girth measurements vs the 73/15 target model — contour, radar, per-site targets.",src:"Renpho tape, 15 sites, monthly; λ-model targets.",why:"Physique progress is regional — the radar shows where the next kilogram should land."},
+  girth:{what:"Single-site girth trend over time.",src:"Monthly Renpho tape entries.",why:"Site-level trend confirms whether targeted hypertrophy work is actually landing there."},
+  well:{what:"Daily device wellness — sleep, RHR, HRV, body battery.",src:"Garmin via intervals.icu Sync.",why:"The recovery side of the ledger — load decisions are only as good as the recovery data under them."},
+  markers:{what:"Blood/lab marker trends against athlete reference bands.",src:"Manual lab entries (HEALTH_EXAMS.md parity rule).",why:"The multi-year health spine — trends over single results; ferritin is the pre-UTK priority."},
+  exam_reports:{what:"Extracted summaries of uploaded imaging/exam PDFs.",src:"Coach-extracted from Andre's uploads.",why:"Definitive findings (MRI, podiatry) belong in the record next to the training data they explain."},
+  sync:{what:"Live pull from intervals.icu via the Cloudflare Worker relay.",src:"D011a's single sanctioned network call; key lives in the Worker, never here.",why:"One tap keeps the record current without breaking the zero-dependency invariant."},
+  coverage:{what:"What the last sync actually returned, per channel.",src:"Sync response metadata.",why:"Honest gaps — knowing what DIDN'T come back prevents reading absence as signal."},
+};
+
 /* ── BUILD 2 — Dynamic km-derivation pace engine (v1.35, 10/07/26) ──────────
    derivePace(surface) reads App.state.sessions.runs[] and computes a weighted
    rolling average GAP-pace (grade-adjusted) for the given surface, then blends
@@ -682,6 +715,8 @@ const RACES = [
    Static fallback: road 375 s/km (6:15), trail 480 s/km (8:00). ── */
 const PACE_STATIC = {road:375, trail:480};
 const PACE_WINDOW_WK = {road:8, trail:12};
+/* #R8 (v1.39): HRV baseline tolerance band — rolling N-day mean ±1 SD, Garmin-style corridor. */
+const HRV_BASE_N = 7;
 /* Phase terrain: lead type → dominant surface for km derivation.
    end/taper phases are trail-dominant; hyp/rec are road-dominant. */
 const PHASE_TERRAIN = {end:"trail", taper:"trail", hyp:"road", rec:"road"};
@@ -1126,6 +1161,9 @@ const planWeekOf = iso => {
   const t=new Date(iso+"T00:00:00").getTime();
   return Math.floor((t-w1)/(7*864e5))+1;
 };
+/* weekStartISO(w) — inverse of planWeekOf: the w/c Monday ISO date for macro-week w.
+   #41 (v1.39): lets week-indexed data (actualWeeks) feed the date-based applyCtl pipeline. */
+const weekStartISO = w => { const w1=new Date(2026,5,29); const d=new Date(w1.getTime()+(w-1)*7*864e5); return d.toISOString().slice(0,10); };
 
 /* aggregateWellness(rows, key, view) — from fff rows [{date, <key>, …}] build
    {cats:[label…], data:[value|null…]} at daily or weekly resolution.
@@ -1201,6 +1239,55 @@ function yDomain(vals, opts){
   if(opts.yMax==null) hi=Math.ceil(hi/step)*step;
   if(lo===hi) hi=lo+step;
   return {lo,hi};
+}
+/* #41 (v1.39): applyCtl(rows, dateKey, ctl, aggSpec) — filter rows to [ctl.from,ctl.to]
+   (inclusive, ISO string compare), then bucket per ctl.per ("D"|"W"|"M"|"Q"|"Y") and
+   aggregate per-field per aggSpec ("mean"|"sum"). Empty bucket → null (never fabricated).
+   D = one point per row (no bucketing). W buckets are w/c Monday, labelled fmtDshort.
+   M = "MM/YY", Q = "Qn/YY", Y = the 4-digit year. Returns {cats, <field>:[...]}. */
+function applyCtl(rows, dateKey, ctl, aggSpec){
+  ctl = ctl || {};
+  const inRange = r => { const d=r[dateKey]; if(!d) return false;
+    if(ctl.from && d<ctl.from) return false;
+    if(ctl.to && d>ctl.to) return false;
+    return true; };
+  const filtered = rows.filter(inRange);
+  const fields = Object.keys(aggSpec||{});
+  if(!ctl.per || ctl.per==="D"){
+    const cats = filtered.map(r=>fmtDshort(r[dateKey]));
+    const out = {cats};
+    fields.forEach(f=>{ out[f]=filtered.map(r=>r[f]==null?null:r[f]); });
+    return out;
+  }
+  const mondayOf = iso => { const dt=new Date(iso+"T00:00:00Z"); const day=dt.getUTCDay();
+    const diff=(day===0?-6:1-day); dt.setUTCDate(dt.getUTCDate()+diff); return dt.toISOString().slice(0,10); };
+  const bucketKey = iso => {
+    if(ctl.per==="W") return mondayOf(iso);
+    if(ctl.per==="M") return iso.slice(0,7);
+    if(ctl.per==="Q"){ const y=iso.slice(0,4), q=Math.floor((+iso.slice(5,7)-1)/3)+1; return y+"-Q"+q; }
+    if(ctl.per==="Y") return iso.slice(0,4);
+    return iso;
+  };
+  const buckets={};
+  filtered.forEach(r=>{ const k=bucketKey(r[dateKey]); (buckets[k]=buckets[k]||[]).push(r); });
+  const keys=Object.keys(buckets).sort();
+  const label = k => {
+    if(ctl.per==="W") return fmtDshort(k);
+    if(ctl.per==="M"){ const [y,m]=k.split("-"); return m+"/"+y.slice(2); }
+    if(ctl.per==="Q"){ const [y,q]=k.split("-"); return q+"/"+y.slice(2); }
+    return k; // Y
+  };
+  const cats = keys.map(label);
+  const out = {cats};
+  fields.forEach(f=>{
+    out[f]=keys.map(k=>{
+      const vals=buckets[k].map(r=>r[f]).filter(v=>v!=null);
+      if(!vals.length) return null;
+      if(aggSpec[f]==="sum") return +vals.reduce((s,v)=>s+v,0).toFixed(2);
+      return +(vals.reduce((s,v)=>s+v,0)/vals.length).toFixed(2);
+    });
+  });
+  return out;
 }
 function chartSVG(o){
   // FONT/COLOR tokens — Phase 2 will sweep these into global CSS vars
@@ -2332,10 +2419,10 @@ const App = {
   selType: null, gymDay: null, boardOpen: false, demo: false, _real: null,
   ovRange: {past:12, future:8},  // weeks back / forward from today shown in overview
   fffViz: {ctl:true, atl:true, tsb:true, proj:true}, // which FFF series are visible; proj = projection overlay
-  readyView: "day",   // Training Readiness card x-axis resolution: "day" | "week"
+  chartCtl: {},        // #41 (v1.39): per-chart {from,to,per} time-axis control state; hydrated from Store.pref("chartCtl") at boot, saved on change
+  infoOpen: null,       // #R1 (v1.39): id of the currently-open card-info panel (one at a time; in-memory)
   vertShow: {asc:true, desc:true}, // #R4c (v1.38): Weekly vert chart series toggles; in-memory only, not persisted
   wellMetric: "rhr",  // Health→Wellness section: which daily channel is charted
-  wellView: "day",    // Wellness section x-axis resolution: "day" | "week"
   bodyView: "photo",  // Body Map card view: "photo" (baseline photo + contours) | "sil" (schematic silhouette)
   tgtView: null,      // target-explorer what-if {kg,bf} — null = show the adopted state.target
   _photoMem: null,    // in-memory photo fallback when storage is blocked
@@ -2347,6 +2434,37 @@ const App = {
   closeWeek(){ this.week=null; this.render(); },
 
   rows(){ return Object.keys(this.state.actualWeeks).map(Number).sort((a,b)=>a-b).map(w=>({w,...this.state.actualWeeks[w]})); },
+  /* #41 (v1.39): timeCtl(id,cfg) — shared time-axis control, renders below a card eyebrow.
+     cfg: {periods:["D","W","M",...]} for period-pill charts, or {periods:["FromTo"]} for
+     From/To-only charts (F6: durability, lifts, girth — no period bucketing, per-item series). */
+  timeCtl(id, cfg){
+    const ctl = this.chartCtl[id] || (this.chartCtl[id]={from:null,to:null,per:cfg.default||null});
+    const fromToOnly = (cfg.periods||[]).length===1 && cfg.periods[0]==="FromTo";
+    const pills = fromToOnly ? "" : (cfg.periods||[]).map(p=>
+      `<button class="pill ${ctl.per===p?"on":""}" data-act="chartCtl" data-id="${id}" data-k="per" data-v="${p}">${p}</button>`
+    ).join("");
+    return `<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:6px">
+      <label style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--c-dim)">From
+        <input type="date" value="${ctl.from||""}" data-act="chartCtl" data-id="${id}" data-k="from" style="font-family:var(--mono);font-size:10px;background:transparent;color:var(--c-chalk);border:1px solid var(--c-contour);border-radius:4px;padding:2px 4px;min-height:28px"></label>
+      <label style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--c-dim)">To
+        <input type="date" value="${ctl.to||""}" data-act="chartCtl" data-id="${id}" data-k="to" style="font-family:var(--mono);font-size:10px;background:transparent;color:var(--c-chalk);border:1px solid var(--c-contour);border-radius:4px;padding:2px 4px;min-height:28px"></label>
+      ${pills}
+    </div>`;
+  },
+  /* #R1 (v1.39): card-info ? button + panel — registry parity with CARD_INFO asserted by harness. */
+  infoBtn(id){
+    return `<button class="pill info" data-act="info" data-v="${id}" title="About this card">?</button>`;
+  },
+  infoPanel(id){
+    if(this.infoOpen!==id) return "";
+    const info=CARD_INFO[id]; if(!info) return "";
+    return `<div class="infopanel" style="margin-top:8px;padding:10px 12px;border:1px solid var(--c-contour);border-radius:8px;background:var(--c-ridge)">
+      <div style="display:grid;gap:6px">
+        <div><span style="font-family:var(--mono);font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--c-dim)">What</span><div style="font-size:12.5px;color:var(--c-mist);margin-top:2px">${esc(info.what)}</div></div>
+        <div><span style="font-family:var(--mono);font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--c-dim)">Source</span><div style="font-size:12.5px;color:var(--c-mist);margin-top:2px">${esc(info.src)}</div></div>
+        <div><span style="font-family:var(--mono);font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--c-dim)">Why</span><div style="font-size:12.5px;color:var(--c-mist);margin-top:2px">${esc(info.why)}</div></div>
+      </div></div>`;
+  },
   segSorted(){ return [...this.state.segmental].sort((a,b)=>a.d.localeCompare(b.d)); },
 
   render(){
@@ -2378,7 +2496,21 @@ const App = {
     ${this.week ? this.viewWeek() : `<div class="tabbar no-print">${tabs}</div><div class="grid">${this["view_"+this.tab]()}</div>`}
     <div class="no-print" style="display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin-top:26px;padding-bottom:8px">
       <button class="btn" data-act="themeToggle">${this.theme==="light"?"◐ THEME: LIGHT — tap for dark":"◑ THEME: DARK — tap for light"}</button>
-      <button class="btn" data-act="demoToggle" style="${this.demo?`border-color:${C.rose};color:${C.rose}`:""}">DEMO MODE: ${this.demo?"ON — tap to return to real data":"OFF"}</button></div>`;
+      <button class="btn" data-act="demoToggle" style="${this.demo?`border-color:${C.rose};color:${C.rose}`:""}">DEMO MODE: ${this.demo?"ON — tap to return to real data":"OFF"}</button></div>
+    <div class="card no-print" style="margin-top:10px"><details>
+      <summary style="font-family:var(--mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--c-dim);cursor:pointer;list-style:none;display:flex;align-items:center;gap:6px"><span style="font-size:9px">▸</span>Methodology & sources</summary>
+      <div style="margin-top:10px;display:grid;gap:8px;font-size:12px;color:var(--c-mist);line-height:1.6">
+        <div><b style="color:var(--c-chalk)">Fitness · Fatigue · Form (CTL/ATL/TSB)</b> — Bannister impulse-response model, computed by intervals.icu (42-day CTL time constant, 7-day ATL); ramp rate and TSB read straight from the API, not re-derived here. Plan projection overlay (dashed) uses the 05/07/26 baseline, bias-corrected to join the last real point seamlessly.</div>
+        <div><b style="color:var(--c-chalk)">Pw:HR decoupling</b> — per-run, first-half vs second-half efficiency factor drift on runs ≥2 h; the 5% line is the standard aerobic-durability frontier (Friel/TrainingPeaks convention).</div>
+        <div><b style="color:var(--c-chalk)">Zone discipline</b> — weekly self-logged % time by HR zone; ≥85–90% Z1+Z2 is the base-phase gate. Pre-AeT-test weeks render as "unsplit" rather than guessed.</div>
+        <div><b style="color:var(--c-chalk)">Pace engine</b> — GAP-weighted rolling average (8-week road / 12-week trail window), blending to a static fallback below 6 effective sessions and fully static below 3; race weeks always show explicit distance, never a derived pace.</div>
+        <div><b style="color:var(--c-chalk)">HRV baseline corridor</b> — rolling 7-day mean ± 1 SD; today's reading inside the band = Balanced, above = Unbalanced (high), below = Low. Needs 7 readings before it renders (shows "baseline building n/7" until then).</div>
+        <div><b style="color:var(--c-chalk)">Scorecard</b> — the displayed fraction is done-so-far over the full week's plan; the colour dot reads pace-to-date (done vs due Monday→today) so an on-track early week isn't shown as incomplete.</div>
+        <div><b style="color:var(--c-chalk)">Girth / body targets</b> — λ-blended anchor model toward the adopted 73 kg @ 15% BF goal; BIA lean-mass and bf% are trend-grade estimates, not clinical measurements — read the slope, not single points.</div>
+        <div><b style="color:var(--c-chalk)">Data sources</b> — intervals.icu (training load, wellness, readiness) via the Cloudflare Worker relay · Withings (bodyweight) · Renpho (tape girths, monthly) · MacroFactor (lifts, protein, nutrition logging) · manual entry (labs, protocol changes, mind check-ins).</div>
+        <div style="color:var(--c-dim)">Reference frameworks: Uphill Athlete (House/Johnston/Jornet) for endurance structure; Nippard program for hypertrophy prescription. Not a substitute for a physician — lab reference ranges are general athlete starting points.</div>
+      </div>
+    </details></div>`;
   },
 
   viewWeek(){
@@ -2437,7 +2569,8 @@ const App = {
       return `<div class="card" style="padding:0;overflow:hidden">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;padding:16px 18px 4px;flex-wrap:wrap;gap:10px">
         <div>
-          <div class="eyebrow" style="color:var(--c-teal)">The plan · Fitness/Fatigue · Form · Weight</div>
+          <div class="eyebrow" style="color:var(--c-teal)">The plan · Fitness/Fatigue · Form · Weight ${this.infoBtn("plan_chart")}</div>
+          ${this.infoPanel("plan_chart")}
           <div style="font-size:11px;color:var(--c-dim);margin-top:3px">Plan volume (solid=past, dashed=future) · run history · CTL/ATL · TSB form</div>
           <div style="font-size:11px;color:var(--c-dim);margin-top:1px">Bands = race TSB gates · weight · one shared timeline · tap any week</div>
         </div>
@@ -2472,7 +2605,7 @@ const App = {
     ${(()=>{ const lw=this.selWeek||todayWeek(), lp=PLAN[lw-1], lph=phaseOf(lw);
     return `<div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
-        <div><div class="eyebrow" style="color:${LEAD_COLOR[lph.lead]}">Week Lens · W${lw} · w/c ${lp.wc} — ${esc(lph.name)}</div>
+        <div><div class="eyebrow" style="color:${LEAD_COLOR[lph.lead]}">Week Lens · W${lw} · w/c ${lp.wc} — ${esc(lph.name)} ${this.infoBtn("week_lens")}</div>${this.infoPanel("week_lens")}
           <div class="note" style="margin-top:4px">run + gym, day by day${lw===todayWeek()?" · current week":""}</div></div>
         <div style="display:flex;gap:6px">
           <button class="btn" data-act="lensprev" ${lw<=1?"disabled":""}>‹ W${lw-1}</button>
@@ -2499,34 +2632,65 @@ const App = {
       <span style="font-size:12.5px;color:var(--c-mist)">${esc(a.k)}</span>
       <span style="font-family:var(--mono);font-size:12px;color:var(--c-chalk)">${esc(a.v)}</span>
       <span class="note" style="width:100%;text-align:right">${esc(a.n)}</span></div>`).join("");
+    const vertCtl = this.chartCtl.vert || (this.chartCtl.vert={from:null,to:null,per:"W"});
+    const vPer = vertCtl.per||"W";
+    let vcats=[], vascData=[], vdescData=[];
+    if(vert.length){
+      if(vPer==="W"){
+        const filtered = vert.filter(r=>{ const d=weekStartISO(r.w); return (!vertCtl.from||d>=vertCtl.from)&&(!vertCtl.to||d<=vertCtl.to); });
+        vcats=filtered.map(r=>"W"+r.w); vascData=filtered.map(r=>r.vert||0); vdescData=filtered.map(r=>r.desc||0);
+      } else {
+        const vertRows=vert.map(r=>({_d:weekStartISO(r.w), vert:r.vert||0, desc:r.desc||0}));
+        const agg=applyCtl(vertRows,"_d",{from:vertCtl.from,to:vertCtl.to,per:vPer},{vert:"sum",desc:"sum"});
+        vcats=agg.cats; vascData=agg.vert; vdescData=agg.desc;
+      }
+    }
+    const zoneCtl = this.chartCtl.zone || (this.chartCtl.zone={from:null,to:null,per:"W"});
+    const zPer = zoneCtl.per||"W";
+    let zcats=[], z12Data=[], z3Data=[], z45Data=[];
+    if(zone.length){
+      if(zPer==="W"){
+        const filtered = zone.filter(r=>{ const d=weekStartISO(r.w); return (!zoneCtl.from||d>=zoneCtl.from)&&(!zoneCtl.to||d<=zoneCtl.to); });
+        zcats=filtered.map(r=>"W"+r.w); z12Data=filtered.map(r=>r.z12); z3Data=filtered.map(r=>r.z3); z45Data=filtered.map(r=>r.z45);
+      } else {
+        const zoneRows=zone.map(r=>({_d:weekStartISO(r.w), z12:r.z12, z3:r.z3, z45:r.z45}));
+        const agg=applyCtl(zoneRows,"_d",{from:zoneCtl.from,to:zoneCtl.to,per:zPer},{z12:"mean",z3:"mean",z45:"mean"});
+        zcats=agg.cats; z12Data=agg.z12; z3Data=agg.z3; z45Data=agg.z45;
+      }
+    }
+    const durCtl = this.chartCtl.dur || (this.chartCtl.dur={from:null,to:null,per:null});
+    const decFiltered = dec.filter(r=>{ const d=weekStartISO(r.w); return (!durCtl.from||d>=durCtl.from)&&(!durCtl.to||d<=durCtl.to); });
     return `
     ${this.viewFFF()}
-    <div class="card"><div class="eyebrow" style="color:var(--c-teal)">Durability — Pw:HR decoupling per long run</div>
-      ${dec.length ? `<div style="margin-top:10px">${chartSVG({cats:dec.map(r=>"W"+r.w),yUnit:"%",series:[{name:"decoupling",color:C.teal,data:dec.map(r=>r.decoup)}],refs:[{y:5,label:"5% frontier",color:C.rose}]})}</div>`
+    <div class="card"><div class="eyebrow" style="color:var(--c-teal)">Durability — Pw:HR decoupling per long run ${this.infoBtn("dur")}</div>${this.infoPanel("dur")}
+      ${this.timeCtl("dur",{periods:["FromTo"]})}
+      ${decFiltered.length ? `<div style="margin-top:10px">${chartSVG({cats:decFiltered.map(r=>"W"+r.w),yUnit:"%",series:[{name:"decoupling",color:C.teal,data:decFiltered.map(r=>r.decoup)}],refs:[{y:5,label:"5% frontier",color:C.rose}]})}</div>`
       : `<div class="empty">◦ First long run ≥2 h populates this. The number to move: how long you last before Pw:HR breaches 5%. Race fade reference: UTA 2026 went 199→100 W.</div>`}</div>
     <div class="cols2">
-      <div class="card"><div class="eyebrow">Weekly vert (m)</div>
+      <div class="card"><div class="eyebrow">Weekly vert (m) ${this.infoBtn("vert")}</div>${this.infoPanel("vert")}
         <div style="display:flex;gap:8px;margin-top:6px">
           <button class="pill ${this.vertShow.asc?"on":""}" data-act="vertShow" data-v="asc" style="opacity:${this.vertShow.asc?1:0.35}">ASCENT</button>
           <button class="pill ${this.vertShow.desc?"on":""}" data-act="vertShow" data-v="desc" style="opacity:${this.vertShow.desc?1:0.35}">DESCENT</button>
         </div>
-        ${vert.length && (this.vertShow.asc||this.vertShow.desc) ? `<div style="margin-top:10px">${chartSVG({cats:vert.map(r=>"W"+r.w),yMin:0,cols:2,series:[
-          ...(this.vertShow.asc?[{name:"ascent",color:C.teal,type:"bar",data:vert.map(r=>r.vert||0)}]:[]),
-          ...(this.vertShow.desc?[{name:"descent",color:C.violet,type:"bar",data:vert.map(r=>r.desc||0)}]:[])
+        ${this.timeCtl("vert",{periods:["W","M","Q"],default:"W"})}
+        ${vcats.length && (this.vertShow.asc||this.vertShow.desc) ? `<div style="margin-top:10px">${chartSVG({cats:vcats,yMin:0,cols:2,series:[
+          ...(this.vertShow.asc?[{name:"ascent",color:C.teal,type:"bar",data:vascData}]:[]),
+          ...(this.vertShow.desc?[{name:"descent",color:C.violet,type:"bar",data:vdescData}]:[])
         ]})}</div>`
-        : !vert.length ? `<div class="empty">◦ Descent metres are tracked separately — the 25-minute lever gets its own bar.</div>`
+        : !vcats.length ? `<div class="empty">◦ Descent metres are tracked separately — the 25-minute lever gets its own bar.</div>`
         : `<div class="empty">◦ Both series hidden — toggle ASCENT or DESCENT above.</div>`}</div>
-      <div class="card"><div class="eyebrow">Zone discipline — stacked % time</div>
-        ${zone.length ? `<div style="margin-top:10px">${chartSVG({cats:zone.map(r=>"W"+r.w),yMin:0,yMax:100,yUnit:"%",cols:2,stacked:true,series:[
-          {name:"Z1+Z2",color:C.teal,type:"bar",data:zone.map(r=>r.z12)},
-          {name:"Z3",color:C.amber,type:"bar",data:zone.map(r=>r.z3)},
-          {name:"Z4+Z5",color:C.rose,type:"bar",data:zone.map(r=>r.z45)},
-          {name:"unsplit",color:"var(--c-contour)",opacity:0.35,type:"bar",data:zone.map(r=>(r.z3==null&&r.z45==null&&r.z12!=null)?Math.max(0,100-r.z12):null)}
+      <div class="card"><div class="eyebrow">Zone discipline — stacked % time ${this.infoBtn("zone")}</div>${this.infoPanel("zone")}
+        ${this.timeCtl("zone",{periods:["W","M","Q"],default:"W"})}
+        ${zcats.length ? `<div style="margin-top:10px">${chartSVG({cats:zcats,yMin:0,yMax:100,yUnit:"%",cols:2,stacked:true,series:[
+          {name:"Z1+Z2",color:C.teal,type:"bar",data:z12Data},
+          {name:"Z3",color:C.amber,type:"bar",data:z3Data},
+          {name:"Z4+Z5",color:C.rose,type:"bar",data:z45Data},
+          {name:"unsplit",color:"var(--c-contour)",opacity:0.35,type:"bar",data:z12Data.map((v,i)=>(z3Data[i]==null&&z45Data[i]==null&&v!=null)?Math.max(0,100-v):null)}
         ],refs:[{y:85,label:"85% floor",color:C.amber}]})}</div>
         <div class="note" style="margin-top:6px">unsplit = week logged before Z3/Z4-5 capture existed</div>`
         : `<div class="empty">◦ Zones exist after the wk-3 AeT test — then ≥85–90% ≤AeT is the base/hybrid gate.</div>`}</div>
     </div>
-    <div class="card"><div class="eyebrow">Reference anchors</div><div style="margin-top:10px;display:grid;gap:8px">${anchors}</div></div>`;
+    <div class="card"><div class="eyebrow">Reference anchors ${this.infoBtn("anchors")}</div>${this.infoPanel("anchors")}<div style="margin-top:10px;display:grid;gap:8px">${anchors}</div></div>`;
   },
 
   readyCard(){
@@ -2539,25 +2703,23 @@ const App = {
     const has=fff.some(r=>r.readiness!=null);
     if(!has){
       return `<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
-        <div class="eyebrow" style="color:${C.teal}">Training readiness (intervals.icu)</div></div>
+        <div class="eyebrow" style="color:${C.teal}">Training readiness (intervals.icu) ${this.infoBtn("ready")}</div></div>
+        ${this.infoPanel("ready")}
         <div class="empty">◦ No readiness data yet. Populated by Sync once intervals.icu holds a daily readiness score (0–100). How far back it reaches is revealed at the first 2-year sync — CTL/ATL/TSB go back to 2022, but readiness/HRV/RHR only as far as your device wrote them.</div></div>`;
     }
-    const view=this.readyView;
-    // day view: trailing 120 days so the daily line is legible; week view: all weeks
-    let src=fff;
-    if(view==="day"){ const c=new Date(); c.setDate(c.getDate()-120); const cs=c.toISOString().slice(0,10); src=fff.filter(r=>r.date>=cs); }
-    const {cats,data}=aggregateWellness(src,"readiness",view);
+    const ctl = this.chartCtl.ready || (this.chartCtl.ready={from:null,to:null,per:"D"});
+    const effFrom = ctl.from || (()=>{ const c=new Date(); c.setDate(c.getDate()-120); return c.toISOString().slice(0,10); })();
+    const readyRes=applyCtl(fff,"date",{from:effFrom,to:ctl.to,per:ctl.per||"D"},{readiness:"mean"});
+    const cats=readyRes.cats, data=readyRes.readiness;
     const cur=[...fff].reverse().find(r=>r.readiness!=null);
     const curV=cur?cur.readiness:null;
     const curColor=curV==null?C.dim:curV>=70?C.teal:curV>=45?C.amber:C.rose;
     const curLabel=curV==null?"—":curV>=70?"Ready":curV>=45?"Moderate":"Compromised";
-    const toggle=`<div style="display:flex;gap:6px">
-      <button class="pill ${view==="day"?"on":""}" data-act="readyView" data-v="day">DAY</button>
-      <button class="pill ${view==="week"?"on":""}" data-act="readyView" data-v="week">WEEK</button></div>`;
+    const toggle=this.timeCtl("ready",{periods:["D","W"],default:"D"});
     return `<div class="card">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px">
-        <div><div class="eyebrow" style="color:${C.teal}">Training readiness (intervals.icu)</div>
-          <div class="note" style="margin-top:3px">Daily 0–100 · ${view==="day"?"trailing 120 days":"macro-week means (axis matches the plan)"}</div></div>
+        <div><div class="eyebrow" style="color:${C.teal}">Training readiness (intervals.icu) ${this.infoBtn("ready")}</div>${this.infoPanel("ready")}
+          <div class="note" style="margin-top:3px">Daily 0–100 · ${(ctl.per||"D")==="D"?"trailing 120 days (default) or your From/To range":"weekly means"}</div></div>
         <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">
           ${toggle}
           <div style="text-align:right"><span style="font-family:var(--mono);font-size:22px;color:${curColor}">${fmt(curV,0)}</span>
@@ -2575,16 +2737,20 @@ const App = {
        or live Sync. Trailing 90-day window shown in chart; current readiness card.
        All values intervals.icu computed (CTL/ATL/TSB) — not independently verified. */
     const fff = (this.state.fff||[]).slice().sort((a,b)=>a.date<b.date?-1:1);
-    if(!fff.length) return `<div class="card"><div class="eyebrow" style="color:${C.violet}">Fitness · Fatigue · Form (intervals.icu)</div>
+    if(!fff.length) return `<div class="card"><div class="eyebrow" style="color:${C.violet}">Fitness · Fatigue · Form (intervals.icu) ${this.infoBtn("fff")}</div>${this.infoPanel("fff")}
       <div class="empty">◦ Paste the intervals.icu Wellness CSV export into the FFF import box in the Data tab (or use Sync if the Worker is configured).<br>CTL = chronic training load (42-day; fitness) · ATL = acute training load (7-day; fatigue) · TSB = CTL−ATL (form/freshness).</div></div>`;
-    // trailing 90 days
-    const cutoff = new Date(); cutoff.setDate(cutoff.getDate()-90);
-    const cutStr = cutoff.toISOString().slice(0,10);
-    const recent = fff.filter(r=>r.date>=cutStr);
-    const cats = recent.map(r=>fmtDshort(r.date)); // DD/MM
-    const ctls = recent.map(r=>r.ctl);
-    const atls = recent.map(r=>r.atl);
-    const tsbs = recent.map(r=>r.tsb);
+    // #41 (v1.39): ctl-driven window — default trailing 90 days (existing), From/To override when set.
+    const ctl = this.chartCtl.fff || (this.chartCtl.fff={from:null,to:null,per:"W"});
+    const effFrom = ctl.from || (()=>{ const c=new Date(); c.setDate(c.getDate()-90); return c.toISOString().slice(0,10); })();
+    const recent = fff.filter(r=>r.date>=effFrom && (!ctl.to || r.date<=ctl.to));
+    const perAgg = ctl.per||"W";
+    let cats, ctls, atls, tsbs;
+    if(perAgg==="D"){
+      cats=recent.map(r=>fmtDshort(r.date)); ctls=recent.map(r=>r.ctl); atls=recent.map(r=>r.atl); tsbs=recent.map(r=>r.tsb);
+    } else {
+      const agg=applyCtl(recent,"date",{per:perAgg},{ctl:"mean",atl:"mean",tsb:"mean"});
+      cats=agg.cats; ctls=agg.ctl; atls=agg.atl; tsbs=agg.tsb;
+    }
     // current values (latest entry)
     const cur = fff[fff.length-1];
     const tsbColor = cur.tsb==null?C.dim:cur.tsb>5?C.teal:cur.tsb<-10?C.rose:C.amber;
@@ -2592,16 +2758,29 @@ const App = {
     const stepLabel = (v,lo,hi,labels) => v==null?"—":v<lo?labels[0]:v<hi?labels[1]:labels[2];
     const rampLabel = cur.rampRate==null?"—":cur.rampRate>8?"⚠ high ramp":cur.rampRate<0?"tapering / declining":cur.rampRate>5?"building fast":"building steady";
     return `<div class="card"><div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px">
-      <div class="eyebrow" style="color:${C.violet}">Fitness · Fatigue · Form (intervals.icu) — trailing 90 days</div>
+      <div class="eyebrow" style="color:${C.violet}">Fitness · Fatigue · Form (intervals.icu) ${this.infoBtn("fff")}</div>
       <div class="note" style="text-align:right">${fff.length} days · ${fff[0].date} → ${cur.date}</div></div>
+    ${this.infoPanel("fff")}
     <div class="cols4" style="margin-top:14px">
       <div style="text-align:center"><div class="eyebrow">CTL · Fitness</div><div style="font-family:var(--mono);font-size:28px;color:${C.teal};margin-top:6px">${fmt(cur.ctl,1)}</div><div class="note">42-day load</div></div>
       <div style="text-align:center"><div class="eyebrow">ATL · Fatigue</div><div style="font-family:var(--mono);font-size:28px;color:${C.rose};margin-top:6px">${fmt(cur.atl,1)}</div><div class="note">7-day load</div></div>
       <div style="text-align:center"><div class="eyebrow">TSB · Form</div><div style="font-family:var(--mono);font-size:28px;color:${tsbColor};margin-top:6px">${fmt(cur.tsb,1)}</div><div class="note">${tsbLabel}</div></div>
       <div style="text-align:center"><div class="eyebrow">Ramp rate</div><div style="font-family:var(--mono);font-size:16px;color:${C.amber};margin-top:12px">${fmt(cur.rampRate,1)}</div><div class="note">${rampLabel}</div></div>
     </div>
+    ${this.timeCtl("fff",{periods:["D","W","M"],default:"W"})}
+    <div class="note" style="margin-top:4px">${perAgg==="D"?"Daily · trailing 90 days (default) or your From/To range":"Period means · "+ (ctl.from||ctl.to?"your From/To range":"trailing 90 days")}</div>
     <div style="margin-top:14px">${(()=>{
-      // Build projection series aligned to the same 90-day date cats
+      if(perAgg!=="D"){
+        // Aggregated (W/M) view: live series only — the projection bias-correction below
+        // assumes daily alignment with FFF_PROJ.idx, so it's D-mode only (unaggregated).
+        const series=[
+          {name:"CTL (live)",color:C.teal,data:ctls},
+          {name:"ATL (live)",color:C.rose,data:atls},
+          {name:"TSB (live)",color:C.violet,data:tsbs},
+        ];
+        return chartSVGdash({w:860,h:180,cats,series,refs:[{y:0,label:"TSB=0",color:C.dim}]});
+      }
+      // Build projection series aligned to the same daily date cats
       const projCTL=cats.map(mm=>{
         const yr=mm.length===5?"2026":recent[0].date.slice(0,4);
         const fullDate=yr+"-"+mm; const r=FFF_PROJ.idx[fullDate]; return r?r.ctl:null;});
@@ -2641,50 +2820,64 @@ const App = {
       }
       return chartSVGdash({w:860,h:180,cats,series,refs:[{y:0,label:"TSB=0",color:C.dim}]});
     })()}</div>
-    <div class="note" style="margin-top:8px">Solid = live (intervals.icu computed) · dashed = plan projection (05/07/26 baseline, Bannister τ CTL=42/ATL=7), bias-corrected to join seamlessly at the last real data point. Divergence shape = calibration signal — log deltas in FFF_PROJECTION_BASELINE.md §4. HR is chest-strap on most runs and trended continuously — no 3-Jul break (corrected 9 Jul 2026).</div></div>`;
+    <div class="note" style="margin-top:8px">Solid = live (intervals.icu computed)${perAgg==="D"?" · dashed = plan projection (05/07/26 baseline, Bannister τ CTL=42/ATL=7), bias-corrected to join seamlessly at the last real data point. Divergence shape = calibration signal — log deltas in FFF_PROJECTION_BASELINE.md §4.":" · plan projection overlay shows in Daily view only"}. HR is chest-strap on most runs and trended continuously — no 3-Jul break (corrected 9 Jul 2026).</div></div>`;
   },
 
   view_strength(){
-    const dates=[...new Set(this.state.lifts.map(l=>l.d))].sort();
+    const liftsCtl = this.chartCtl.lifts || (this.chartCtl.lifts={from:null,to:null,per:null});
+    const dates=[...new Set(this.state.lifts.map(l=>l.d))].sort().filter(d=>(!liftsCtl.from||d>=liftsCtl.from)&&(!liftsCtl.to||d<=liftsCtl.to));
     const series=KEY_LIFTS.map((l,i)=>({name:l,color:LIFT_COLORS[i],
       data:dates.map(d=>{ const e=this.state.lifts.find(x=>x.lift===l&&x.d===d); return e?e.e1rm:null; })}))
       .filter(s=>s.data.some(v=>v!=null));
     return `
-    <div class="card"><div class="eyebrow" style="color:var(--c-amber)">The five ultra-relevant lifts — est. 1RM trend</div>
+    <div class="card"><div class="eyebrow" style="color:var(--c-amber)">The five ultra-relevant lifts — est. 1RM trend ${this.infoBtn("lifts")}</div>${this.infoPanel("lifts")}
+      ${this.timeCtl("lifts",{periods:["FromTo"]})}
       ${series.length ? `<div style="margin-top:10px">${chartSVG({cats:dates.map(fmtDshort),yUnit:"kg",h:230,series})}</div>`
       : `<div class="empty">◦ Populates from the monthly MacroFactor Granular Export (or quick-add in Data). Gate: progression in hypertrophy blocks, retention everywhere else. Prior numbers are stale by design — rebuild toward.</div>`}</div>
-    <div class="card"><div class="eyebrow">Block context</div>
+    <div class="card"><div class="eyebrow">Block context ${this.infoBtn("block_context")}</div>${this.infoPanel("block_context")}
       <div style="font-size:12.5px;color:var(--c-mist);line-height:1.75;margin-top:8px">Hypertrophy leads W1–3, W12–17, W26–31 (amber bands on the plan). Failure protocol from Nippard wk 2; the standing rule — any week the long run exceeds 3 h, Sunday Legs holds 1–2 RIR. ME layer (weighted carries 6.5 → 13 kg) lives only in the UTK- and UTA-specific blocks and counts as a hard leg day.</div></div>`;
   },
 
   view_body(){
-    const pts=[...this.state.body].sort((a,b)=>a.d.localeCompare(b.d));
+    const allPts=[...this.state.body].sort((a,b)=>a.d.localeCompare(b.d));
+    const wctl = this.chartCtl.weight || (this.chartCtl.weight={from:null,to:null,per:"D"});
+    const pts = allPts.filter(p=>(!wctl.from||p.d>=wctl.from)&&(!wctl.to||p.d<=wctl.to));
     const roll=pts.map((p,i)=>{ const w=pts.slice(Math.max(0,i-3),i+1); return w.reduce((s,q)=>s+q.kg,0)/w.length; });
+    const wPer = wctl.per||"D";
+    let wcats, wseries;
+    if(wPer==="D"){
+      wcats=pts.map(p=>fmtDshort(p.d));
+      wseries=[{name:"raw",color:C.dim,data:pts.map(p=>p.kg)},{name:"trend",color:C.amber,data:roll}];
+    } else {
+      const agg=applyCtl(pts,"d",{per:wPer},{kg:"mean"});
+      wcats=agg.cats; wseries=[{name:"mean",color:C.amber,data:agg.kg}];
+    }
     const cur=phaseOf(todayWeek());
     const prot=this.state.protocol;
     const byCol = b => b==="nutritionist"?C.amber:b==="coach"?C.teal:C.violet;
     return `
     <div class="card">
       <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px">
-        <div class="eyebrow" style="color:var(--c-amber)">Bodyweight — weekly AM average · 4-pt rolling mean</div>
+        <div class="eyebrow" style="color:var(--c-amber)">Bodyweight — ${wPer==="D"?"AM readings + 4-pt rolling mean":"period mean"} ${this.infoBtn("weight")}</div>
         <span class="note">current block gate · ${cur.lead==="hyp"?"+0.2–0.25% BW/wk":"hold stable"}</span></div>
-      ${pts.length>1 ? `<div style="margin-top:10px">${chartSVG({cats:pts.map(p=>fmtDshort(p.d)),yUnit:"kg",h:220,
-        series:[{name:"raw",color:C.dim,data:pts.map(p=>p.kg)},{name:"trend",color:C.amber,data:roll}]})}</div>`
+      ${this.infoPanel("weight")}
+      ${this.timeCtl("weight",{periods:["D","W","M"],default:"D"})}
+      ${pts.length>1 ? `<div style="margin-top:10px">${chartSVG({cats:wcats,yUnit:"kg",h:220,series:wseries})}</div>`
       : `<div class="empty">◦ One real point so far: 67.79 kg · 16.4% BF (03/07, Withings). The trend line starts at entry two — weekly same-condition AM average. BIA is trend-grade: read the slope, not the points.</div>`}
     </div>
     ${this.girthCard()}
     <div class="cols3">
-      <div class="card"><div class="eyebrow">Lean mass (BIA-est.)</div>
+      <div class="card"><div class="eyebrow">Lean mass (BIA-est.) ${this.infoBtn("lean")}</div>${this.infoPanel("lean")}
         <div style="font-family:var(--mono);font-size:22px;margin-top:8px">≈ 52 <span style="font-size:11px;color:var(--c-dim)">kg ±2–3</span></div>
         <div class="note" style="margin-top:8px">UTA taper milestone: +0.7–1.2 kg (ceiling 1.5) · +5.4 kg lean = 73 kg @ 15% long-horizon goal (4–7+ yr arc)</div></div>
-      <div class="card"><div class="eyebrow">Protein target</div>
+      <div class="card"><div class="eyebrow">Protein target ${this.infoBtn("protein")}</div>${this.infoPanel("protein")}
         <div style="font-family:var(--mono);font-size:22px;margin-top:8px">136–146 <span style="font-size:11px;color:var(--c-dim)">g/d</span></div>
         <div class="note" style="margin-top:8px">hypertrophy blocks · ≥125 g elsewhere (1.8–2.2 g/kg @ 67.79 kg)</div></div>
-      <div class="card"><div class="eyebrow">Nutrition oversight</div>
+      <div class="card"><div class="eyebrow">Nutrition oversight ${this.infoBtn("oversight")}</div>${this.infoPanel("oversight")}
         <div style="font-family:var(--mono);font-size:22px;margin-top:8px">MacroFactor</div>
         <div class="note" style="margin-top:8px">adaptive TDEE = measurement engine · dietary targets overseen by nutritionist + Coach · changes logged below with attribution</div></div>
     </div>
-    <div class="card"><div class="eyebrow">Protocol log — dated interventions, attributed</div>
+    <div class="card"><div class="eyebrow">Protocol log — dated interventions, attributed ${this.infoBtn("protocol_log")}</div>${this.infoPanel("protocol_log")}
       ${prot.length ? `<table style="margin-top:10px"><tbody>${[...prot].sort((a,b)=>b.d.localeCompare(a.d)).map(x=>`<tr>
         <td style="font-family:var(--mono);font-size:11px;color:var(--c-dim);width:86px;vertical-align:top">${esc(x.d)}</td>
         <td style="font-size:12.5px;color:var(--c-chalk)">${esc(x.change)}${x.reason?`<div class="note">${esc(x.reason)}</div>`:""}</td>
@@ -2792,13 +2985,14 @@ const App = {
       return Math.round(((g.id==="waist"||g.id==="abdomen")? tv/cv : cv/tv)*100); };
 
     const pills=GIRTHS.map(g=>`<button class="pill ${g.id===sel?"on":""}" data-act="seg" data-v="${g.id}">${esc(g.name)}</button>`).join("");
-    const sitePts=entries.filter(e=>e[sel]!=null);
+    const girthCtl = this.chartCtl.girth || (this.chartCtl.girth={from:null,to:null,per:null});
+    const sitePts=entries.filter(e=>e[sel]!=null && (!girthCtl.from||e.d>=girthCtl.from) && (!girthCtl.to||e.d<=girthCtl.to));
     const siteTarget=targetG[sel];
-    const trend = sitePts.length>1 ? `<div style="margin-top:10px">${chartSVG({
+    const trend = sitePts.length>1 ? `<div class="eyebrow" style="margin-top:10px">Site trend ${this.infoBtn("girth")}</div>${this.infoPanel("girth")}${this.timeCtl("girth",{periods:["FromTo"]})}<div style="margin-top:10px">${chartSVG({
       cats:sitePts.map(e=>fmtDshort(e.d)), yUnit:"cm", h:160,
       series:[{name:esc(selDef.name),color:C.teal,data:sitePts.map(e=>e[sel])}],
       refs:siteTarget!=null?[{y:siteTarget,label:"target "+fmt(siteTarget,1)+" cm",color:C.amber}]:[]
-    })}</div>` : `<div class="note" style="margin-top:8px">◦ ${esc(selDef.name)}: trend starts at the second monthly measure${last&&last[sel]!=null?` — current ${fmt(last[sel],1)} cm${siteTarget!=null?` · target ${fmt(siteTarget,1)}`:""}`:""}.</div>`;
+    })}</div>` : `<div class="eyebrow" style="margin-top:10px">Site trend ${this.infoBtn("girth")}</div>${this.infoPanel("girth")}${this.timeCtl("girth",{periods:["FromTo"]})}<div class="note" style="margin-top:8px">◦ ${esc(selDef.name)}: trend starts at the second monthly measure${last&&last[sel]!=null?` — current ${fmt(last[sel],1)} cm${siteTarget!=null?` · target ${fmt(siteTarget,1)}`:""}`:""}.</div>`;
 
     const pctChips=GIRTHS.map(g=>{ const p=pctOf(g);
       const col=p==null?C.dim:(p>=98?C.teal:p>=92?C.amber:C.rose);
@@ -2806,8 +3000,9 @@ const App = {
 
     return `<div class="card">
       <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px">
-        <div class="eyebrow" style="color:${C.teal}">Body Map — girths vs target · silhouette + radar</div>
+        <div class="eyebrow" style="color:${C.teal}">Body Map — girths vs target · silhouette + radar ${this.infoBtn("body_map")}</div>
         <span class="note">tape: Renpho protocol · monthly · targets: λ-blend to ${fmt(tgt.kg,1)} kg @ ${fmt(tgt.bf,1)}%${whatIf?` <b style="color:${C.amber}">(what-if)</b>`:""}</span></div>
+      ${this.infoPanel("body_map")}
       <div style="display:flex;flex-wrap:wrap;gap:14px;align-items:center;margin-top:10px">
         <span class="eyebrow" style="color:${C.amber}">Target explorer</span>
         <span style="display:flex;gap:5px;align-items:center">
@@ -2860,42 +3055,59 @@ const App = {
     const fff=(this.state.fff||[]).slice().sort((a,b)=>a.date<b.date?-1:1);
     const anyWell=CH.some(c=>fff.some(r=>r[c.id]!=null));
     if(!anyWell){
-      return `<div class="card"><div class="eyebrow" style="color:${C.violet}">Wellness · daily device data</div>
+      return `<div class="card"><div class="eyebrow" style="color:${C.violet}">Wellness · daily device data ${this.infoBtn("well")}</div>${this.infoPanel("well")}
         <div class="empty">◦ No daily wellness data yet (RHR · HRV · readiness · Body Battery · sleep). Populated by Sync from intervals.icu. Distinct from the blood-panel labs below. History depth is a reveal at the first 2-year sync — these channels only go back as far as your device wrote them.</div></div>
         <div class="note" style="color:${C.dim};margin:4px 0 14px">— clinical labs below —</div>`;
     }
     const sel=CH.find(c=>c.id===this.wellMetric)||CH[0];
-    const view=this.wellView;
-    let src=fff;
-    if(view==="day"){ const c=new Date(); c.setDate(c.getDate()-120); const cs=c.toISOString().slice(0,10); src=fff.filter(r=>r.date>=cs); }
-    const {cats,data}=aggregateWellness(src,sel.id,view);
+    const ctl = this.chartCtl.well || (this.chartCtl.well={from:null,to:null,per:"D"});
+    const effFrom = ctl.from || (()=>{ const c=new Date(); c.setDate(c.getDate()-120); return c.toISOString().slice(0,10); })();
+    const wellRes=applyCtl(fff,"date",{from:effFrom,to:ctl.to,per:ctl.per||"D"},{[sel.id]:"mean"});
+    const cats=wellRes.cats, data=wellRes[sel.id];
     // current + 7-day baseline for each channel (baseline = mean of last 7 non-null)
     const stat=id=>{ const pts=fff.filter(r=>r[id]!=null); if(!pts.length) return {cur:null,base:null};
       const cur=pts[pts.length-1][id];
       const last7=pts.slice(-7).map(r=>r[id]); const base=last7.reduce((s,v)=>s+v,0)/last7.length;
       return {cur,base:+base.toFixed(1)}; };
+    // #R8 (v1.39): HRV tolerance corridor — rolling N-day mean ±1 SD, status vs today's reading.
+    let hrvBand=null, hrvStatus=null;
+    {
+      const hrvVals = fff.filter(r=>r.hrv!=null).map(r=>r.hrv);
+      const recentN = hrvVals.slice(-HRV_BASE_N);
+      if(recentN.length>=HRV_BASE_N){
+        const mean=recentN.reduce((s,v)=>s+v,0)/recentN.length;
+        const variance=recentN.reduce((s,v)=>s+(v-mean)*(v-mean),0)/recentN.length;
+        const sd=Math.sqrt(variance);
+        hrvBand={lo:+(mean-sd).toFixed(1),hi:+(mean+sd).toFixed(1),color:C.teal};
+        const todayHrv=hrvVals[hrvVals.length-1];
+        hrvStatus = todayHrv<hrvBand.lo ? {label:"Low",color:C.rose}
+                  : todayHrv>hrvBand.hi ? {label:"Unbalanced (high)",color:C.amber}
+                  : {label:"Balanced",color:C.teal};
+      } else {
+        hrvStatus = {label:`baseline building (${recentN.length}/${HRV_BASE_N})`, color:C.dim};
+      }
+    }
     const pills=CH.map(c=>`<button class="pill ${c.id===sel.id?"on":""}" data-act="wellMetric" data-v="${c.id}">${esc(c.name)}</button>`).join("");
     const cards=CH.map(c=>{ const s=stat(c.id); const have=s.cur!=null;
       const dir=have&&s.base!=null?(c.lower?(s.cur<s.base?C.teal:s.cur>s.base?C.rose:C.dim):(s.cur>s.base?C.teal:s.cur<s.base?C.rose:C.dim)):C.dim;
+      const hrvLine = c.id==="hrv" ? `<div class="note" style="color:${hrvStatus.color}">${esc(hrvStatus.label)}</div>` : "";
       return `<div style="text-align:center">
         <div class="eyebrow">${esc(c.name)}</div>
         <div style="font-family:var(--mono);font-size:22px;color:${have?dir:C.dim};margin-top:6px">${have?fmt(s.cur,c.id==="sleepHrs"?1:0):"—"}${have&&c.unit?`<span style="font-size:11px;color:${C.dim}"> ${esc(c.unit)}</span>`:""}</div>
-        <div class="note">${have&&s.base!=null?`7-day base ${fmt(s.base,c.id==="sleepHrs"?1:0)}`:"no data"}</div></div>`; }).join("");
-    const toggle=`<div style="display:flex;gap:6px">
-      <button class="pill ${view==="day"?"on":""}" data-act="wellView" data-v="day">DAY</button>
-      <button class="pill ${view==="week"?"on":""}" data-act="wellView" data-v="week">WEEK</button></div>`;
+        <div class="note">${have&&s.base!=null?`7-day base ${fmt(s.base,c.id==="sleepHrs"?1:0)}`:"no data"}</div>${hrvLine}</div>`; }).join("");
+    const toggle=this.timeCtl("well",{periods:["D","W","M"],default:"D"});
     const yOpt = sel.id==="readiness"?{yMin:0,yMax:100}:(sel.id==="sleepHrs"?{yMin:0}:{});
     return `<div class="card">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px">
-        <div><div class="eyebrow" style="color:${C.violet}">Wellness · daily device data (intervals.icu)</div>
+        <div><div class="eyebrow" style="color:${C.violet}">Wellness · daily device data (intervals.icu) ${this.infoBtn("well")}</div>${this.infoPanel("well")}
           <div class="note" style="margin-top:3px">RHR · HRV · readiness · sleep — separate from the blood labs below</div></div>
         ${toggle}
       </div>
       <div class="cols4" style="margin-top:14px">${cards}</div>
       <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:14px">${pills}</div>
-      <div class="note" style="margin-top:8px;color:${C.dim}">${esc(sel.name)}${sel.unit?` (${esc(sel.unit)})`:""} · ${esc(sel.why)} · ${view==="day"?"trailing 120 days":"macro-week means (axis matches the plan)"}</div>
+      <div class="note" style="margin-top:8px;color:${C.dim}">${esc(sel.name)}${sel.unit?` (${esc(sel.unit)})`:""} · ${esc(sel.why)} · ${(ctl.per||"D")==="D"?"trailing 120 days (default) or your From/To range":"period means"}</div>
       <div style="margin-top:8px">${chartSVG(Object.assign({w:860,h:180,cats,yUnit:sel.unit||"",
-        series:[{name:sel.name,color:sel.color,data}]},yOpt))}</div>
+        series:[{name:sel.name,color:sel.color,data}]},yOpt,(sel.id==="hrv"&&hrvBand)?{band:hrvBand}:{}))}</div>
       <div class="note" style="margin-top:8px">Trend-vs-own-baseline only — HRV/RHR absolute numbers aren't comparable between people. HR is trended continuously across history (no 3-Jul device break — corrected 9 Jul 2026). Depth is provisional: these channels reach back only as far as intervals.icu stored them.</div></div>
       <div class="note" style="color:${C.dim};margin:4px 0 14px">— clinical labs below —</div>`;
   },
@@ -2915,7 +3127,7 @@ const App = {
       : `<div class="empty" style="color:${sub}">◦ No entries for this marker yet. Planned draws: mid-Oct (pre-UTK, ferritin priority) · Feb–Mar (peak load). Log results here and in HEALTH_EXAMS.md.</div>`;
     const imgExams=[...this.state.labs].filter(l=>l.marker&&l.marker.startsWith("img_")).sort((a,b)=>a.d.localeCompare(b.d));
     const imgBlock=imgExams.length?`<div class="card">
-      <div class="eyebrow" style="color:${ac}">Image exam reports — uploaded PDFs extracted by Coach</div>
+      <div class="eyebrow" style="color:${ac}">Image exam reports — uploaded PDFs extracted by Coach ${this.infoBtn("exam_reports")}</div>${this.infoPanel("exam_reports")}
       <div class="note" style="margin-top:4px;color:${sub}">When a radiology report, physio assessment, or other image-based document is uploaded to the project, Coach extracts the key findings and logs them here as a structured entry alongside the date and source. The raw impression text is preserved verbatim. These entries are kept separate from the blood-panel markers above.</div>
       ${imgExams.map(e=>{
         const labelMap={"img_mri_femur":"MRI · Right femur","img_xray_foot":"X-ray · Right foot",
@@ -2941,7 +3153,8 @@ const App = {
       }).join("")}</tbody></table>`
       : `<div class="note" style="padding-top:10px;color:${sub}">◦ Empty — no exams logged yet. Baseline was deliberately skipped (Jul 2026).</div>`;
     return `
-    <div class="card"><div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px">${pills}</div>
+    <div class="card"><div class="eyebrow" style="color:${ac}">Blood/lab markers ${this.infoBtn("markers")}</div>${this.infoPanel("markers")}
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;margin-top:8px">${pills}</div>
       <div class="note" style="color:${sub}">${esc(m.name)}${refText(m)} · ${esc(m.why)}</div>
       <div style="margin-top:10px">${chart}</div></div>
     <div class="card"><details><summary style="font-family:var(--mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--c-dim);cursor:pointer;list-style:none;display:flex;align-items:center;gap:6px"><span style="font-size:9px">▸</span>All entries</summary>${tbl}</details></div>
@@ -3021,8 +3234,9 @@ const App = {
         <button class="btn solid" data-act="addProtein">Log</button></div></div>
     </div>
     <div class="card"><div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px">
-      <div class="eyebrow" style="color:${C.violet}">intervals.icu — Live Sync (Cloudflare Worker)</div>
+      <div class="eyebrow" style="color:${C.violet}">intervals.icu — Live Sync (Cloudflare Worker) ${this.infoBtn("sync")}</div>
       ${WORKER_URL?`<span class="note" style="color:${C.teal}">Worker configured ✓</span>`:`<span class="note" style="color:${C.amber}">Worker URL not set</span>`}</div>
+      ${this.infoPanel("sync")}
       <div class="note" style="margin-top:6px">Calls the Cloudflare Worker relay to pull fresh activities + wellness from intervals.icu — no manual export needed. Worker must be deployed first (see setup notes below).</div>
       <div class="row" style="margin-top:10px">
         <input id="worker_url" placeholder="${esc(WORKER_URL)||"https://icu-relay.YOUR-SUBDOMAIN.workers.dev"}" style="flex:1;min-width:240px" value="${esc(WORKER_URL)}">
@@ -3031,7 +3245,7 @@ const App = {
       ${(()=>{ const ls=this.lastSync; if(!ls) return ""; const cov=ls.coverage, dd=ls.detailDiag;
         const row=(k,v)=>`<div style="display:flex;justify-content:space-between;gap:12px"><span class="note">${esc(k)}</span><span style="font-family:var(--mono);font-size:11px;color:${v?C.mist:C.dim}">${esc(v||"none")}</span></div>`;
         return `<div style="margin-top:12px;padding:10px 12px;border:1px solid var(--c-contour);border-radius:8px">
-          <div class="eyebrow" style="color:${C.teal}">Last sync — coverage reveal</div>
+          <div class="eyebrow" style="color:${C.teal}">Last sync — coverage reveal ${this.infoBtn("coverage")}</div>${this.infoPanel("coverage")}
           ${cov?`<div style="margin-top:8px;display:grid;gap:4px">
             ${row("wellness rows",cov.rows!=null?String(cov.rows):null)}
             ${row("oldest row",cov.oldest)}
@@ -3356,13 +3570,22 @@ const App = {
     let adh=null; { let ph=0,ah=0; Object.keys(S.actualWeeks||{}).forEach(k=>{ const a=S.actualWeeks[k];
       if(a&&a.h!=null&&PLAN[k-1]){ ph+=PLAN[k-1].h; ah+=a.h; } });
       if(ph>0) adh=Math.round(ah/ph*100); }
-    // strength + running done/planned this week to date
+    // D036/F13 (v1.39): TWO counts per front — planFull (denominator, full 7-day week) and
+    // dueToDate/doneToDate (colour only, pace-to-date). Displayed fraction = doneToDate/planFull
+    // (matches the Week-Lens full-week view); colour reads doneToDate/dueToDate so an early-week
+    // state isn't punished (Mon 1/4 with the day's session done = teal, not rose).
     const now=new Date(); const di=Math.min(6,(now.getDay()+6)%7);
     const {R,G}=sessionMaps();
-    let gp=0,gd=0,rp=0,rd=0;
-    for(let i=0;i<=di;i++){ const p=plannedDay(cw,i), iso=dayISO(cw,i);
-      if(classifyGym(p.g)){ gp++; if((G[iso]||[]).length) gd++; }
-      if(classifyRun(p.r)!=="rest"){ rp++; if((R[iso]||[]).length) rd++; } }
+    let gPlanFull=0,gDueToDate=0,gDoneToDate=0,rPlanFull=0,rDueToDate=0,rDoneToDate=0;
+    for(let i=0;i<7;i++){ const p=plannedDay(cw,i), iso=dayISO(cw,i);
+      const gOn=classifyGym(p.g), rOn=classifyRun(p.r)!=="rest";
+      if(gOn) gPlanFull++;
+      if(rOn) rPlanFull++;
+      if(i<=di){
+        if(gOn){ gDueToDate++; if((G[iso]||[]).length) gDoneToDate++; }
+        if(rOn){ rDueToDate++; if((R[iso]||[]).length) rDoneToDate++; }
+      }
+    }
     // protein: last 7 calendar days, days ≥117 g
     const wk=[...Array(7)].map((_,k)=>{ const d=new Date(Date.now()-k*864e5);
       return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); });
@@ -3377,7 +3600,8 @@ const App = {
     // mind: latest weekly check-in → 0–100 (stress inverted)
     const ci=[...(S.checkins||[])].sort((a,b)=>a.d.localeCompare(b.d)).pop()||null;
     const mind=ci?Math.round(((ci.sleep+(6-ci.stress)+ci.mot)/3)/5*100):null;
-    return {adh, gym:gp?`${gd}/${gp}`:null, gymOK:gp?gd/gp:null, run:rp?`${rd}/${rp}`:null, runOK:rp?rd/rp:null,
+    return {adh, gym:gPlanFull?`${gDoneToDate}/${gPlanFull}`:null, gymOK:gDueToDate?gDoneToDate/gDueToDate:null,
+            run:rPlanFull?`${rDoneToDate}/${rPlanFull}`:null, runOK:rDueToDate?rDoneToDate/rDueToDate:null,
             prot:pDays?`${pHit}/7`:null, protOK:pDays?pHit/7:null, flags, seen, mind, ci};
   },
   scoreCard(){
@@ -3388,8 +3612,9 @@ const App = {
       <div style="font-family:var(--mono);font-size:20px;color:${col}">${val==null?"—":val}</div>
       <div class="note" style="margin-top:4px">${sub}</div></div>`;
     return `<div class="card"><div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px">
-      <div class="eyebrow" style="color:${C.teal}">Scorecard — all fronts, logged data only</div>
+      <div class="eyebrow" style="color:${C.teal}">Scorecard — all fronts, logged data only ${this.infoBtn("score")}</div>
       <span class="note">empty = not yet instrumented, never guessed</span></div>
+      ${this.infoPanel("score")}
       <div class="cols4" style="margin-top:10px">
       ${tile("Run · plan adherence", sc.adh==null?null:sc.adh+"%", "executed vs plan hours, logged weeks", dot(sc.adh==null?null:Math.min(sc.adh,100)/100))}
       ${tile("Run · this week", sc.run, "sessions done/planned to date (imports)", dot(sc.runOK))}
@@ -3416,8 +3641,9 @@ const App = {
     ].join("");
     return `<div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px">
-        <div class="eyebrow" style="color:${C.teal}">Scorecard — all fronts, logged data only</div>
+        <div class="eyebrow" style="color:${C.teal}">Scorecard — all fronts, logged data only ${this.infoBtn("score")}</div>
         <span class="note">empty = not yet instrumented, never guessed</span></div>
+      ${this.infoPanel("score")}
       <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap">
         <div style="flex-shrink:0">${perfRadarSVG(sc)}</div>
         <div style="display:flex;flex-wrap:wrap;gap:8px;flex:1">${pills}</div>
@@ -3482,8 +3708,9 @@ const App = {
     const ceoActions=sig&&sig.ceo.length?sig.ceo:[];
     return `<div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
-        <div class="eyebrow" style="color:${C.violet}">Boardroom — what each seat is asking of you</div>
+        <div class="eyebrow" style="color:${C.violet}">Boardroom — what each seat is asking of you ${this.infoBtn("boardroom")}</div>
         <button class="btn" data-act="board">${this.boardOpen?"collapse ▴":"all 9 member notes ▾"}</button></div>
+      ${this.infoPanel("boardroom")}
       ${ceo?`<div style="margin-top:10px;padding:12px;border:1px solid ${C.violet};border-radius:10px">
         <div class="eyebrow" style="color:${C.violet}">CEO synthesis · ${esc(ceo.d)}</div>
         <div style="font-size:13px;color:var(--c-chalk);margin-top:6px;line-height:1.55">${esc(ceo.note)}</div>
@@ -3519,10 +3746,10 @@ const App = {
       <td style="font-size:12.5px;color:var(--c-chalk)">${esc(n.note)}</td></tr>`).join(""):"";
     const typeOpts=RUN_TYPES.map(t=>`<option value="${t.id}">${esc(t.name)}</option>`).join("");
     return `
-    <div class="card"><div class="eyebrow" style="color:${C.teal}">Run taxonomy — the standard session language</div>
+    <div class="card"><div class="eyebrow" style="color:${C.teal}">Run taxonomy — the standard session language ${this.infoBtn("taxonomy")}</div>${this.infoPanel("taxonomy")}
       <div class="note" style="margin-top:6px">Every plan entry maps to one of these types (Week Lens chips deep-link here). The taxonomy is a locked registry: WHAT each session is never changes mid-plan. What shifts by period is the FOCUS — captured as dated notes below. Rx reads symbolically until the wk-3 AeT test and wk-6 TT anchor the numbers.</div></div>
     ${cards}
-    <div class="card"><div class="eyebrow" style="color:${C.amber}">Period focus notes — dated, per type</div>
+    <div class="card"><div class="eyebrow" style="color:${C.amber}">Period focus notes — dated, per type ${this.infoBtn("focus_notes")}</div>${this.infoPanel("focus_notes")}
       ${noteRows?`<table style="margin-top:10px"><tbody>${noteRows}</tbody></table>`:`<div class="empty">◦ No period notes yet.</div>`}
       <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;align-items:center">
         <input id="tx_d" type="date" style="width:150px"><select id="tx_t">${typeOpts}</select>
@@ -3531,7 +3758,26 @@ const App = {
         <button class="btn solid" data-act="taxAdd">Add note</button></div></div>`;
   },
   view_changelog(){
-    const log=`v1.38  13/07/26  Phase 1a — chart cleanup + polish batch.
+    const log=`v1.39  13/07/26  Phase 1b — time-axis controls, card info panels, methodology footer.
+                   #41: shared per-chart time-axis control (From/To + D/W/M/Q/Y period
+                   pills where relevant) landed on 10 charts — FFF, training readiness,
+                   wellness, bodyweight, weekly vert, zone discipline, durability
+                   decoupling, key-lift 1RM trend, girth site trend, plus a shared
+                   applyCtl() bucketing/aggregation pipeline. State persists via
+                   Store.pref("chartCtl"). The old per-card DAY/WEEK toggle state is
+                   retired — fully absorbed into the new control. #R1: 26 cards now
+                   carry a "?" info button (What/Source/Why, Andre-approved static
+                   text) — one panel open at a time, in-memory only. #R5: collapsed
+                   "Methodology & sources" footer added to the app shell — how each
+                   computed figure is derived and where its data comes from, in one
+                   place. F13 (D036): scorecard Run/Gym tiles now show done-so-far
+                   over the FULL week's plan (was to-date only), while the colour dot
+                   reads pace-to-date so an on-track early week isn't shown red.
+                   #R8: HRV card gains a rolling 7-day mean ±1 SD tolerance corridor
+                   with a Balanced/Low/Unbalanced(high) status line — needs 7 readings
+                   before it renders. STORE_KEY unchanged.
+
+v1.38  13/07/26  Phase 1a — chart cleanup + polish batch.
                    Dates: all chart axes and card labels now read DD/MM or
                    DD/MM/YY consistently (shared fmtD/fmtDshort helpers); no
                    internal date keys were touched. Chart fonts: axis/ref text
@@ -3745,7 +3991,7 @@ v1.5  04/07/26   Scorecard, Athletic Board, Body Map, demo mode, girth radar.
 v1.0–v1.4  02–04/07/26  Initial build; ported from React artifact.
                    Full early history in OPERATING_BRIEF.md.`;
     return `<div class="card">
-      <div class="eyebrow" style="color:${C.teal};margin-bottom:12px">Dashboard changelog — v1.38 (current) → v1.0</div>
+      <div class="eyebrow" style="color:${C.teal};margin-bottom:12px">Dashboard changelog — v1.39 (current) → v1.0</div>
       <pre style="font-family:var(--mono);font-size:11px;color:var(--c-mist);line-height:1.7;white-space:pre-wrap;margin:0">${esc(log)}</pre>
     </div>`;
   },
@@ -3785,6 +4031,16 @@ v1.0–v1.4  02–04/07/26  Initial build; ported from React artifact.
           else if(a==="rangeFuture"){ this.ovRange.future=v; this.render(); }
         }; return;
       }
+      // #41 (v1.39): native date inputs for timeCtl From/To — wired on change, not click.
+      if(el.type==="date"){
+        el.onchange=()=>{ const a=el.dataset.act; if(a!=="chartCtl") return;
+          const id=el.dataset.id, k=el.dataset.k;
+          this.chartCtl[id]=this.chartCtl[id]||{from:null,to:null,per:null};
+          this.chartCtl[id][k]=el.value||null;
+          Store.pref("chartCtl", this.chartCtl);
+          this.render();
+        }; return;
+      }
       el.onclick=()=>{ const a=el.dataset.act, v=el.dataset.v;
         if(a==="tab"){ this.tab=v; this.week=null; this.render(); }
         else if(a==="unit"){ this.unit=v; this.render(); }
@@ -3820,9 +4076,11 @@ v1.0–v1.4  02–04/07/26  Initial build; ported from React artifact.
         else if(a==="importFFF") this.importFFF();
         else if(a==="fffToggle"){ if(v&&this.fffViz.hasOwnProperty(v)){ this.fffViz[v]=!this.fffViz[v]; this.render(); } }
         else if(a==="vertShow"){ if(v&&this.vertShow.hasOwnProperty(v)){ this.vertShow[v]=!this.vertShow[v]; this.render(); } }
-        else if(a==="readyView"){ if(v==="day"||v==="week"){ this.readyView=v; this.render(); } }
+        else if(a==="chartCtl"){ const id=el.dataset.id, k=el.dataset.k;
+          this.chartCtl[id]=this.chartCtl[id]||{from:null,to:null,per:null};
+          if(k==="per"){ this.chartCtl[id].per=v; Store.pref("chartCtl", this.chartCtl); this.render(); } }
+        else if(a==="info"){ this.infoOpen=(this.infoOpen===v?null:v); this.render(); }
         else if(a==="wellMetric"){ if(v){ this.wellMetric=v; this.render(); } }
-        else if(a==="wellView"){ if(v==="day"||v==="week"){ this.wellView=v; this.render(); } }
         else if(a==="bodyView"){ if(v==="photo"||v==="sil"){ this.bodyView=v; this.render(); } }
         else if(a==="tgtAdj"){ if(v) this.tgtAdj(v); }
         else if(a==="tgtAdopt") this.tgtAdopt();
@@ -3902,6 +4160,8 @@ v1.0–v1.4  02–04/07/26  Initial build; ported from React artifact.
   Store.init();
   const savedTheme = Store.pref("theme");        // #16: restore theme before first paint (no flash)
   if(savedTheme==="light"||savedTheme==="dark") App.theme=savedTheme;
+  const savedCtl = Store.pref("chartCtl");       // #41 (v1.39): restore per-chart time-axis state
+  if(savedCtl && typeof savedCtl==="object") App.chartCtl=savedCtl;
   const saved = await Store.load();
   if(saved) App.state=norm(saved);
   else if(EMBEDDED_STATE) App.state=norm(EMBEDDED_STATE);
