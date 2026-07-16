@@ -69,6 +69,15 @@
   input,select,textarea{background:var(--c-night);border:1px solid var(--c-contour);border-radius:6px;color:var(--c-chalk);font-family:var(--mono);font-size:12px;padding:6px 8px;outline:none}
   input[type=number]{-moz-appearance:textfield}
   input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+  /* #C2 (v1.40): custom range slider — reset the boxed input styling + appearance:none
+     track/thumb so the thumb travels the full track (native accent-color left the thumb
+     clipped short of both ends on Android). Applies to both Overview sliders. */
+  input[type=range]{-webkit-appearance:none;appearance:none;background:transparent;border:none;padding:0;height:22px;cursor:pointer}
+  input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:2px;background:var(--c-contour)}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:16px;height:16px;margin-top:-6px;border-radius:50%;background:var(--c-teal);border:none}
+  input[type=range]::-moz-range-track{height:4px;border-radius:2px;background:var(--c-contour)}
+  input[type=range]::-moz-range-thumb{width:16px;height:16px;border:none;border-radius:50%;background:var(--c-teal)}
+  input[type=range]:focus-visible{outline:2px solid var(--c-teal);outline-offset:3px}
   label.f{display:flex;flex-direction:column;gap:4px}
   label.f span{font-family:var(--mono);font-size:9px;letter-spacing:.12em;color:var(--c-dim);text-transform:uppercase}
   .row{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}
@@ -97,7 +106,13 @@
      cards so nothing is cramped 2-wide; charts already viewBox+max-width:100%
      so they reflow. Landscape reuses the ≥760px multi-col grid below. ── */
   @media(max-width:480px){
-    .wrap{padding:16px 10px 64px}
+    /* #C1 (v1.40): clip the app container's horizontal overflow on mobile. #app IS .wrap
+       (holds header + tabs + view), so this stops any descendant from expanding the layout
+       viewport — the cause of the Overview-only shrink-to-fit (small font, left-skewed tabs,
+       cards clipping right). All real Overview content is width:100%, so nothing is hidden;
+       inner scrollers (.scroll/.lens-grid/.tabbar) keep their own overflow. clip (not hidden)
+       leaves the vertical axis visible and creates no scroll container. */
+    .wrap{padding:16px 10px 64px;overflow-x:clip}
     .cols4{grid-template-columns:1fr}   /* stop forcing 2-wide on narrow portrait */
     .card{padding:13px}
     h1{font-size:20px!important}
@@ -169,6 +184,15 @@
    CHANGELOG
    v1.0  02/07/26  first HTML build (ported from React artifact)
    (v1.0–v1.6 archived — full history in OPERATING_BRIEF.md CHANGELOG)
+   v1.40 16/07/26 Phase 1c — mobile polish + bodyweight EWMA (D040, α=0.10/day).
+                   #C1 Overview no longer shrink-to-fits on mobile (.wrap overflow-x:clip
+                   stops the layout-viewport expansion); #C2 custom range sliders
+                   (appearance:none track/thumb) so the thumb uses full travel; #C3 PAST
+                   slider extended to 260 wk (~5 yr, step 2), window start clamped to the
+                   data floor, crosshair reads the stashed window; #R9 bodyweight chart
+                   replaces the 4-pt rolling mean with a gap-aware EWMA trend (α=0.10/day)
+                   over full history — D/W/M become pure zooms (3-month/12-month/all-time),
+                   From/To overrides. node --check + harness.
    v1.39 13/07/26 Phase 1b — #41 shared time-axis controls (timeCtl/applyCtl,
                    From/To + D/W/M/Q/Y pills, Store.pref persisted) on 10
                    charts, old per-card DAY/WEEK pill toggles retired; #R1 card-info ? panels
@@ -701,7 +725,7 @@ const CARD_INFO = {
   focus_notes:{what:"Dated, per-type period focus notes.",src:"Coach/Andre entries per block.",why:"The \"why this block\" memory — intent survives even when the calendar is remade."},
   lifts:{what:"Estimated 1RM trend for the five ultra-relevant lifts.",src:"MacroFactor logged sets (key-lift points entered on the Data tab).",why:"Strength is the durability floor — these five map to descent braking, climbing drive and trunk integrity."},
   block_context:{what:"Where the current gym block sits in the season's alternating lead structure.",src:"PLAN/PHASES lead markers.",why:"Running and hypertrophy alternate the lead — this card says which one is allowed to win this block."},
-  weight:{what:"Bodyweight trend — AM readings with a 4-pt rolling mean.",src:"Withings scale (weekly points; full history importable).",why:"The 73 kg @ 15% arc is a multi-year build — the rolling mean is the signal, single readings are noise."},
+  weight:{what:"Bodyweight trend — AM weigh-ins with a MacroFactor-style EWMA trend line (α=0.10/day). D/W/M zoom the range (3-month / 12-month / all-time); From/To overrides.",src:"Withings scale (weekly points; full history importable).",why:"The 73 kg @ 15% arc is a multi-year build — the EWMA trend is the signal, single readings are noise."},
   lean:{what:"BIA-estimated lean mass.",src:"Withings body-comp (trend-grade only, not clinical).",why:"The physique goal is lean-mass gain under racing interference — this is its (noisy) tracker; DEXA anchors it when convenient."},
   protein:{what:"The current protein target band.",src:"NUTRITION.md ruling (117–143 g/d; 136–146 in hypertrophy blocks).",why:"The single highest-leverage nutrition compliance number for concurrent training."},
   oversight:{what:"Nutritionist oversight status and shared-view arrangement.",src:"NUTRITION.md; KV shared backend (D021) when Phase 9 ships.",why:"Nutrition is externally supervised — this card records who's watching and through what."},
@@ -2223,6 +2247,24 @@ function gymDayCard(w){
 }
 
 /* ── trend card ── */
+/* #R9 (v1.40, D040): MacroFactor-style gap-aware EWMA trend over date-sorted weigh-ins.
+   alpha = per-day smoothing (0.10 ≈ a ~10-day time constant). Trend seeds at the first
+   weigh-in; each step weights the day-gap so sparse weekly points still smooth correctly
+   (a 7-day gap → weight ≈ 0.52). Returns one trend value per input point (same order/length).
+   Pure + exported for the harness. */
+function bwEWMA(pts, alpha){
+  const a = (alpha==null?0.10:alpha);
+  let t=null, prev=null; const out=[];
+  for(const p of pts){
+    if(t==null){ t=p.kg; }
+    else { const gap=Math.max(1,Math.round((new Date(p.d+"T00:00:00")-new Date(prev+"T00:00:00"))/864e5));
+      const w=1-Math.pow(1-a,gap); t=t+w*(p.kg-t); }
+    prev=p.d; out.push(+t.toFixed(3));
+  }
+  return out;
+}
+const BW_EWMA_ALPHA = 0.10;   // D040 (v1.40): bodyweight EWMA per-day smoothing constant
+
 function trendCard(title,unit,series,goodUp,target,invite){
   const last = series.length ? series[series.length-1].v : null;
   const base = series.length>1 ? series.slice(0,-1).reduce((s,p)=>s+p.v,0)/(series.length-1) : null;
@@ -2571,7 +2613,15 @@ const App = {
     ${this.boardCard()}
     ${(()=>{
       const cw=todayWeek(), past=this.ovRange.past, future=this.ovRange.future;
-      const wS=cw-past, wE=Math.min(62,cw+future);
+      // #C3 (v1.40): clamp the window start to the earliest logged week so the extended
+      // PAST slider (now up to 260 wk / ~5 yr) fills the frame with real data instead of
+      // rendering dead pre-data space. Floor derived from runs + FFF, never invented.
+      const _W1d=new Date(2026,5,29);
+      const _wOf=iso=>Math.floor((new Date(iso+"T00:00:00")-_W1d)/864e5/7)+1;
+      const _ovDates=[...(this.state.sessions.runs||[]).map(r=>r.d),...(this.state.fff||[]).map(r=>r.date)].filter(Boolean);
+      const _floorW=_ovDates.length?Math.min(..._ovDates.map(_wOf)):1;
+      const wS=Math.max(_floorW,cw-past), wE=Math.min(62,cw+future);
+      this._ovWindow={wStart:wS,wEnd:wE};   // read by moveCross() so crosshair x-scale matches the chart
       const hasFFF=(this.state.fff||[]).length>0;
       // Combined legend: phase bands + FFF series
       const fv=this.fffViz;
@@ -2600,14 +2650,14 @@ const App = {
                 <span style="font-family:var(--mono);font-size:9px;color:var(--c-dim);text-transform:uppercase;letter-spacing:.1em">past</span>
                 <span style="font-family:var(--mono);font-size:9px;color:var(--c-mist)">${past} wk</span>
               </div>
-              <input type="range" min="4" max="156" step="1" value="${past}" data-act="rangePast" style="width:100%;accent-color:var(--c-teal)">
+              <input type="range" min="4" max="260" step="2" value="${past}" data-act="rangePast" style="width:100%">
             </div>
             <div style="display:flex;flex-direction:column;gap:3px;min-width:130px">
               <div style="display:flex;justify-content:space-between">
                 <span style="font-family:var(--mono);font-size:9px;color:var(--c-dim);text-transform:uppercase;letter-spacing:.1em">future</span>
                 <span style="font-family:var(--mono);font-size:9px;color:var(--c-mist)">${future} wk</span>
               </div>
-              <input type="range" min="2" max="62" step="1" value="${future}" data-act="rangeFuture" style="width:100%;accent-color:var(--c-teal)">
+              <input type="range" min="2" max="62" step="1" value="${future}" data-act="rangeFuture" style="width:100%">
             </div>
           </div>
         </div>
@@ -2856,29 +2906,32 @@ const App = {
   view_body(){
     const allPts=[...this.state.body].sort((a,b)=>a.d.localeCompare(b.d));
     const wctl = this.chartCtl.weight || (this.chartCtl.weight={from:null,to:null,per:"D"});
-    const pts = allPts.filter(p=>(!wctl.from||p.d>=wctl.from)&&(!wctl.to||p.d<=wctl.to));
-    const roll=pts.map((p,i)=>{ const w=pts.slice(Math.max(0,i-3),i+1); return w.reduce((s,q)=>s+q.kg,0)/w.length; });
     const wPer = wctl.per||"D";
-    let wcats, wseries;
-    if(wPer==="D"){
-      wcats=pts.map(p=>fmtDshort(p.d));
-      wseries=[{name:"raw",color:C.dim,data:pts.map(p=>p.kg)},{name:"trend",color:C.amber,data:roll}];
-    } else {
-      const agg=applyCtl(pts,"d",{per:wPer},{kg:"mean"});
-      wcats=agg.cats; wseries=[{name:"mean",color:C.amber,data:agg.kg}];
-    }
+    // #R9 (v1.40, D040): EWMA trend computed over the FULL history (continuous, gap-aware),
+    // then D/W/M act as pure time-range zooms of the same raw+trend rendering — the old
+    // 4-pt rolling overlay and the W/M bucketed-mean paths are retired. D = last 3 months,
+    // W = last 12 months, M = all-time; an explicit From/To always overrides the preset.
+    const wTrendFull = bwEWMA(allPts, BW_EWMA_ALPHA);
+    const wZoomFrom = wctl.from || (wPer==="M" ? null : (()=>{ const c=new Date(); c.setMonth(c.getMonth()-(wPer==="W"?12:3)); return c.toISOString().slice(0,10); })());
+    const wZoomTo = wctl.to || null;
+    const wVis = allPts.map((p,i)=>i).filter(i=>{ const d=allPts[i].d; return (!wZoomFrom||d>=wZoomFrom)&&(!wZoomTo||d<=wZoomTo); });
+    const wShown = wVis.length;
+    const wcats = wVis.map(i=>fmtDshort(allPts[i].d));
+    const wseries=[{name:"raw",color:C.dim,data:wVis.map(i=>allPts[i].kg)},{name:"trend",color:C.amber,data:wVis.map(i=>wTrendFull[i])}];
     const cur=phaseOf(todayWeek());
     const prot=this.state.protocol;
     const byCol = b => b==="nutritionist"?C.amber:b==="coach"?C.teal:C.violet;
     return `
     <div class="card">
       <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px">
-        <div class="eyebrow" style="color:var(--c-amber)">Bodyweight — ${wPer==="D"?"AM readings + 4-pt rolling mean":"period mean"} ${this.infoBtn("weight")}</div>
+        <div class="eyebrow" style="color:var(--c-amber)">Bodyweight — AM weigh-ins + EWMA trend · ${wPer==="M"?"all-time":wPer==="W"?"12-month":"3-month"} view ${this.infoBtn("weight")}</div>
         <span class="note">current block gate · ${cur.lead==="hyp"?"+0.2–0.25% BW/wk":"hold stable"}</span></div>
       ${this.infoPanel("weight")}
       ${this.timeCtl("weight",{periods:["D","W","M"],default:"D"})}
-      ${pts.length>1 ? `<div style="margin-top:10px">${chartSVG({cats:wcats,yUnit:"kg",h:220,series:wseries})}</div>`
-      : `<div class="empty">◦ One real point so far: 67.79 kg · 16.4% BF (03/07, Withings). The trend line starts at entry two — weekly same-condition AM average. BIA is trend-grade: read the slope, not the points.</div>`}
+      ${allPts.length>1
+        ? (wShown>=1 ? `<div style="margin-top:10px">${chartSVG({cats:wcats,yUnit:"kg",h:220,series:wseries})}</div>`
+                     : `<div class="empty">◦ No weigh-ins in this range. Widen the From/To dates or pick the all-time (M) view.</div>`)
+        : `<div class="empty">◦ One real point so far: 67.79 kg · 16.4% BF (03/07, Withings). The trend line starts at entry two — weekly same-condition AM average. BIA is trend-grade: read the slope, not the points.</div>`}
     </div>
     ${this.girthCard()}
     <div class="cols3">
@@ -3291,7 +3344,7 @@ const App = {
         <button class="btn" data-act="import">Import pasted state</button>
         <button class="btn danger" id="resetBtn" data-act="reset">Reset data</button></div></div>
     <div class="card"><div class="eyebrow">Method notes</div>
-      <div style="font-size:12.5px;color:var(--c-mist);line-height:1.8;margin-top:8px">W1 = week commencing Mon 29/06/26. Planned km are derived at render time from the hours-native plan using the Build 2 pace engine (v1.35): road = 8-week GAP-weighted rolling average; trail = 12-week window. Sparse-window blend: n&lt;3 → static fallback (road 6:15/km · trail 8:00/km); 3≤n&lt;6 → linear blend toward rolling; n≥6 → 100% rolling. Source tag and n shown in week view. Race weeks show actual race distance. The engine is fed automatically on every Sync (v1.36) — a runs.json v1.1 rebuild (Data tab → Merge sessions) is a periodic accuracy refresh for grade-adjusted pace and run type, no longer a prerequisite. Trends outrank points everywhere: rolling means on body data, deltas vs baseline on site cards. Device rule: one device per metric trend — Withings weekly total weight · Renpho monthly tape girths (cm) · Garmin chest strap + power throughout. Girth target model: girth ∝ √(λ·lean_scale·1.193 + (1−λ)·fat_scale·0.842), heuristic v1, replaces itself with measured slopes at ≥3 entries. Long-horizon physique goal: 73 kg @ 15% BF (formally adopted 04/07/26); UTA taper milestone: +0.7–1.2 kg lean. Extending the dashboard = adding one entry to a registry (GIRTHS, MARKERS, KEY_LIFTS) — built to grow. Storage mode: <b>${Store.mode}</b>.</div></div>`;
+      <div style="font-size:12.5px;color:var(--c-mist);line-height:1.8;margin-top:8px">W1 = week commencing Mon 29/06/26. Planned km are derived at render time from the hours-native plan using the Build 2 pace engine (v1.35): road = 8-week GAP-weighted rolling average; trail = 12-week window. Sparse-window blend: n&lt;3 → static fallback (road 6:15/km · trail 8:00/km); 3≤n&lt;6 → linear blend toward rolling; n≥6 → 100% rolling. Source tag and n shown in week view. Race weeks show actual race distance. The engine is fed automatically on every Sync (v1.36) — a runs.json v1.1 rebuild (Data tab → Merge sessions) is a periodic accuracy refresh for grade-adjusted pace and run type, no longer a prerequisite. Trends outrank points everywhere: an EWMA trend on body data, deltas vs baseline on site cards. Device rule: one device per metric trend — Withings weekly total weight · Renpho monthly tape girths (cm) · Garmin chest strap + power throughout. Girth target model: girth ∝ √(λ·lean_scale·1.193 + (1−λ)·fat_scale·0.842), heuristic v1, replaces itself with measured slopes at ≥3 entries. Long-horizon physique goal: 73 kg @ 15% BF (formally adopted 04/07/26); UTA taper milestone: +0.7–1.2 kg lean. Extending the dashboard = adding one entry to a registry (GIRTHS, MARKERS, KEY_LIFTS) — built to grow. Storage mode: <b>${Store.mode}</b>.</div></div>`;
   },
 
   /* ── actions ── */
@@ -3773,7 +3826,23 @@ const App = {
         <button class="btn solid" data-act="taxAdd">Add note</button></div></div>`;
   },
   view_changelog(){
-    const log=`v1.39  13/07/26  Phase 1b — time-axis controls, card info panels, methodology footer.
+    const log=`v1.40  16/07/26  Phase 1c — mobile polish + bodyweight EWMA trend.
+                   #C1: the Overview tab no longer shrink-to-fits on mobile — the app
+                   container now clips horizontal overflow (overflow-x:clip), so a wide
+                   descendant can't expand the layout viewport (which had made the font
+                   shrink, the tab bar skew left, and cards clip on the right). #C2: the
+                   Overview PAST/FUTURE sliders are custom-styled (appearance:none track +
+                   thumb) so the handle travels the full track instead of stopping short.
+                   #C3: the PAST slider now reaches 260 weeks (~5 years, step 2) and the
+                   window start is clamped to your earliest logged week, so long look-backs
+                   fill with real data rather than empty pre-history; the hover crosshair
+                   tracks the same clamped window. #R9 (D040): the bodyweight chart swaps
+                   the 4-point rolling mean for a MacroFactor-style gap-aware EWMA trend
+                   (α=0.10/day) computed over the full history; D/W/M are now pure zoom
+                   ranges (3-month / 12-month / all-time) and From/To overrides them.
+                   STORE_KEY unchanged.
+
+v1.39  13/07/26  Phase 1b — time-axis controls, card info panels, methodology footer.
                    #41: shared per-chart time-axis control (From/To + D/W/M/Q/Y period
                    pills where relevant) landed on 10 charts — FFF, training readiness,
                    wellness, bodyweight, weekly vert, zone discipline, durability
@@ -4141,8 +4210,10 @@ v1.0–v1.4  02–04/07/26  Initial build; ported from React artifact.
       const wrap=qs("overviewWrap"), tip=qs("tip");
       if(!wrap||!tip) return;
       const moveCross=(w)=>{
-        const cw=todayWeek(), past=App.ovRange.past, future=App.ovRange.future;
-        const wStart=cw-past, wEnd=Math.min(62,cw+future);
+        // #C3 (v1.40): use the window stashed by the render (clamped to the data floor)
+        // so the crosshair x-scale matches the chart instead of recomputing from ovRange.
+        const win=App._ovWindow||{wStart:todayWeek()-App.ovRange.past,wEnd:Math.min(62,todayWeek()+App.ovRange.future)};
+        const wStart=win.wStart, wEnd=win.wEnd;
         const span=wEnd-wStart; if(span<=0) return;
         const Pl=52, Pr=14, W=920, iw=W-Pl-Pr;
         const x=Pl+((w-wStart)/span)*iw;
