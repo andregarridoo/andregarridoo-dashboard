@@ -3,6 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="manifest" href="./manifest.json">
+<meta name="theme-color" content="#0C1116">
 <title>Andre → UTA100 2027 · Athlete Dashboard</title>
 <style>
   /* ── DESIGN TOKENS (v1.31 — single source of colour truth) ──────────────────
@@ -193,6 +195,15 @@
    CHANGELOG
    v1.0  02/07/26  first HTML build (ported from React artifact)
    (v1.0–v1.6 archived — full history in OPERATING_BRIEF.md CHANGELOG)
+   v1.42 17/07/26 Phase 1d — PWA install shell (D038, blueprint PWA_SHELL_BLUEPRINT.md).
+                   Head: manifest link + theme-color #0C1116 (= live --c-night). Tail:
+                   guarded SW registration (https-only, serviceWorker-capable only) +
+                   storage.persist() (FP3). Siblings shipped to the Pages repo root:
+                   manifest.json · sw.js (network-first, static cache name, same-origin
+                   GET only — Worker relay never intercepted, FP1) · icons/ 192+512
+                   monogram (FP2). Standalone invariant intact: bare-file/file:///harness
+                   use unaffected (link inert without sibling; registration never runs
+                   off-https). STORE_KEY + state schema unchanged.
    v1.41 17/07/26 Phase 1c-2 — mobile layout root-cause fix (#C4/#C5).
                    #C4 min-content guard at ≤480 (.grid / .cols2-4 / .card children min-width:0 +
                    overflow-wrap:anywhere on notes/eyebrows) — grid tracks no longer widen
@@ -3844,7 +3855,17 @@ const App = {
         <button class="btn solid" data-act="taxAdd">Add note</button></div></div>`;
   },
   view_changelog(){
-    const log=`v1.41  17/07/26  Phase 1c-2 — mobile layout root-cause fix.
+    const log=`v1.42  17/07/26  Phase 1d — installable app (PWA shell).
+                   The dashboard can now be installed from Chrome (menu → Add to Home
+                   screen → Install): home-screen icon, full-screen standalone window,
+                   dark #0C1116 status bar, and offline access to the last-loaded
+                   version (your data lives in this device's storage, so offline opens
+                   show current data). Updates need no ritual — every online open
+                   fetches the latest deploy (network-first). Sync while offline fails
+                   gracefully. Opened as a bare file, nothing changes. STORE_KEY
+                   unchanged.
+
+v1.41  17/07/26  Phase 1c-2 — mobile layout root-cause fix.
                    #C4: grid tracks could silently grow wider than the phone screen when a
                    child refused to shrink (min-content), and v1.40's clip then cut that
                    strip off the right edge — unreachable at any zoom, which is why pinch
@@ -4297,6 +4318,15 @@ v1.0–v1.4  02–04/07/26  Initial build; ported from React artifact.
   // Auto-sync on open if Worker is configured — silent background pull
   if(WORKER_URL){ App.syncICU(); }
 })();
+
+// D038 PWA shell (v1.42) — registration is guarded so the file stays fully
+// standalone (file://, node harness, bare offline open all unaffected).
+if ('serviceWorker' in navigator && location.protocol === 'https:') {
+  navigator.serviceWorker.register('./sw.js').catch(()=>{});
+  if (navigator.storage && navigator.storage.persist) {
+    navigator.storage.persist().catch(()=>{});   // FP3: reduces eviction risk for localStorage
+  }
+}
 </script>
 </body>
 </html>
