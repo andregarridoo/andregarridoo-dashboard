@@ -1,0 +1,1604 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UTA100 2026 — Race Intelligence · Andre Garrido</title>
+
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Archivo:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+:root{
+  --bg:#0E1720; --panel:#15212C; --panel2:#1A2937; --line:#24384A;
+  --ink:#E9EFF1; --mut:#8DA3AE; --dim:#5E7484;
+  --ochre:#E08E3C; --sage:#88B79B; --gold:#F1C453; --red:#E25C4A; --blue:#6FA8DC;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto} .reveal{transition:none!important;opacity:1!important;transform:none!important}}
+body{background:var(--bg);color:var(--ink);font-family:'Archivo','Helvetica Neue',system-ui,sans-serif;font-size:15px;line-height:1.55;
+  background-image:radial-gradient(1200px 500px at 70% -10%, #16283A 0%, transparent 60%);}
+.mono{font-family:'IBM Plex Mono',monospace}
+.disp{font-family:'Barlow Condensed',sans-serif}
+
+/* ---------- nav ---------- */
+nav{position:sticky;top:0;z-index:50;background:rgba(14,23,32,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+nav .inner{display:flex;gap:2px;overflow-x:auto;padding:0 12px;scrollbar-width:none}
+nav .inner::-webkit-scrollbar{display:none}
+nav a{font-family:'Barlow Condensed','Arial Narrow',sans-serif;font-weight:600;font-size:15px;letter-spacing:.04em;text-transform:uppercase;
+  color:var(--mut);text-decoration:none;padding:13px 11px;white-space:nowrap;border-bottom:2px solid transparent}
+nav a:hover{color:var(--ink)} nav a:focus-visible{outline:2px solid var(--ochre);outline-offset:-2px}
+nav a.on{color:var(--ochre);border-bottom-color:var(--ochre)}
+nav a .n{color:var(--dim);margin-right:5px;font-size:12px}
+
+/* ---------- layout ---------- */
+.wrap{max-width:1060px;margin:0 auto;padding:0 16px}
+section{padding:52px 0 14px;border-bottom:1px solid var(--line)}
+.eyebrow{font-family:'IBM Plex Mono';font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--ochre);margin-bottom:8px}
+h2{font-family:'Barlow Condensed','Arial Narrow',sans-serif;font-weight:700;font-size:clamp(28px,5vw,40px);letter-spacing:.01em;text-transform:uppercase;line-height:1.05}
+.lede{color:var(--mut);max-width:680px;margin:10px 0 26px}
+.lede b{color:var(--ink);font-weight:600}
+
+.reveal{opacity:0;transform:translateY(14px);transition:opacity .5s ease,transform .5s ease}
+.reveal.in{opacity:1;transform:none}
+
+/* ---------- hero ---------- */
+header{padding:34px 0 6px}
+.kicker{font-family:'IBM Plex Mono';font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--mut)}
+h1{font-family:'Barlow Condensed','Arial Narrow',sans-serif;font-weight:700;font-size:clamp(40px,8vw,68px);text-transform:uppercase;line-height:.98;margin:8px 0 4px}
+h1 em{font-style:normal;color:var(--ochre)}
+.sub{color:var(--mut);font-size:14px}
+#ribbonBox{position:relative;margin:26px -16px 0}
+#ribbon{width:100%;height:300px;display:block;touch-action:pan-y}
+#ribTip{position:absolute;pointer-events:none;background:#0B131B;border:1px solid var(--line);border-radius:6px;
+  padding:7px 10px;font-family:'IBM Plex Mono';font-size:11.5px;color:var(--ink);display:none;line-height:1.6;z-index:5;min-width:148px}
+#ribTip b{color:var(--ochre)}
+.legendRow{display:flex;flex-wrap:wrap;gap:14px;margin:10px 0 0;font-size:12px;color:var(--mut)}
+.legendRow span{display:inline-flex;align-items:center;gap:6px}
+.dot{width:10px;height:10px;border-radius:2px;display:inline-block}
+
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin:24px 0 8px}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 14px 12px}
+.kpi .v{font-family:'Barlow Condensed','Arial Narrow',sans-serif;font-weight:700;font-size:30px;line-height:1}
+.kpi .l{font-size:11.5px;color:var(--mut);margin-top:5px;letter-spacing:.02em}
+.kpi .d{font-family:'IBM Plex Mono';font-size:11px;margin-top:3px}
+.pos{color:var(--sage)} .neg{color:var(--red)} .wrn{color:var(--gold)} .acc{color:var(--ochre)}
+
+.phaseCards{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px;margin:18px 0 6px}
+.pc{background:var(--panel);border:1px solid var(--line);border-left:4px solid;border-radius:10px;padding:14px}
+.pc h3{font-family:'Barlow Condensed','Arial Narrow',sans-serif;font-size:20px;font-weight:600;text-transform:uppercase;letter-spacing:.03em}
+.pc .rng{font-family:'IBM Plex Mono';font-size:11px;color:var(--mut);margin:2px 0 8px}
+.pc p{font-size:13px;color:var(--mut)}
+.pc p b{color:var(--ink)}
+
+/* ---------- cards / charts ---------- */
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:760px){.grid2{grid-template-columns:1fr}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 16px 12px;margin-bottom:14px}
+.card h3{font-family:'Barlow Condensed','Arial Narrow',sans-serif;font-size:19px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px}
+.card .note{font-size:12.5px;color:var(--mut);margin-bottom:12px}
+.chartBox{position:relative;height:280px}
+.chartBox canvas{display:block;width:100%;height:100%}
+.chartBox.tall{height:330px} .chartBox.short{height:230px}
+.callout{border:1px solid var(--line);border-left:4px solid var(--ochre);background:var(--panel2);border-radius:8px;padding:12px 14px;font-size:13.5px;color:var(--mut);margin:14px 0}
+.callout b{color:var(--ink)}
+.callout.red{border-left-color:var(--red)} .callout.sage{border-left-color:var(--sage)} .callout.gold{border-left-color:var(--gold)} .callout.blue{border-left-color:var(--blue)}
+
+/* ---------- table ---------- */
+.tblScroll{overflow-x:auto;margin:0 -16px;padding:0 16px}
+table{border-collapse:collapse;width:100%;min-width:660px;font-size:13px}
+th{font-family:'Barlow Condensed','Arial Narrow',sans-serif;font-size:13.5px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--mut);
+  text-align:right;padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+td{padding:8px 10px;border-bottom:1px solid #1C2C3A;text-align:right;font-family:'IBM Plex Mono';font-size:12.5px;white-space:nowrap}
+td.nm{font-family:'Archivo';font-size:13px;color:var(--ink)}
+tr.hot td{background:rgba(226,92,74,.07)}
+.pill{display:inline-block;border-radius:4px;padding:1px 6px;font-size:11px}
+.pill.r{background:rgba(226,92,74,.15);color:var(--red)} .pill.g{background:rgba(136,183,155,.15);color:var(--sage)} .pill.y{background:rgba(241,196,83,.14);color:var(--gold)}
+
+/* ---------- stops ---------- */
+.stopRow{display:grid;grid-template-columns:108px 1fr 64px;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid #1C2C3A;font-size:13px}
+.stopRow .km{font-family:'IBM Plex Mono';font-size:12px;color:var(--mut)}
+.stopRow .bar{height:14px;border-radius:3px;background:var(--ochre);min-width:3px}
+.stopRow .dur{font-family:'IBM Plex Mono';font-size:12.5px;text-align:right}
+
+/* ---------- simulator ---------- */
+.sim{display:grid;grid-template-columns:1fr 280px;gap:18px}
+@media(max-width:760px){.sim{grid-template-columns:1fr}}
+.slider{margin-bottom:22px}
+.slider label{display:flex;justify-content:space-between;font-size:13px;color:var(--mut);margin-bottom:8px}
+.slider label .val{font-family:'IBM Plex Mono';color:var(--ink)}
+input[type=range]{width:100%;accent-color:var(--ochre);height:22px}
+input[type=range]:focus-visible{outline:2px solid var(--ochre);outline-offset:2px}
+.simOut{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:20px;text-align:center}
+.simOut .big{font-family:'Barlow Condensed','Arial Narrow',sans-serif;font-weight:700;font-size:56px;line-height:1}
+.simOut .tag{font-family:'IBM Plex Mono';font-size:12px;margin-top:6px}
+.simBarOuter{height:10px;background:#0B131B;border-radius:5px;margin-top:16px;overflow:hidden;border:1px solid var(--line)}
+.simBar{height:100%;border-radius:5px;transition:width .25s ease, background .25s ease}
+.simNote{font-size:11.5px;color:var(--dim);margin-top:10px;text-align:left}
+.presets{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
+.presets button{font-family:'Barlow Condensed','Arial Narrow',sans-serif;font-size:13px;letter-spacing:.05em;text-transform:uppercase;background:var(--panel);
+  border:1px solid var(--line);color:var(--mut);border-radius:6px;padding:6px 11px;cursor:pointer}
+.presets button:hover{color:var(--ink);border-color:var(--ochre)}
+.presets button:focus-visible{outline:2px solid var(--ochre)}
+
+/* ---------- roadmap ---------- */
+.prio{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+.pr{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px}
+.pr .tag{font-family:'IBM Plex Mono';font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;margin-bottom:7px}
+.pr h4{font-family:'Barlow Condensed','Arial Narrow',sans-serif;font-size:21px;font-weight:600;text-transform:uppercase;line-height:1.1;margin-bottom:6px}
+.pr .gain{font-family:'IBM Plex Mono';font-size:12px;margin-bottom:8px}
+.pr p{font-size:13px;color:var(--mut)}
+.timeline{margin-top:18px;border-left:2px solid var(--line);padding-left:18px}
+.tl{position:relative;padding:0 0 18px}
+.tl::before{content:'';position:absolute;left:-24px;top:5px;width:10px;height:10px;border-radius:50%;background:var(--ochre)}
+.tl .when{font-family:'IBM Plex Mono';font-size:11px;color:var(--ochre);letter-spacing:.1em;text-transform:uppercase}
+.tl h4{font-family:'Barlow Condensed','Arial Narrow',sans-serif;font-size:19px;font-weight:600;text-transform:uppercase;margin:2px 0 3px}
+.tl p{font-size:13px;color:var(--mut);max-width:640px}
+
+footer{padding:30px 0 60px;color:var(--dim);font-size:12px}
+footer b{color:var(--mut)}
+</style>
+</head>
+<body>
+
+<nav><div class="inner" id="navInner">
+<a href="#s1" class="on"><span class="n">01</span>The Race</a>
+<a href="#s2"><span class="n">02</span>Splits</a>
+<a href="#s11"><span class="n">03</span>Sub-14 Field</a>
+<a href="#s3"><span class="n">04</span>Terrain</a>
+<a href="#s4"><span class="n">05</span>Descent Forensics</a>
+<a href="#s5"><span class="n">06</span>Engine Room</a>
+<a href="#s6"><span class="n">07</span>Stops</a>
+<a href="#s7"><span class="n">08</span>The Ledger</a>
+<a href="#s8"><span class="n">09</span>Simulator</a>
+<a href="#s9"><span class="n">10</span>Coach Gradient</a>
+<a href="#s12"><span class="n">11</span>Fuel &amp; Heat</a>
+<a href="#s13"><span class="n">12</span>Technical</a>
+<a href="#s14"><span class="n">13</span>Power</a>
+<a href="#s16"><span class="n">13b</span>Form</a>
+<a href="#s15"><span class="n">14</span>What-If</a>
+<a href="#s10"><span class="n">15</span>Road to Sub-14</a>
+</div></nav>
+
+<div class="wrap">
+
+<!-- ================= 01 HERO ================= -->
+<header id="s1">
+  <div class="kicker">Ultra-Trail Australia 100 · Blue Mountains NSW · Sat 16 May 2026 · Bib analysis — Andre Garrido</div>
+  <h1>Seventeen hours, two minutes.<br><em>The map back to fourteen.</em></h1>
+  <div class="sub">Started 5:44 am in the dark · finished 10:46 pm in the dark · 4,331 m of climbing in between</div>
+
+  <div id="ribbonBox">
+    <canvas id="ribbon"></canvas>
+    <div id="ribTip"></div>
+  </div>
+  <div class="legendRow">
+    <span><i class="dot" style="background:#88B79B"></i>Phase 1 · clean (0–40 km)</span>
+    <span><i class="dot" style="background:#F1C453"></i>Phase 2 · durability fade (40–79)</span>
+    <span><i class="dot" style="background:#E25C4A"></i>Phase 3 · survival (79–fin)</span>
+    <span><i class="dot" style="background:#22344A"></i>darkness</span>
+    <span style="color:var(--dim)">touch / hover the profile to scrub</span>
+  </div>
+
+  <div class="card" style="margin-top:20px">
+    <h3>Course map · linked to the profile</h3>
+    <div class="note">Same phase colours as the profile above. Touch either chart and the marker tracks your position on both — north up, 5&nbsp;km scale bottom-left.</div>
+    <canvas id="cmap" style="display:block;width:100%;height:380px;touch-action:pan-y"></canvas>
+  </div>
+
+  <div class="kpis">
+    <div class="kpi"><div class="v">17:01:54</div><div class="l">Official finish · 514th</div><div class="d neg">+2:02 vs 16:30 plan</div></div>
+    <div class="kpi"><div class="v">15:40</div><div class="l">Moving time (1s-corrected)</div><div class="d wrn">~82 min stationary, KAC bigger</div></div>
+    <div class="kpi"><div class="v acc">3:02</div><div class="l">Gap to sub-14h</div><div class="d">182 min, re-attributed ↓</div></div>
+    <div class="kpi"><div class="v pos">14:10–14:35</div><div class="l">Implied at Phase-1 form</div><div class="d pos">held flat + tight stops (band)</div></div>
+    <div class="kpi"><div class="v">59%</div><div class="l">Race time below HR Z2</div><div class="d">engine never the limiter</div></div>
+  </div>
+
+  <div class="callout sage"><b>The single most important finding (v2, after peer review):</b> your first 40 km projects to roughly the sub-14 neighbourhood — a km 5–40 pace-vs-gradient model, held flat with tight stops, lands at <b>14:10–14:35</b> across fitting windows. But the post-km-40 gap is <b>whole-body late-race durability</b> (~100 min), not mainly a knee — descents added only ~25 min beyond the general fade. You were also outside the sub-14 corridor by Tarros (km 14), so there's a real ~14-min early-pace gap. Stops (~43 min) complete it.</div>
+
+  <div class="callout"><b>Now running on the 1-second master file (60,570 points, 15× the resolution).</b> Re-processing off the raw Garmin GPX rather than the 15-second resample surfaced three things the smoothed file couldn't: an <b>11.8-min auto-pause at Katoomba</b> (so true stopped time is ~82 min, not 55), a <b>9% stride-length collapse</b> in Phase 2 with cadence held (a force-failure signature — see Engine Room), and a clean <b>grade-adjusted pace</b> curve confirming steady whole-body fade. And with your Garmin .fit now decoded, <b>power is in</b> — 61,300 samples confirming the fade in watts (Power section).</div>
+
+  <div class="phaseCards">
+    <div class="pc" style="border-left-color:#88B79B"><h3>Phase 1 · Clean</h3><div class="rng">km 0–40 · 5:44 am – 10:49 am</div>
+      <p>Descents at <b>5:59/km</b>, flats at 6:41, HR steady ~155. Nellie's-grade climbing on plan. Nothing in this block needs fixing.</p></div>
+    <div class="pc" style="border-left-color:#F1C453"><h3>Phase 2 · durability fade</h3><div class="rng">km 40–79 · whole-body fade onset · 28.7°C</div>
+      <p>Moderate descents blow out <b>+33%</b>, but flats (+19%) and climbs (+25%) fade too — a whole-body signature with a descent-specific edge. Hottest part of the day here.</p></div>
+    <div class="pc" style="border-left-color:#E25C4A"><h3>Phase 3 · Survival</h3><div class="rng">km 79–finish · Kedumba in darkness</div>
+      <p>Everything degrades — flats +31%, cadence to 83.6 spm. HR falls to the 120s–130s: the engine had capacity the legs couldn’t use. A durability ceiling, not aerobic failure.</p></div>
+  </div>
+</header>
+
+<!-- ================= 02 SPLITS ================= -->
+<section id="s2">
+  <div class="eyebrow">02 · Checkpoint to checkpoint</div>
+  <h2>Splits vs the plan, the sub-14h field, and the coach</h2>
+  <p class="lede">Benchmarked against your 16:30 plan, a <b>13:58 finisher</b> (LiveTrail, full splits) and <b>Vlad's 10:46</b>. One leg jumps off the page: you matched the sub-14h field <b>exactly</b> up Nellie's Glen.</p>
+
+  <div class="card">
+    <h3>Cumulative deficit to the 13:58 runner</h3>
+    <div class="note">Minutes behind at each timing point. The slope of this line is the story — flat means you matched them, steep means you bled time.</div>
+    <div class="chartBox"><canvas id="chDeficit"></canvas></div>
+  </div>
+
+  <div class="card">
+    <h3>Leg-by-leg ledger</h3>
+    <div class="note">Gross leg times (mat to mat, stops included). ×field = your leg time ÷ the 13:58 runner's. Red rows are where the race was lost.</div>
+    <div class="tblScroll"><table id="legTable">
+      <thead><tr><th>Leg to</th><th>km</th><th>Dist</th><th>You</th><th>Pace</th><th>Sub-14h</th><th>×field</th><th>×Vlad</th><th>Plan check</th></tr></thead>
+      <tbody></tbody>
+    </table></div>
+  </div>
+
+  <div class="callout sage"><b>SFT Water Point → Katoomba AC (Nellie's Glen, km 45–56):</b> you 1:53, the 13:58 runner 1:54. Ratio <b>1.00</b> — at km 50, after five hours of racing, you were climbing with a sub-14h finisher — though, per the cohort data in section 03, that runner was the field’s slowest on this leg; the cohort median was still ~20% quicker. Then the Katoomba stop (32:47 mat-to-mat) and the ITB took over: every leg after KAC runs at 1.24–1.44× the field.</div>
+</section>
+
+<!-- ================= 03b SUB-14 FIELD (verified) ================= -->
+<section id="s11">
+  <div class="eyebrow">03 · Field intelligence · LiveTrail 2026</div>
+  <h2>The sub-14 field</h2>
+  <p class="lede">Ten men closest to the 14-hour line at UTA100 2026 — finishers from <b>13:40:27 to 14:20:24</b> — reconstructed checkpoint by checkpoint from official LiveTrail timing, including every recorded rest. This is what the race you're trying to run actually looks like from the inside.</p>
+
+  <div class="callout"><b>Data honesty first.</b> The brief was 100 runners × 3 years. LiveTrail's bulk endpoints are write-protected and individual runner files are blocked to automated access, so the deep-split cohort is the n=10 men bracketing 14:00 in 2026 (complete splits + rests), backed by a 3-year context layer at race level. One additional capture (rank 166) was discarded: corrupted start-mat data producing negative early splits. 2024 is excluded from split comparison entirely. Small cohort, but it's the same course you'll race in 2027, in similar warm conditions.</div>
+  <div class="kpis">
+    <div class="kpi"><div class="v">~138</div><div class="l">Men under 14h in 2026</div><div class="d">derived: rank 159 overall at 13:59:13, less ~20 sub-14 women</div></div>
+    <div class="kpi"><div class="v acc">7:10</div><div class="l">Cohort median at Katoomba AC</div><div class="d">corridor 6:33 – 7:27</div></div>
+    <div class="kpi"><div class="v">19 min</div><div class="l">Median recorded rest</div><div class="d wrn">range 10.5 – 34</div></div>
+    <div class="kpi"><div class="v pos">×1.54</div><div class="l">Cohort fade (after-WP ÷ to-WP)</div><div class="d">you 2026: ×1.60 — inside the envelope</div></div>
+  </div>
+
+
+  <div class="card">
+    <h3>The corridor</h3>
+    <div class="note">Shaded band = the full envelope of the ten sub-14-adjacent finishers; dashed line = cohort median; red = your 2026 race. The corridor verdict is uncomfortable and useful: you were outside it by Tarros (km 13.8) — 11 minutes behind its <i>slowest</i> member — long before the ITB existed.</div>
+    <div class="chartBox tall"><canvas id="chCorridor"></canvas></div>
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <h3>Leg pace vs the cohort</h3>
+      <div class="note">Whiskers show the cohort's full range per leg. Your closest legs: Six Foot Track (+14%) and Foggy Knob (+16%). Furthest: Water Point, Fairmont and Emergency legs (+28%).</div>
+      <div class="chartBox tall"><canvas id="chLegPace"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>Rest budgets — the myth test</h3>
+      <div class="note">Recorded mat-to-mat rest for all ten, sorted. Median 19 min, range 10.5–34. Two runners stopped ~30 min and still broke 13:50 — stop discipline is free time, but corridor pace is the entry ticket.</div>
+      <div class="chartBox tall"><canvas id="chRest"></canvas></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>The sub-14 blueprint — cohort pacing card</h3>
+    <div class="note">Median cohort elapsed at each checkpoint, the full corridor range, median leg pace into that point, and the wall-clock equivalent for a 5:40&nbsp;am wave. This is your 2027 Pace Pro reference, built from ten real races instead of a model.</div>
+    <div class="tblScroll"><table id="bpTable">
+      <thead><tr><th>Point</th><th>km</th><th>Cohort med</th><th>Corridor</th><th>Leg pace</th><th>Clock (5:40 wave)</th><th>You 2026</th></tr></thead>
+      <tbody></tbody>
+    </table></div>
+  </div>
+
+  <div class="grid2">
+    <div class="callout red" style="margin:0"><b>The race is decided before Tarros.</b> The cohort runs km 0–13.8 at 4:02–4:43/km (median 4:23). Your 7:14 plan pace was never in the corridor — and this is precisely the lever the Sydney Marathon block builds. Sub-3:20 road speed makes 4:45–5:15/km on Narrow Neck feel sustainable instead of reckless.</div>
+    <div class="callout gold" style="margin:0"><b>A correction to the Splits section.</b> Your Nellie's Glen leg matched one 13:58 finisher exactly — but that runner was the cohort's <i>slowest</i> on that leg. Against the cohort median you were +20% there. Still your strongest leg of the day; just a humbler version of the claim.</div>
+  </div>
+  <div class="grid2" style="margin-top:14px">
+    <div class="callout sage" style="margin:0"><b>Your fade was normal. Your level wasn't.</b> Cohort second-part/first-part time ratio: median 1.54 (range 1.40–1.74). Yours: 1.60 — inside the envelope despite the ITB. The gap to sub-14 is pace at every single stage, not a second-half collapse. Level is trainable; that's the whole 2027 plan.</div>
+    <div class="callout" style="margin:0"><b>KAC reality check.</b> Even the cohort treats Katoomba as the big stop: median 8.1 min (range 4.5–14.4). Your 2026 plan budgeted 8 — the plan was right, the execution (32:47) wasn't. Keep the 8-minute night-transition budget for 2027; the cohort proves it's enough.</div>
+  </div>
+
+  <div class="phaseCards" id="yearCards" style="margin-top:18px"></div>
+</section>
+
+
+<!-- ================= 03 TERRAIN ================= -->
+<section id="s3">
+  <div class="eyebrow">04 · Where the course spends your time</div>
+  <h2>The terrain ledger</h2>
+  <p class="lede">104.7 GPS-km broken into gradient bands, and what each band cost you in each phase. The middle chart is the core forensic exhibit of this whole report.</p>
+
+  <div class="grid2">
+    <div class="card">
+      <h3>Time spent per gradient band</h3>
+      <div class="note">Moving time only. Steep climbs (&gt;15%) are 7% of distance but 13% of your moving time.</div>
+      <div class="chartBox"><canvas id="chShare"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>Pace by gradient × phase</h3>
+      <div class="note">Median moving pace (min/km). Watch the descent bands degrade fastest.</div>
+      <div class="chartBox"><canvas id="chGradPace"></canvas></div>
+    </div>
+  </div>
+
+  <div class="callout"><b>Read the asymmetry:</b> from Phase 1 to Phase 2, climbs (8–15%) slowed 10:25 → 12:16 (+18%) — a normal hot-day fade. Moderate descents (−15 to −8%) slowed 5:59 → 8:25 (<b>+40%</b>). Fatigue degrades everything roughly evenly; a structural problem degrades eccentric loading first. This is why the data says ITB, not engine.</div>
+</section>
+
+<!-- ================= 04 ITB ================= -->
+<section id="s4">
+  <div class="eyebrow">05 · The descent-specific signal</div>
+  <h2>Descent forensics — and an honest re-attribution</h2>
+  <p class="lede">A peer review challenged the original claim that ~110 min was "ITB". So I ran the test the data can actually answer: <b>did descents degrade more than climbs and flats, or did everything fade together?</b> The answer is "both" — there's a real descent-specific signal, but it's <b>far smaller</b> than the headline first implied. This section shows the honest version.</p>
+
+  <div class="callout"><b>The re-attribution.</b> Past km 40 the total excess loss vs your own Phase-1 form is <b>~125 min</b>. Descents degraded ×1.33–1.34, but flats (×1.19–1.31) and climbs (×1.25–1.29) degraded heavily too. Subtracting the general-fatigue rate leaves only <b>~25 min that is genuinely descent-specific</b> (the ITB-consistent part). The other ~100 min is whole-body late-race durability. ITB was likely the <i>trigger</i> — not 60% of the gap.</div>
+
+  <div class="card">
+    <h3>Degradation by terrain — the key exhibit</h3>
+    <div class="note">How much each terrain type slowed vs Phase 1. If only descents spiked, ITB would own the gap. They don't — climbs and flats faded almost as much. The descent bars sit highest, so a descent-specific component is real, but modest.</div>
+    <div class="chartBox short"><canvas id="chTerrDeg"></canvas></div>
+  </div>
+
+  <div class="card">
+    <h3>Descent pace through the race</h3>
+    <div class="note">Moving pace on gradient &lt; −5%, 5-km windows. The dashed sage line is the sub-14 cohort’s estimated descent pace — see note below. Your line tracks theirs to km 40, then climbs away exactly where the fade hit.</div>
+    <div class="chartBox tall"><canvas id="chDescent"></canvas></div>
+  </div>
+
+  <div class="callout"><b>How the cohort descent line is estimated.</b> LiveTrail only gives the cohort’s checkpoint-to-checkpoint <i>leg</i> times, not their pace on descents specifically — so this is a modelled series, not measured. Method: I scaled each window by the cohort’s leg-pace advantage over you, floored it so they’re never assumed slower than you on a descent, and — critically — anchored their late-race descents to their own early-race level plus a mild ~18% fade, rather than letting them blow up the way yours did (their measured fade ratio is 1.54 vs your 1.60, and almost none of theirs lands on descents). Treat it as "what competent, non-fading descending looks like," not a precise rival trace. The takeaway is the <i>shape</i>: they stay in a 4:30–7:30 band; you leave it after km 40.</div>
+
+  <div class="grid2">
+    <div class="card">
+      <h3>Steep descents (&lt; −15%) by phase</h3>
+      <div class="note">Where poles and quads matter most.</div>
+      <div class="chartBox short"><canvas id="chSteep"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>Total late-race cost</h3>
+      <div class="note">Actual moving time vs your own Phase-1 pace model — descent-specific + general fatigue combined.</div>
+      <div class="chartBox short"><canvas id="chDegr"></canvas></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Grade-adjusted pace — the engine, with terrain removed</h3>
+    <div class="note">Minetti grade-adjustment flattens all 4,331 m of climb out of your pace, isolating pure physiological fade. Dark line = raw pace; orange = flat-equivalent. By phase: <b>P1 7:36 → P2 8:50 → P3 10:07</b> /km flat-equiv — a clean, steady whole-body decline, exactly what the re-attribution predicted. No single descent cliff.</div>
+    <div class="chartBox tall"><canvas id="chGapPace"></canvas></div>
+  </div>
+
+  <div class="callout red"><b>Corrected conclusion:</b> ~25 min descent-specific (ITB-consistent), ~100 min general durability. Two caveats kept honest: (1) with only a single cadence channel and no left/right force data, <b>true gait asymmetry isn't measurable here</b> — ITB is the best-supported <i>inference</i>, not a proven finding; (2) the in-race load failure <b>resolved within ~3 weeks post-race and has not recurred</b> over multiple runs, which reads as a fatigue-and-heat load-tolerance ceiling, not chronic friction syndrome. That reframes 2027 from rehab toward capacity-building — see the program in the final section.</div>
+</section>
+
+<!-- ================= 05 ENGINE ROOM ================= -->
+<section id="s5">
+  <div class="eyebrow">06 · Physiology</div>
+  <h2>Engine room</h2>
+  <p class="lede">Heart rate, efficiency, cardiac cost, cadence and heat — five independent witnesses, all telling the same story: the cardiovascular system finished the day with money in the bank.</p>
+
+  <div class="card">
+    <h3>Inverted drift: HR by hour + running efficiency</h3>
+    <div class="note">Normal late-ultra physiology drifts HR <i>up</i> at constant pace. Yours fell from 153 → low-130s while pace slowed — the legs stopped asking. Efficiency index = flat-ground speed ÷ HR, in m/min per bpm (right axis). It sits near <b>1.0</b> fresh; it’s a personal-trend metric, not a cross-athlete benchmark — the decline matters, not the absolute value. Power:HR (1.49→1.37 W/bpm) is the unit-stable version.</div>
+    <div class="chartBox tall"><canvas id="chHrEi"></canvas></div>
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <h3>Time in HR zones (LTHR 174)</h3>
+      <div class="note">59% of a 17-hour race below Z2. Aerobic capacity was never the binding constraint on race day.</div>
+      <div class="chartBox short"><canvas id="chZones"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>Cardiac cost (beats per km)</h3>
+      <div class="note">Heartbeats spent per km of forward progress, 10-km blocks. Peaks at Nellie's Glen (km 50s) and Furber (km 90s).</div>
+      <div class="chartBox short"><canvas id="chCost"></canvas></div>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <h3>Stride length vs cadence — the new diagnostic</h3>
+      <div class="note">Only the 1-second file makes this computable. In Phase 2 you held cadence (92→91) but lost <b>9% of stride length</b> (1.78→1.62 m). That's a propulsion/force failure, not a turnover problem — which points training at strength, not cadence drills. Series ends at km ~88: the stair finish isn’t running and would distort both metrics.</div>
+      <div class="chartBox short"><canvas id="chStride"></canvas></div>
+    </div>
+
+    <div class="card">
+      <h3>Cadence decay on runnable ground</h3>
+      <div class="note">Flat-gradient cadence: 90.9 → 84.7 spm. Falling cadence + falling HR = mechanical limitation, confirmed a third way. <b>Data past km 85 is omitted</b> — the Giant Stairs/Furber finish is hand-over-hand stair climbing, where the cadence sensor reads near-zero and isn’t comparable to running cadence.</div>
+      <div class="chartBox short"><canvas id="chCad"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>Heat exposure</h3>
+      <div class="note">Device temp peaked 28.7°C at km 42 — exactly where the late-race fade began, into the Nellie’s approach. Heat is a plausible co-factor in the Phase-2 step and in the lateral-chain load failure.</div>
+      <div class="chartBox short"><canvas id="chTemp"></canvas></div>
+    </div>
+  </div>
+</section>
+
+  <div class="card">
+    <h3>HR-drift test protocol — for ongoing benchmarking</h3>
+    <div class="note">A reviewer asked for a formal aerobic-decoupling test. Here's the protocol, anchored to your race baseline. Decoupling = how much pace-per-heartbeat drops over a steady effort; rising decoupling flags durability or fuelling limits before a race exposes them.</div>
+    <p style="font-size:13.5px;color:var(--mut);margin-bottom:10px">From this race, your aerobic decoupling on flat running, first half vs second half, was <b>~3.0%</b> (efficiency 0.946 → 0.918). Under 5% on a controlled test is the green zone; your race number is good — consistent with the read that the engine wasn't the limiter.</p>
+    <div class="callout"><b>The test (run it monthly):</b> after a 15-min easy warm-up, run <b>90 minutes at steady aerobic effort</b> (≈ your power-hike-to-jog transition HR, ~145–150 bpm) on rolling-to-flat terrain, fuelling at your race carb rate. Split it into two 45-min halves and compare <b>pace ÷ HR</b> for each half. Decoupling = (half-1 ratio − half-2 ratio) ÷ half-1 ratio. <b>&lt;5%</b> = aerobic base solid; <b>5–8%</b> = durability or fuelling gap opening; <b>&gt;8%</b> = address fuelling/heat/endurance before racing. Log it the same way each month — same route, same conditions where possible — so the trend is clean. This is the cheap early-warning system for the exact fade that cost you 100 minutes.</div>
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <h3>Ground contact time</h3>
+      <div class="note">From the .fit running-dynamics. Longer contact = less elastic, more fatigued legs. Rose 251 → 260 ms — modest, but it tracks the propulsion loss: you spent measurably longer on the ground per step late in the race.</div>
+      <div class="chartBox short"><canvas id="chGCT"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>Vertical ratio (running economy)</h3>
+      <div class="note">Vertical oscillation as a % of step length — the cleanest economy metric. Worsened most in P2 (8.5 → 9.3%): in the heat-and-fade window you were bouncing more per metre travelled, wasting energy upward instead of forward.</div>
+      <div class="chartBox short"><canvas id="chVR"></canvas></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Five independent witnesses, one verdict</h3>
+    <div class="note">Every mechanical channel in the file, measured separately, tells the same story: the engine held, the legs stopped converting. This is as triangulated as race analysis gets.</div>
+    <div class="tblScroll"><table id="witTable">
+      <thead><tr><th>Measure</th><th>Phase 1</th><th>Phase 3</th><th>Change</th><th>What it says</th></tr></thead>
+      <tbody></tbody>
+    </table></div>
+    <div class="callout sage" style="margin:14px 0 0"><b>Why this matters for the plan.</b> Five signals converging on "muscular durability, not aerobic capacity" removes the main risk in any training plan: spending the year on the wrong system. You don't need more aerobic volume for its own sake — you need legs that hold force output, economy and stride deep into hour 12+. That's strength, descent capacity, and back-to-back fatigue exposure, exactly Priorities 1 and 4. The data has now earned that prescription five times over.</div>
+  </div>
+
+  <!-- ================= 06 STOPS ================= -->
+<section id="s6">
+  <div class="eyebrow">07 · Process losses</div>
+  <h2>Where the clock stopped</h2>
+  <p class="lede">GPS-detected stationary time: <b>55.3 min</b> (official mat-to-mat rest: 63 min — the difference is slow walking through checkpoints). The verified sub-14 cohort (section 03) recorded a median <b>19 min</b> of rest, range 10.5–34 — your official 63 min is nearly double the cohort's <i>maximum</i>. Benchmarking to the tight end (~12 min) puts <b>43 minutes</b> on the table without a single watt of extra fitness.</p>
+
+  <div class="card">
+    <h3>Every stop ≥ 1 minute</h3>
+    <div class="note">Bar length = duration. Plus ~20 min of sub-minute micro-stops scattered across the day (gates, photos, fumbling, hesitation on technical ground).</div>
+    <div id="stopList"></div>
+  </div>
+
+  <div class="callout gold"><b>The Katoomba AC black hole:</b> 32:47 mat-to-mat, of which only ~12 min was actually stationary — the rest was slow transit through town and the aquatic centre complex. Night-gear transition, drop bag, and (per your debrief) the GI stop all landed here. The fix is choreography, not willpower: gear laid out in wearing order, transition rehearsed under fatigue, hard exit alarm at 8 minutes. Benchmark: the cohort cleared KAC itself in a median 8.1 min (range 4.5–14.4) — your 8-minute plan was right; the execution wasn’t.</div>
+</section>
+
+<!-- ================= 07 LEDGER ================= -->
+<section id="s7">
+  <div class="eyebrow">08 · Decomposing the gap (corrected)</div>
+  <h2>The 182-minute ledger, v2</h2>
+  <p class="lede">The first version pinned 110 min on "ITB" and 4 min on residual fitness. Peer review and a re-run of the data corrected both. This is the defensible split: the dominant line item isn't a knee — it's <b>whole-body late-race durability</b>, with descents a real but smaller add-on, and a genuine early-pace gap I'd previously hidden.</p>
+
+  <div class="card">
+    <h3>Waterfall to sub-14 — re-attributed</h3>
+    <div class="note">From 17:01:54 to 13:59:54. Reconciles to 182 min exactly. All figures carry ±10–15 min; the descent-specific vs general split is the softest line (see Descent Forensics).</div>
+    <div class="chartBox tall"><canvas id="chWater"></canvas></div>
+  </div>
+
+  <div class="grid2">
+    <div class="callout" style="margin:0;border-left-color:#C77B53"><b>~100 min · general durability.</b> The new #1. Whole-body late-race fade across all terrain — muscular endurance, fatigue resistance, fuelling. Trainable, but it's a block of work, not a quick fix.</div>
+    <div class="callout gold" style="margin:0"><b>43 min · stops.</b> Unchanged and still the cheapest hour in ultrarunning — 56 min detected vs ~13 cohort, at zero fitness cost.</div>
+  </div>
+  <div class="grid2" style="margin-top:14px">
+    <div class="callout red" style="margin:0"><b>~25 min · descent-specific.</b> Down from 110. The ITB-consistent excess over general fade. Real, addressable through descent capacity, but not the whole story it was billed as.</div>
+    <div class="callout blue" style="margin:0;border-left-color:#6FA8DC"><b>~14 min · early-pace gap.</b> The honest correction to the old "4 min". Even at Phase-1 form held flat with tight stops you project to ~14:14 — you were outside the cohort corridor by Tarros. This is the Sydney-Marathon lever.</div>
+  </div>
+  <div class="callout sage"><b>Projection band, not a point.</b> Re-fitting the Phase-1 model across six training windows (km8–38 through km5–45) gives finishes from <b>14:10 to 14:35</b>, not the single "14:03" first quoted. The km5–30 window alone reads faster (13:38) because it omits the Six Foot Track climb — excluded as unrepresentative.</div>
+</section>
+
+<!-- ================= 08 SIMULATOR ================= -->
+<section id="s8">
+  <div class="eyebrow">09 · Interactive</div>
+  <h2>Rebuild simulator</h2>
+  <p class="lede">Three levers, rebuilt on the corrected model: moving floor <b>14:01</b> at Phase-1 form, plus ~125 min of recoverable late-race loss, plus stop time — with moving-pace gains applied across the day. The big lever is now <b>durability</b>, not a knee.</p>
+
+  <div class="sim">
+    <div>
+      <div class="slider">
+        <label><span>Checkpoint + stop time</span><span class="val" id="vStop">56 min</span></label>
+        <input type="range" id="sStop" min="12" max="56" value="56" step="1" aria-label="Stop time minutes">
+      </div>
+      <div class="slider">
+        <label><span>Late-race durability recovered (endurance + descent capacity)</span><span class="val" id="vItb">0%</span></label>
+        <input type="range" id="sItb" min="0" max="100" value="0" step="5" aria-label="ITB loss eliminated percent">
+      </div>
+      <div class="slider">
+        <label><span>Moving-pace fitness gain (the Sydney lever)</span><span class="val" id="vFit">0.0%</span></label>
+        <input type="range" id="sFit" min="0" max="10" value="0" step="0.5" aria-label="Fitness gain percent">
+      </div>
+      <div class="presets">
+        <button id="pCons">Conservative 2027</button>
+        <button id="pTarget">Sub-14 path</button>
+        <button id="pStretch">Stretch</button>
+        <button id="pReset">Reset to 2026</button>
+      </div>
+      <div class="simNote"><b>Durability</b> bundles muscular endurance, descent load-tolerance and fuelling — one training block moves all three, which is why they share a lever. <b>Fitness</b> is the road-speed gain the Sydney block buys, and it also closes the ~14 min early-pace gap. Conservative = stops 25 · durability 60% · +2% → ~15:00. Sub-14 path = 16 · 85% · +5% → ~13:53. Stretch = 14 · 100% · +7% → ~13:25. None assumes zero fade — the floor already carries terrain-driven slowdown.</div>
+    </div>
+    <div class="simOut">
+      <div style="font-family:'IBM Plex Mono';font-size:11px;letter-spacing:.15em;color:var(--mut);text-transform:uppercase">Projected finish</div>
+      <div class="big" id="simTime">17:02</div>
+      <div class="tag" id="simDelta"></div>
+      <div class="simBarOuter"><div class="simBar" id="simBar"></div></div>
+      <div style="display:flex;justify-content:space-between;font-family:'IBM Plex Mono';font-size:10px;color:var(--dim);margin-top:4px"><span>13:00</span><span>14:00</span><span>17:02</span></div>
+      <div class="simNote" style="margin-top:10px">Projection carries a <b>±3.5% band</b> from single-race fit — see What-If for the explicit ranges.</div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:16px">
+    <h3>Making the pace lever concrete — how to measure it in training</h3>
+    <div class="note">The "fitness %" slider is abstract. Here's what each level means as a real pace you can test. The <b>+5% column is externally validated</b>: it's exactly Sydney Marathon sub-3:20 pace (4:44/km). Hit that on 30 Aug and the lever is proven, not assumed.</div>
+    <div class="tblScroll"><table id="proxyTable">
+      <thead><tr><th>Measurable test</th><th>now</th><th>+3%</th><th>+5% (Sydney)</th><th>+7%</th></tr></thead>
+      <tbody></tbody>
+    </table></div>
+    <div class="callout blue" style="margin:14px 0 0">Re-test the 30 km / 1107 m benchmark every 6–8 weeks at <b>fixed HR</b>. When it drops from 7:00 to ~6:39/km at the same average HR, you've banked the 5%. The marathon is the headline validation; the benchmark is the continuous tracker.</div>
+  </div>
+</section>
+
+<!-- ================= 09 COACH ================= -->
+<section id="s9">
+  <div class="eyebrow">10 · Benchmark</div>
+  <h2>The coach gradient</h2>
+  <p class="lede">Your leg time as a multiple of Vlad's (10:46, 13th) and of the 13:58 runner. The shape matters more than the level: against Vlad you're most exposed early and on the Megalong running legs; against the sub-14h field, everything before KAC is already close.</p>
+
+  <div class="card">
+    <h3>Leg-time ratio by checkpoint leg</h3>
+    <div class="note">1.0 = identical leg time. Your ×Vlad ratio actually <i>improves</i> late (1.65 → 1.48) — elite racers squeeze the runnable first half hardest, which is where your next pace gains live.</div>
+    <div class="chartBox tall"><canvas id="chCoach"></canvas></div>
+  </div>
+
+  <div class="callout"><b>Two different lessons from two benchmarks.</b> The sub-14h ratio says: fix descents and checkpoints, and the second half closes on its own. The Vlad ratio says: long-term, the speed frontier is the runnable terrain of km 0–45 — threshold and durable 5:30–6:00/km running, not more vert. Both point away from "just climb more."</div>
+</section>
+
+<!-- ================= NUTRITION & HEAT ================= -->
+<section id="s12">
+  <div class="eyebrow">12 · Fuel &amp; thermoregulation</div>
+  <h2>Nutrition &amp; heat management</h2>
+  <p class="lede">You're a heavy sweater, the day peaked at <b>31°C</b> on-device, and you spent <b>390 minutes above 26°C</b> — over six hours of thermal load. The fade onset at km 40 sits right at the temperature peak. Heat didn't cause the lateral-chain failure, but it's the most plausible accelerant.</p>
+
+  <div class="card">
+    <h3>Temperature vs heart rate</h3>
+    <div class="note">Shaded km 42–52 is the hot window into Nellie's Glen. Note HR <i>falling</i> as temp stays high — under heat + fatigue you couldn't drive HR up, the mechanical ceiling again.</div>
+    <div class="chartBox tall"><canvas id="chHeat"></canvas></div>
+  </div>
+
+  <div class="callout gold"><b>The fuel gap I can't see — and why it matters.</b> Your file has no carbohydrate or fluid log, so this is prescription, not measurement. For a 17-hour effort in heat, the cohort-level standard is <b>80–100 g carbs/hr</b> from the first hour and <b>500–750 ml/hr fluid</b> with <b>~1,000 mg sodium/hr</b> for a heavy sweater (your PH250 caps + Tailwind already aim here — the question is whether you hit the <i>rate</i> consistently, especially in the hot middle third). Under-fuelling in the first 90 minutes is the single most common trigger of the exact late-race stabilizer fade you experienced. Action: log carb/fluid/sodium intake per hour at Sydney and UTK so v3 can measure this instead of assuming it.</div>
+
+  <div class="callout"><b>Heat protocol for 2027.</b> If conditions look warm: pre-cool (ice bandana, cold fluids the last hour pre-start), front-load sodium (PH1500 preload the night before + morning of), and pace the hot middle third by HR not pace — the data shows you were already heat-capped through km 42–52, so chasing the pace plan there would only have deepened the hole. UTK above 1,800 m is the cold-end rehearsal of the same effort-based discipline.</div>
+</section>
+
+<!-- ================= TECHNICAL SKILLS AUDIT ================= -->
+<section id="s13">
+  <div class="eyebrow">13 · Technical terrain</div>
+  <h2>Technical skills audit</h2>
+  <p class="lede">A reviewer asked whether the early deficit is partly a <i>technical</i> gap — losing time on the rough, steep, foot-placement-heavy sections — rather than pure engine. The data says: partly yes, and it compounds the early-pace gap from the cohort section.</p>
+
+  <div class="card">
+    <h3>Descent control: fresh vs late, by steepness</h3>
+    <div class="note">Same descent bands, Phase 1 (fresh) vs Phase 3 (late). Steeper ground degrades proportionally more — the part most dependent on quad eccentric control and confident foot placement, both of which decay with fatigue.</div>
+    <div class="chartBox short"><canvas id="chTechDesc"></canvas></div>
+  </div>
+
+  <div class="card">
+    <h3>Early technical legs vs the cohort</h3>
+    <div class="note">The opening legs carry the most technical terrain (Tarros Ladders, Landslide). Your largest early gaps are exactly where footwork and downhill confidence matter most.</div>
+    <div class="tblScroll"><table id="techTable">
+      <thead><tr><th>Leg</th><th>Terrain</th><th>You</th><th>Cohort med</th><th>Gap</th></tr></thead>
+      <tbody></tbody>
+    </table></div>
+  </div>
+
+  <div class="callout"><b>Read carefully.</b> The Start→Tarros gap (+25%) is the biggest early loss, and it's the most technical leg — but it's also where the whole field bunches and where you (correctly, per your own plan) ran cautiously. Some of this is skill, some is conservative early pacing. Trainable either way: dedicated technical-descent reps and downhill footwork drills, plus the cohort's lesson that the opening 14 km can be run faster than your 7:14 plan without recklessness. This sits alongside, not instead of, the durability priority.</div>
+</section>
+
+<!-- ================= POWER (not available) ================= -->
+<section id="s14">
+  <div class="eyebrow">14 · Power profile · from the .fit</div>
+  <h2>Power: the confirmation</h2>
+  <p class="lede">Your Garmin .fit carried <b>61,300 one-second power samples</b>. Decoded directly, it doesn't just add a metric — it independently confirms the whole thesis. Average output fell <b>199 → 160 → 100 W</b> across the three phases while the terrain type stayed similar, and the variability index <b>exploded from 1.17 to 1.67</b>. Power is the cleanest possible picture of the fade.</p>
+
+  <div class="kpis" id="powKpis"></div>
+  <div class="note" style="margin:-4px 0 8px">Power-to-weight at your race weight of 67.6 kg (read from the .fit) — the number that compares directly to the sub-14 field:</div>
+  <div class="kpis" id="wkgStrip"></div>
+
+  <div class="card">
+    <h3>Power through the race</h3>
+    <div class="note">2-km moving average, phase-coloured. The staircase down — clean output in P1, sagging through P2, collapsing in P3 — is the same shape as stride length and GAP, now in watts.</div>
+    <div class="chartBox tall"><canvas id="chPower"></canvas></div>
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <h3>Average vs Normalized Power, by phase</h3>
+      <div class="note">The gap between the two bars is raggedness. In P3 average power craters to 100 W but NP holds at 166 — you were alternating brief surges with near-walking, not running steadily.</div>
+      <div class="chartBox short"><canvas id="chPowPhase"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>Variability Index — the pacing verdict</h3>
+      <div class="note">VI = NP ÷ avg. Elite ultra pacing sits near 1.10–1.20. Your <b>P1 1.17 is textbook</b>; P2 1.23 is fraying; <b>P3 1.67 is severe fragmentation</b> — the signature of run-walk survival, not a steady engine.</div>
+      <div class="chartBox short"><canvas id="chPowGrad"></canvas></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Power-duration curve</h3>
+    <div class="note">Best sustained power across durations — your race-day ceiling. Useful as a 2027 baseline: re-test these and watch the 20–60 min numbers climb as threshold fitness builds.</div>
+    <div class="chartBox short"><canvas id="chPDC"></canvas></div>
+  </div>
+
+  <div class="callout"><b>Power:HR efficiency settles the engine question for good.</b> Watts-per-heartbeat fell only 1.49 → 1.37 across the race (an ~8% drop). If the cardiovascular system had been the limiter, this would have collapsed. It barely moved — your heart kept paying full price, but the legs stopped converting it into watts. That is the mechanical/durability ceiling, measured three independent ways now: power, stride length, and inverted HR drift.</div>
+
+  <div class="callout blue"><b>The W/kg benchmark.</b> Your normalized power was <b>3.05 W/kg</b>, best-20-min <b>3.89 W/kg</b>. For context, sub-14 at UTA generally implies an aerobic threshold around 3.3–3.6 W/kg held durably over the day — your P1 (2.94 W/kg avg, climbing-corrected higher) sits just under that, your P3 (1.48) is where it fell out. The target is less "raise the ceiling" and more "stop the floor dropping" — hold 2.7+ W/kg through the back third instead of sagging to 1.5. That's the durability priority, now in the field's own units.</div>
+
+  <div class="callout sage"><b>What power changes in the plan.</b> Nothing in the priorities — it confirms them. But it gives you the best training tool you have: a <b>Normalized Power target</b>. Hold NP steady (VI &lt; 1.25) deep into long runs and you've trained out the fragmentation that cost the back third. Pair it with the HR-drift test, and you can now measure durability in watts, not just feel. Tell me your race-day weight and I'll convert all of this to W/kg for direct comparison to the sub-14 field.</div>
+</section>
+
+<!-- ================= RUNNING FORM ================= -->
+<section id="s16">
+  <div class="eyebrow">14b · Form &amp; economy · from the .fit</div>
+  <h2>Running form under fatigue</h2>
+  <p class="lede">The .fit also carries Garmin's running-dynamics channels — the biomechanics the reviewers said weren't measurable. They corroborate the power story from a third angle and add one genuinely new training cue.</p>
+
+  <div class="grid2">
+    <div class="card">
+      <h3>Step length (Garmin native)</h3>
+      <div class="note">Independent confirmation of the stride finding: 863 → 764 → 826 mm. The Phase-2 dip (−11%) is the propulsion loss again, measured by the watch directly rather than derived. Your form shortened, then partially recovered as you adapted to a survival shuffle.</div>
+      <div class="chartBox short"><canvas id="chStepLen"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>Vertical oscillation</h3>
+      <div class="note">Bounce per step: 74 → 70 → 69 mm. It actually <i>fell</i> — you didn't develop a sloppy, bouncy fatigue gait. Combined with falling step length, that's a flattening, shuffling stride: economical per step, but covering less ground. The fix is force, not form correction.</div>
+      <div class="chartBox short"><canvas id="chVertOsc"></canvas></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Performance condition — Garmin's own fatigue read</h3>
+    <div class="note">The watch's real-time estimate of how you're tracking vs your recent baseline (0 = at baseline, negative = fatigued). It starts around +2 and ends near −6 to −10 — a clean, monotonic decline that maps onto the power fade. No sudden cliff, consistent with the whole-body durability story rather than an acute injury event.</div>
+    <div class="chartBox short"><canvas id="chPerfCond"></canvas></div>
+  </div>
+
+  <div class="callout"><b>On the asymmetry question.</b> The reviewers correctly flagged that I couldn't prove ITB without left/right gait data. The honest update: this .fit records <b>vertical oscillation, vertical ratio and step length, but stance-time and L/R balance came through as no-reading (65535)</b> — the watch wasn't capturing the lateral-balance channel on this device/firmware, and it drops out entirely during hiking. So even with the richest file, <b>true L/R asymmetry still isn't measurable here.</b> ITB remains the best-supported inference, not a proven finding — exactly as flagged. The form data points to bilateral propulsion failure, which is as consistent with general durability as with a one-sided issue.</div>
+</section>
+
+<!-- ================= WHAT-IF SCENARIOS ================= -->
+<section id="s15">
+  <div class="eyebrow">15 · Projections</div>
+  <h2>What-if scenarios</h2>
+  <p class="lede">Named combinations of the three levers, each with a <b>±3.5% model band</b> (the honest uncertainty on any projection from a single race). Read the bands, not the points — and note that no single intervention gets you there.</p>
+
+  <div class="card">
+    <h3>Projected finish by scenario</h3>
+    <div class="note">Dot = central estimate, bar = uncertainty band, dashed green = sub-14. The order is deliberate: stops alone barely move it; Sydney speed alone isn't enough; durability is the unlock; the full path clears the line with margin.</div>
+    <div class="chartBox tall"><canvas id="chScen"></canvas></div>
+  </div>
+
+  <div class="grid2">
+    <div class="callout" style="margin:0"><b>"Stops fixed only" → 16:22.</b> The cheapest 40 minutes, but it leaves you 2.5 hours short. Necessary, nowhere near sufficient.</div>
+    <div class="callout blue" style="margin:0"><b>"Sydney sub-3:20 done" → 15:57.</b> A +5% road-speed engine alone, with race-day stops, still doesn't crack 14. Speed is necessary but the durability loss dominates.</div>
+  </div>
+  <div class="grid2" style="margin-top:14px">
+    <div class="callout sage" style="margin:0"><b>"+ durability block" → 14:14 (13:44–14:44).</b> Now the band touches sub-14. Durability is the lever that does the heavy lifting — exactly as the re-attributed ledger predicted.</div>
+    <div class="callout sage" style="margin:0"><b>"Full sub-14 path" → 13:52 (13:23–14:21).</b> Tight stops + 85% durability recovered + 5% pace. The central estimate clears 14 with an 8-minute cushion against the model band.</div>
+  </div>
+</section>
+
+<!-- ================= 10 ROADMAP ================= -->
+<section id="s10">
+  <div class="eyebrow">15 · The build</div>
+  <h2>Road to sub-14</h2>
+  <p class="lede">Priorities re-ranked on the corrected ledger — durability now leads, not a knee. Three start lines shape the year: <b>Sydney Marathon, 30 Aug</b> (sub-3:20, the speed engine), <b>UTK100</b> (the systems rehearsal), <b>UTA100 2027</b> (the target). Written as a running-physio program; <b>validate the specifics with your own physio</b> — but since the in-race load failure resolved and hasn't recurred, this is capacity-building, not injury rehab.</p>
+
+  <div class="callout sage"><b>Clinical read, stated plainly.</b> No active pathology three weeks out, no recurrence across multiple runs → the km-40 failure was a <b>fatigue + heat load-tolerance ceiling</b> in the lateral hip/knee chain, not chronic ITB friction syndrome. Practical upshot: you do <b>not</b> need to restrict descent training. You need to raise the ceiling — build the glute-med/lateral-chain capacity and the descent volume so the same fatigue state arrives later, or not at all. Progressive, not protective.</div>
+
+  <div class="prio">
+    <div class="pr"><div class="tag" style="color:#C77B53">Priority 1 · ~100 min at stake</div><h4>Whole-body durability</h4>
+      <div class="gain" style="color:#C77B53">the new #1 · year-round</div>
+      <p>Progressive long-run volume and weekly back-to-back days (e.g. 3–4 h + 2 h on consecutive days). Heavy lower-body strength 2×/wk: trap-bar deadlift, split squat, calf raises, 4–6 reps @ RPE8. Fuelling rehearsal — 60–90 g carbs/hr from the first hour. This bucket is the gap; treat it as the priority it is.</p></div>
+    <div class="pr"><div class="tag" style="color:var(--gold)">Priority 2 · ~43 min at stake</div><h4>Checkpoint choreography</h4>
+      <div class="gain wrn">free speed · zero fitness cost</div>
+      <p>Hard budgets: 2–3 min standard CPs, 8 min night transition, rehearsed twice in training. Drop bags in wearing order. Run-through aid protocol at UTK100 — target ≤18 min total stopped. The single cheapest 40 minutes available to you.</p></div>
+    <div class="pr"><div class="tag" style="color:var(--blue)">Priority 3 · ~14 min + compounding</div><h4>Road speed (Sydney)</h4>
+      <div class="gain" style="color:var(--blue)">the Vlad axis · sub-3:20</div>
+      <p>Sub-3:20 = <b>4:44/km</b> for 42.2 km. Weekly threshold 4:30–4:50/km, long runs with marathon-pace finishes. Closes the early-pace gap directly and every % compounds across the whole UTA day. The most transferable training you can do.</p></div>
+    <div class="pr"><div class="tag" style="color:var(--red)">Priority 4 · ~25 min at stake</div><h4>Lateral-chain &amp; descent capacity</h4>
+      <div class="gain neg">prevention, not rehab</div>
+      <p>The descent-specific bucket. Glute-med/min strength: banded side-steps, single-leg RDLs, Copenhagen planks, side-plank w/ abduction — 3×/wk. Then <b>build</b> descent volume (no longer restrict it): weekly downhill repeats to 1,500 m+ single-session by autumn. Re-test: a 2,000 m descent day, pain-free, late in a tired week.</p></div>
+  </div>
+
+  <div class="timeline">
+    <div class="tl"><div class="when">Now → 30 Aug 2026</div><h4>Marathon block + durability base</h4><p>Two parallel tracks. <b>Speed:</b> threshold 4:30–4:50/km and long runs finishing at marathon pace. <b>Durability:</b> lower-body strength 2×/wk plus the glute-med/lateral-chain circuit 3×/wk, building the capacity that failed at km 40. Descents are fine to train now — start re-loading them progressively rather than waiting. Fuel every long run at race carb rates to rehearse the gut.</p></div>
+    <div class="tl"><div class="when">30 Aug 2026</div><h4>TCS Sydney Marathon — sub-3:20 attempt</h4><p>Target 4:44/km. Account for the course — the Oxford St climbs and a warm start argue for even effort over even pace, banking nothing early. The result is also a calibration point: a 3:1x validates the road-speed lever the sub-14 model needs is moving; treat anything sub-3:25 on that course as on-track.</p></div>
+    <div class="tl"><div class="when">Sep → late Nov 2026</div><h4>Recover, then the UTK build</h4><p>Two easy weeks post-marathon, then 10–11 weeks converting road speed into mountain shape: descent capacity progressions (build toward 1,500 m+ single-session descent days), hiking strength, heat work, and the checkpoint choreography rehearsed twice — ≤18 min total stopped is the standard.</p></div>
+    <div class="tl"><div class="when">UTK100 · late Nov/early Dec</div><h4>Dress rehearsal under race conditions</h4><p>A-goal 14:30–14:45 stands. Race it as a systems test: HR-capped above 1,800 m, poles-led descent protocol, proactive sodium (heavy-sweater plan). The descent splits and stop total matter more than the finish time.</p></div>
+    <div class="tl"><div class="when">Dec 2026 → Feb 2027</div><h4>Durability block</h4><p>Monster-descent weekends on UTK-proven legs, back-to-back long days, and a weekly threshold touch to hold the marathon speed. This is where the fade band gets trimmed.</p></div>
+    <div class="tl"><div class="when">Mar → May 2027</div><h4>UTA100 specific prep</h4><p>Course simulations: Nellie's at race HR, Kedumba on tired legs at night with poles. Taper with the checkpoint choreography locked.</p></div>
+    <div class="tl"><div class="when">May 2027</div><h4>UTA100 — the sub-14 attempt</h4><p>The model says it's there: 13:51 moving base, marathon-built pace, UTK-proven descents, 16–18 min stops. Then the Miler conversation starts from a real number.</p></div>
+  </div>
+</section>
+
+<footer>
+  <b>Methodology & caveats (v2).</b> Built from the 1-second Garmin .fit master (61,300 samples incl. power, plus the 60,570-point GPX; an earlier 15-second resample under-counted stopped time and hid the Katoomba auto-pause), official LiveTrail timing (Andre 514th, Vlad Shatrov 13th, and a 10-runner sub-14 cohort), and the 2026 Vert Guide GPX. <b>This version incorporates four independent peer reviews.</b> Key corrections: the original "110 min ITB / 4 min residual" split was re-attributed after running the descent-specificity test on the raw data — past km 40, descents degraded x1.33 but flats (x1.19) and climbs (x1.25) degraded too, so only ~25 min is genuinely descent-specific; ~100 min is whole-body durability; ~14 min is an early-pace gap the original hid. The Phase-1 projection is a band (14:10-14:35 across six fitting windows), not the single "14:03" first quoted. ITB is an <b>inference</b>, not a finding: with one cadence channel and no left/right force data, true gait asymmetry is not computable, and the in-race issue resolved within ~3 weeks with no recurrence (read as a fatigue/heat load-tolerance ceiling, not chronic friction syndrome). Stop detection is threshold-sensitive (43.5 min at &lt;0.8 km/h, 55.3 at &lt;1.2, 67.8 at &lt;1.5) and sits reasonably against the 63-min official mat rest. GPS distance 104.7 vs 101.6 official (~3%); paces GPS-relative. Cohort n=10, 2026 only (LiveTrail bulk endpoints not automatable; 2024 excluded — weather-modified course). Running dynamics (step length, vertical oscillation, performance condition) decoded from the .fit corroborate the power fade; stance-time and L/R balance recorded as no-reading, so true gait asymmetry remains unmeasurable and ITB stays an inference. Power expressed at race weight 67.6 kg from the file. Training prescriptions are written as a running-physio program for discussion with the athlete's own physio, not a clinical diagnosis.
+</footer>
+
+</div><!-- /wrap -->
+
+<script>
+const D = {"meta": {"finish": 1021.9, "finishStr": "17:01:54", "rank": 514, "gpsKm": 104.7, "officialKm": 101.6, "gain": 4331, "moving": 966.2, "stoppedDetected": 55.3, "officialRest": 63.0, "sub14": 840, "gap": 181.9, "plan": 989, "start": "5:44 am", "sunsetElapsed": 677, "dawnElapsed": 66, "master": "1-second GPX (60,570 pts)"}, "phases": [{"id": "P1", "km": [0, 40], "label": "Clean running", "color": "#88B79B"}, {"id": "P2", "km": [40, 79], "label": "ITB onset", "color": "#F1C453"}, {"id": "P3", "km": [79, 104.7], "label": "Survival mode", "color": "#E25C4A"}], "gp": {"P1": [8.34, 6.11, 5.47, 7.08, 5.92, 9.16, 13.24], "P2": [10.2, 7.99, 5.56, 8.25, 5.59, 9.48, 14.73], "P3": [10.51, 8.37, 5.84, 9.15, 6.03, 9.78, 14.91]}, "gshare": [{"bin": "<-15", "km": 8.8, "min": 84}, {"bin": "-15:-8", "km": 13.3, "min": 100}, {"bin": "-8:-3", "km": 12.4, "min": 69}, {"bin": "-3:3", "km": 37.9, "min": 304}, {"bin": "3:8", "km": 4.3, "min": 25}, {"bin": "8:15", "km": 16.3, "min": 154}, {"bin": ">15", "km": 8.1, "min": 117}], "ks": [{"km": 0, "pace": 6.9, "hr": 148, "gain": 52, "loss": 17, "stop": 0.4, "ele": 981}, {"km": 1, "pace": 5.26, "hr": 140, "gain": 0, "loss": 73, "stop": 0.0, "ele": 950}, {"km": 2, "pace": 7.25, "hr": 156, "gain": 48, "loss": 9, "stop": 0.0, "ele": 937}, {"km": 3, "pace": 8.23, "hr": 159, "gain": 70, "loss": 20, "stop": 0.0, "ele": 997}, {"km": 4, "pace": 7.2, "hr": 152, "gain": 39, "loss": 21, "stop": 0.0, "ele": 1002}, {"km": 5, "pace": 6.68, "hr": 157, "gain": 24, "loss": 12, "stop": 0.0, "ele": 1037}, {"km": 6, "pace": 7.45, "hr": 147, "gain": 40, "loss": 69, "stop": 0.0, "ele": 1023}, {"km": 7, "pace": 8.12, "hr": 157, "gain": 45, "loss": 13, "stop": 0.6, "ele": 1028}, {"km": 8, "pace": 6.46, "hr": 156, "gain": 29, "loss": 17, "stop": 0.0, "ele": 1042}, {"km": 9, "pace": 9.19, "hr": 144, "gain": 27, "loss": 13, "stop": 2.7, "ele": 1051}, {"km": 10, "pace": 6.05, "hr": 153, "gain": 18, "loss": 28, "stop": 0.0, "ele": 1064}, {"km": 11, "pace": 5.65, "hr": 147, "gain": 1, "loss": 63, "stop": 0.0, "ele": 1031}, {"km": 12, "pace": 6.2, "hr": 149, "gain": 18, "loss": 37, "stop": 0.0, "ele": 988}, {"km": 13, "pace": 11.28, "hr": 128, "gain": 14, "loss": 69, "stop": 3.5, "ele": 954}, {"km": 14, "pace": 16.02, "hr": 102, "gain": 19, "loss": 160, "stop": 5.1, "ele": 866}, {"km": 15, "pace": 8.86, "hr": 144, "gain": 68, "loss": 45, "stop": 0.2, "ele": 787}, {"km": 16, "pace": 8.74, "hr": 142, "gain": 7, "loss": 142, "stop": 0.5, "ele": 737}, {"km": 17, "pace": 5.93, "hr": 170, "gain": 13, "loss": 32, "stop": 0.0, "ele": 648}, {"km": 18, "pace": 5.71, "hr": 166, "gain": 8, "loss": 70, "stop": 0.0, "ele": 609}, {"km": 19, "pace": 9.59, "hr": 161, "gain": 81, "loss": 2, "stop": 0.0, "ele": 621}, {"km": 20, "pace": 6.45, "hr": 161, "gain": 17, "loss": 12, "stop": 0.0, "ele": 667}, {"km": 21, "pace": 8.27, "hr": 151, "gain": 67, "loss": 16, "stop": 0.0, "ele": 681}, {"km": 22, "pace": 6.77, "hr": 164, "gain": 28, "loss": 25, "stop": 0.0, "ele": 726}, {"km": 23, "pace": 6.25, "hr": 156, "gain": 10, "loss": 96, "stop": 0.0, "ele": 681}, {"km": 24, "pace": 9.89, "hr": 154, "gain": 61, "loss": 37, "stop": 1.2, "ele": 633}, {"km": 25, "pace": 9.57, "hr": 162, "gain": 82, "loss": 13, "stop": 0.4, "ele": 679}, {"km": 26, "pace": 10.81, "hr": 163, "gain": 85, "loss": 32, "stop": 0.5, "ele": 769}, {"km": 27, "pace": 10.23, "hr": 156, "gain": 27, "loss": 177, "stop": 0.2, "ele": 682}, {"km": 28, "pace": 9.56, "hr": 160, "gain": 66, "loss": 23, "stop": 0.2, "ele": 655}, {"km": 29, "pace": 6.46, "hr": 156, "gain": 11, "loss": 53, "stop": 0.0, "ele": 655}, {"km": 30, "pace": 8.99, "hr": 156, "gain": 35, "loss": 114, "stop": 0.1, "ele": 551}, {"km": 31, "pace": 7.25, "hr": 159, "gain": 30, "loss": 14, "stop": 0.0, "ele": 555}, {"km": 32, "pace": 11.12, "hr": 160, "gain": 110, "loss": 2, "stop": 0.1, "ele": 619}, {"km": 33, "pace": 10.42, "hr": 156, "gain": 82, "loss": 3, "stop": 0.0, "ele": 722}, {"km": 34, "pace": 7.31, "hr": 156, "gain": 23, "loss": 13, "stop": 0.0, "ele": 766}, {"km": 35, "pace": 5.59, "hr": 147, "gain": 0, "loss": 87, "stop": 0.0, "ele": 715}, {"km": 36, "pace": 5.73, "hr": 151, "gain": 4, "loss": 57, "stop": 0.0, "ele": 645}, {"km": 37, "pace": 6.32, "hr": 155, "gain": 13, "loss": 56, "stop": 0.0, "ele": 602}, {"km": 38, "pace": 15.49, "hr": 139, "gain": 27, "loss": 41, "stop": 7.2, "ele": 576}, {"km": 39, "pace": 9.98, "hr": 153, "gain": 58, "loss": 44, "stop": 0.1, "ele": 583}, {"km": 40, "pace": 9.17, "hr": 149, "gain": 45, "loss": 45, "stop": 0.0, "ele": 569}, {"km": 41, "pace": 9.04, "hr": 153, "gain": 49, "loss": 64, "stop": 0.0, "ele": 565}, {"km": 42, "pace": 9.06, "hr": 152, "gain": 49, "loss": 27, "stop": 0.0, "ele": 594}, {"km": 43, "pace": 9.55, "hr": 144, "gain": 27, "loss": 101, "stop": 0.1, "ele": 522}, {"km": 44, "pace": 11.82, "hr": 148, "gain": 79, "loss": 23, "stop": 0.2, "ele": 540}, {"km": 45, "pace": 8.7, "hr": 147, "gain": 37, "loss": 64, "stop": 0.1, "ele": 553}, {"km": 46, "pace": 13.76, "hr": 139, "gain": 57, "loss": 23, "stop": 3.5, "ele": 567}, {"km": 47, "pace": 7.82, "hr": 142, "gain": 14, "loss": 33, "stop": 0.1, "ele": 568}, {"km": 48, "pace": 7.21, "hr": 149, "gain": 21, "loss": 9, "stop": 0.0, "ele": 566}, {"km": 49, "pace": 8.01, "hr": 146, "gain": 24, "loss": 9, "stop": 0.0, "ele": 578}, {"km": 50, "pace": 7.72, "hr": 144, "gain": 21, "loss": 6, "stop": 0.1, "ele": 591}, {"km": 51, "pace": 9.24, "hr": 143, "gain": 50, "loss": 4, "stop": 0.0, "ele": 617}, {"km": 52, "pace": 10.57, "hr": 141, "gain": 75, "loss": 2, "stop": 0.1, "ele": 679}, {"km": 53, "pace": 17.47, "hr": 148, "gain": 192, "loss": 1, "stop": 1.9, "ele": 810}, {"km": 54, "pace": 15.56, "hr": 150, "gain": 136, "loss": 42, "stop": 1.5, "ele": 979}, {"km": 55, "pace": 10.73, "hr": 138, "gain": 51, "loss": 46, "stop": 0.2, "ele": 989}, {"km": 56, "pace": 7.83, "hr": 144, "gain": 32, "loss": 43, "stop": 0.1, "ele": 1021}, {"km": 57, "pace": 21.55, "hr": 118, "gain": 29, "loss": 47, "stop": 8.4, "ele": 983}, {"km": 58, "pace": 20.2, "hr": 125, "gain": 19, "loss": 38, "stop": 12.9, "ele": 976}, {"km": 59, "pace": 6.45, "hr": 147, "gain": 6, "loss": 22, "stop": 0.8, "ele": 951}, {"km": 60, "pace": 7.61, "hr": 151, "gain": 31, "loss": 36, "stop": 1.4, "ele": 938}, {"km": 61, "pace": 6.98, "hr": 151, "gain": 33, "loss": 21, "stop": 1.5, "ele": 951}, {"km": 62, "pace": 7.64, "hr": 148, "gain": 29, "loss": 47, "stop": 0.9, "ele": 947}, {"km": 63, "pace": 9.59, "hr": 147, "gain": 60, "loss": 40, "stop": 0.0, "ele": 934}, {"km": 64, "pace": 11.53, "hr": 138, "gain": 29, "loss": 159, "stop": 0.3, "ele": 865}, {"km": 65, "pace": 14.06, "hr": 151, "gain": 145, "loss": 46, "stop": 1.0, "ele": 877}, {"km": 66, "pace": 10.11, "hr": 147, "gain": 58, "loss": 44, "stop": 0.0, "ele": 921}, {"km": 67, "pace": 10.17, "hr": 145, "gain": 47, "loss": 92, "stop": 0.1, "ele": 912}, {"km": 68, "pace": 12.33, "hr": 139, "gain": 78, "loss": 56, "stop": 0.0, "ele": 899}, {"km": 69, "pace": 8.7, "hr": 138, "gain": 35, "loss": 8, "stop": 0.6, "ele": 926}, {"km": 70, "pace": 10.79, "hr": 124, "gain": 15, "loss": 51, "stop": 3.6, "ele": 926}, {"km": 71, "pace": 8.92, "hr": 133, "gain": 19, "loss": 66, "stop": 0.1, "ele": 892}, {"km": 72, "pace": 12.62, "hr": 130, "gain": 72, "loss": 85, "stop": 0.3, "ele": 819}, {"km": 73, "pace": 12.21, "hr": 144, "gain": 86, "loss": 33, "stop": 0.2, "ele": 880}, {"km": 74, "pace": 7.72, "hr": 138, "gain": 19, "loss": 22, "stop": 0.0, "ele": 897}, {"km": 75, "pace": 8.78, "hr": 138, "gain": 19, "loss": 67, "stop": 0.0, "ele": 883}, {"km": 76, "pace": 9.59, "hr": 138, "gain": 32, "loss": 74, "stop": 0.0, "ele": 814}, {"km": 77, "pace": 11.97, "hr": 134, "gain": 79, "loss": 30, "stop": 0.2, "ele": 819}, {"km": 78, "pace": 14.7, "hr": 123, "gain": 37, "loss": 13, "stop": 5.6, "ele": 869}, {"km": 79, "pace": 7.51, "hr": 136, "gain": 19, "loss": 17, "stop": 0.0, "ele": 886}, {"km": 80, "pace": 7.65, "hr": 141, "gain": 12, "loss": 25, "stop": 0.0, "ele": 868}, {"km": 81, "pace": 8.89, "hr": 144, "gain": 16, "loss": 48, "stop": 0.7, "ele": 849}, {"km": 82, "pace": 16.96, "hr": 120, "gain": 35, "loss": 30, "stop": 4.8, "ele": 837}, {"km": 83, "pace": 6.94, "hr": 135, "gain": 4, "loss": 46, "stop": 0.0, "ele": 808}, {"km": 84, "pace": 6.99, "hr": 136, "gain": 8, "loss": 54, "stop": 0.0, "ele": 792}, {"km": 85, "pace": 7.3, "hr": 130, "gain": 0, "loss": 112, "stop": 0.0, "ele": 695}, {"km": 86, "pace": 7.81, "hr": 126, "gain": 0, "loss": 118, "stop": 0.0, "ele": 579}, {"km": 87, "pace": 7.66, "hr": 117, "gain": 10, "loss": 71, "stop": 0.0, "ele": 492}, {"km": 88, "pace": 7.21, "hr": 122, "gain": 2, "loss": 84, "stop": 0.0, "ele": 422}, {"km": 89, "pace": 8.64, "hr": 117, "gain": 2, "loss": 116, "stop": 0.0, "ele": 322}, {"km": 90, "pace": 10.75, "hr": 124, "gain": 48, "loss": 63, "stop": 0.6, "ele": 232}, {"km": 91, "pace": 10.63, "hr": 138, "gain": 85, "loss": 29, "stop": 0.0, "ele": 303}, {"km": 92, "pace": 10.67, "hr": 130, "gain": 83, "loss": 21, "stop": 0.0, "ele": 325}, {"km": 93, "pace": 8.95, "hr": 136, "gain": 38, "loss": 51, "stop": 0.0, "ele": 386}, {"km": 94, "pace": 13.22, "hr": 132, "gain": 68, "loss": 70, "stop": 0.1, "ele": 320}, {"km": 95, "pace": 13.71, "hr": 125, "gain": 101, "loss": 14, "stop": 1.9, "ele": 403}, {"km": 96, "pace": 12.07, "hr": 135, "gain": 134, "loss": 1, "stop": 0.0, "ele": 506}, {"km": 97, "pace": 10.66, "hr": 142, "gain": 84, "loss": 12, "stop": 0.1, "ele": 618}, {"km": 98, "pace": 9.58, "hr": 139, "gain": 45, "loss": 39, "stop": 0.0, "ele": 636}, {"km": 99, "pace": 13.41, "hr": 138, "gain": 85, "loss": 41, "stop": 0.4, "ele": 699}, {"km": 100, "pace": 14.92, "hr": 129, "gain": 41, "loss": 65, "stop": 0.3, "ele": 668}, {"km": 101, "pace": 12.59, "hr": 137, "gain": 72, "loss": 28, "stop": 0.2, "ele": 710}, {"km": 102, "pace": 10.61, "hr": 135, "gain": 42, "loss": 35, "stop": 0.0, "ele": 713}, {"km": 103, "pace": 16.92, "hr": 139, "gain": 159, "loss": 10, "stop": 2.1, "ele": 786}], "dd": [{"km": 2.5, "pace": 5.36}, {"km": 7.5, "pace": 6.0}, {"km": 12.5, "pace": 6.8}, {"km": 17.5, "pace": 6.54}, {"km": 22.5, "pace": 5.97}, {"km": 27.5, "pace": 7.36}, {"km": 32.5, "pace": 6.68}, {"km": 37.5, "pace": 5.77}, {"km": 42.5, "pace": 7.41}, {"km": 47.5, "pace": 7.41}, {"km": 52.5, "pace": 8.86}, {"km": 57.5, "pace": 7.52}, {"km": 62.5, "pace": 8.02}, {"km": 67.5, "pace": 9.4}, {"km": 72.5, "pace": 8.31}, {"km": 77.5, "pace": 8.81}, {"km": 82.5, "pace": 7.0}, {"km": 87.5, "pace": 7.62}, {"km": 92.5, "pace": 9.58}, {"km": 97.5, "pace": 9.12}, {"km": 102.5, "pace": 11.44}], "ei": [{"t": 15, "ei": 1.002}, {"t": 45, "ei": 0.984}, {"t": 75, "ei": 1.092}, {"t": 105, "ei": 1.02}, {"t": 135, "ei": 0.942}, {"t": 165, "ei": 0.888}, {"t": 195, "ei": 0.822}, {"t": 225, "ei": 0.786}, {"t": 255, "ei": 0.75}, {"t": 285, "ei": 0.912}, {"t": 315, "ei": 0.762}, {"t": 345, "ei": 0.762}, {"t": 375, "ei": 0.708}, {"t": 405, "ei": 0.894}, {"t": 435, "ei": 0.834}, {"t": 465, "ei": 0.582}, {"t": 495, "ei": 0.828}, {"t": 525, "ei": 1.182}, {"t": 555, "ei": 1.158}, {"t": 585, "ei": 0.84}, {"t": 615, "ei": 0.792}, {"t": 645, "ei": 0.864}, {"t": 675, "ei": 0.798}, {"t": 705, "ei": 0.906}, {"t": 735, "ei": 0.888}, {"t": 765, "ei": 0.882}, {"t": 795, "ei": 0.966}, {"t": 825, "ei": 1.104}, {"t": 855, "ei": 0.81}, {"t": 885, "ei": 0.756}, {"t": 915, "ei": 0.726}, {"t": 945, "ei": 0.684}, {"t": 975, "ei": 0.696}, {"t": 1005, "ei": 0.612}], "zones": [{"z": "Z1 <148", "min": 623, "pct": 60.0}, {"z": "Z2 148-155", "min": 221, "pct": 21.3}, {"z": "Z3 156-163", "min": 134, "pct": 12.9}, {"z": "Z4 164-173", "min": 44, "pct": 4.2}, {"z": "Z5 174+", "min": 7, "pct": 0.7}], "hh": [{"h": 1, "hr": 153}, {"h": 2, "hr": 131}, {"h": 3, "hr": 158}, {"h": 4, "hr": 159}, {"h": 5, "hr": 156}, {"h": 6, "hr": 148}, {"h": 7, "hr": 145}, {"h": 8, "hr": 145}, {"h": 9, "hr": 131}, {"h": 10, "hr": 146}, {"h": 11, "hr": 140}, {"h": 12, "hr": 137}, {"h": 13, "hr": 131}, {"h": 14, "hr": 126}, {"h": 15, "hr": 132}, {"h": 16, "hr": 135}, {"h": 17, "hr": 134}, {"h": 18, "hr": 140}], "cc": [{"km": 5, "bpk": 1056}, {"km": 15, "bpk": 1080}, {"km": 25, "bpk": 1297}, {"km": 35, "bpk": 1246}, {"km": 45, "bpk": 1328}, {"km": 55, "bpk": 1401}, {"km": 65, "bpk": 1350}, {"km": 75, "bpk": 1281}, {"km": 85, "bpk": 1040}, {"km": 95, "bpk": 1482}], "cad": [{"km": 5, "cad": 88.0}, {"km": 15, "cad": 86.7}, {"km": 25, "cad": 84.3}, {"km": 35, "cad": 82.4}, {"km": 45, "cad": 80.6}, {"km": 55, "cad": 81.7}, {"km": 65, "cad": 82.6}, {"km": 75, "cad": 83.4}, {"km": 85, "cad": 83.0}], "temp": [{"km": 2.5, "t": 18.2}, {"km": 7.5, "t": 19.7}, {"km": 12.5, "t": 21.4}, {"km": 17.5, "t": 22.7}, {"km": 22.5, "t": 23.8}, {"km": 27.5, "t": 24.8}, {"km": 32.5, "t": 26.3}, {"km": 37.5, "t": 27.4}, {"km": 42.5, "t": 28.7}, {"km": 47.5, "t": 28.4}, {"km": 52.5, "t": 27.8}, {"km": 57.5, "t": 25.7}, {"km": 62.5, "t": 24.1}, {"km": 67.5, "t": 24.1}, {"km": 72.5, "t": 22.0}, {"km": 77.5, "t": 22.3}, {"km": 82.5, "t": 20.4}, {"km": 87.5, "t": 22.4}, {"km": 92.5, "t": 25.8}, {"km": 97.5, "t": 26.0}, {"km": 102.5, "t": 25.4}], "prof": [[0.0, 953], [0.2, 965], [0.4, 979], [0.6, 998], [0.8, 996], [1.0, 987], [1.2, 973], [1.4, 958], [1.6, 940], [1.8, 929], [2.0, 914], [2.2, 922], [2.4, 929], [2.6, 945], [2.8, 956], [3.0, 954], [3.2, 986], [3.4, 1008], [3.6, 1023], [3.8, 1009], [4.0, 1003], [4.2, 998], [4.4, 994], [4.6, 1005], [4.8, 1001], [5.0, 1021], [5.2, 1034], [5.4, 1040], [5.6, 1041], [5.8, 1041], [6.0, 1033], [6.2, 1018], [6.4, 1039], [6.6, 1037], [6.8, 999], [7.0, 1004], [7.2, 1029], [7.4, 1032], [7.6, 1033], [7.8, 1036], [8.0, 1036], [8.2, 1039], [8.4, 1039], [8.6, 1046], [8.8, 1046], [9.0, 1047], [9.2, 1049], [9.4, 1055], [9.6, 1059], [9.8, 1059], [10.0, 1061], [10.2, 1069], [10.4, 1063], [10.6, 1068], [10.8, 1060], [11.0, 1051], [11.2, 1047], [11.4, 1045], [11.6, 1036], [11.8, 1016], [12.0, 989], [12.2, 980], [12.4, 990], [12.6, 993], [12.8, 991], [13.0, 970], [13.2, 967], [13.4, 963], [13.6, 964], [13.8, 960], [14.0, 915], [14.2, 867], [14.4, 853], [14.6, 835], [14.8, 801], [15.0, 774], [15.2, 769], [15.4, 790], [15.6, 794], [15.8, 816], [16.0, 797], [16.2, 792], [16.4, 782], [16.6, 720], [16.8, 676], [17.0, 662], [17.2, 652], [17.4, 647], [17.6, 650], [17.8, 642], [18.0, 643], [18.2, 641], [18.4, 622], [18.6, 599], [18.8, 578], [19.0, 581], [19.2, 604], [19.4, 613], [19.6, 629], [19.8, 643], [20.0, 661], [20.2, 663], [20.4, 669], [20.6, 668], [20.8, 670], [21.0, 666], [21.2, 664], [21.4, 664], [21.6, 686], [21.8, 696], [22.0, 717], [22.2, 735], [22.4, 732], [22.6, 727], [22.8, 719], [23.0, 719], [23.2, 693], [23.4, 693], [23.6, 688], [23.8, 650], [24.0, 633], [24.2, 607], [24.4, 628], [24.6, 636], [24.8, 653], [25.0, 657], [25.2, 661], [25.4, 671], [25.6, 668], [25.8, 676], [26.0, 727], [26.2, 774], [26.4, 785], [26.6, 770], [26.8, 776], [27.0, 779], [27.2, 768], [27.4, 719], [27.6, 654], [27.8, 608], [28.0, 629], [28.2, 644], [28.4, 656], [28.6, 671], [28.8, 663], [29.0, 672], [29.2, 660], [29.4, 655], [29.6, 657], [29.8, 647], [30.0, 629], [30.2, 598], [30.4, 561], [30.6, 520], [30.8, 527], [31.0, 550], [31.2, 547], [31.4, 550], [31.6, 558], [31.8, 560], [32.0, 566], [32.2, 577], [32.4, 596], [32.6, 626], [32.8, 650], [33.0, 675], [33.2, 699], [33.4, 725], [33.6, 745], [33.8, 752], [34.0, 754], [34.2, 762], [34.4, 770], [34.6, 772], [34.8, 770], [35.0, 763], [35.2, 739], [35.4, 721], [35.6, 710], [35.8, 686], [36.0, 676], [36.2, 666], [36.4, 658], [36.6, 638], [36.8, 622], [37.0, 623], [37.2, 612], [37.4, 606], [37.6, 596], [37.8, 597], [38.0, 580], [38.2, 576], [38.4, 586], [38.6, 582], [38.8, 568], [39.0, 567], [39.2, 567], [39.4, 599], [39.6, 586], [39.8, 599], [40.0, 581], [40.2, 581], [40.4, 574], [40.6, 552], [40.8, 561], [41.0, 581], [41.2, 587], [41.4, 572], [41.6, 555], [41.8, 540], [42.0, 567], [42.2, 589], [42.4, 606], [42.6, 604], [42.8, 600], [43.0, 588], [43.2, 557], [43.4, 524], [43.6, 493], [43.8, 503], [44.0, 514], [44.2, 522], [44.4, 535], [44.6, 546], [44.8, 550], [45.0, 570], [45.2, 564], [45.4, 544], [45.6, 555], [45.8, 552], [46.0, 543], [46.2, 543], [46.4, 557], [46.6, 575], [46.8, 578], [47.0, 577], [47.2, 575], [47.4, 573], [47.6, 565], [47.8, 556], [48.0, 558], [48.2, 567], [48.4, 566], [48.6, 566], [48.8, 568], [49.0, 570], [49.2, 575], [49.4, 577], [49.6, 579], [49.8, 582], [50.0, 585], [50.2, 588], [50.4, 590], [50.6, 591], [50.8, 596], [51.0, 600], [51.2, 603], [51.4, 610], [51.6, 617], [51.8, 627], [52.0, 647], [52.2, 662], [52.4, 670], [52.6, 679], [52.8, 693], [53.0, 720], [53.2, 738], [53.4, 766], [53.6, 808], [53.8, 856], [54.0, 910], [54.2, 969], [54.4, 1013], [54.6, 989], [54.8, 992], [55.0, 1004], [55.2, 984], [55.4, 976], [55.6, 990], [55.8, 996], [56.0, 1009], [56.2, 1033], [56.4, 1038], [56.6, 1022], [56.8, 1005], [57.0, 997], [57.2, 982], [57.4, 979], [57.6, 985], [57.8, 985], [58.0, 980], [58.28, 980], [58.4, 979], [58.61, 971], [58.8, 973], [59.0, 961], [59.2, 955], [59.4, 951], [59.6, 949], [59.8, 947], [60.0, 945], [60.2, 946], [60.4, 945], [60.6, 937], [60.8, 929], [61.0, 940], [61.2, 946], [61.4, 953], [61.6, 960], [61.8, 954], [62.0, 953], [62.2, 949], [62.4, 940], [62.6, 954], [62.8, 951], [63.0, 935], [63.2, 927], [63.4, 927], [63.6, 930], [63.8, 950], [64.0, 955], [64.2, 925], [64.4, 864], [64.6, 832], [64.8, 823], [65.0, 824], [65.2, 854], [65.4, 874], [65.6, 905], [65.8, 921], [66.0, 923], [66.2, 933], [66.4, 904], [66.6, 907], [66.8, 934], [67.0, 937], [67.2, 938], [67.4, 944], [67.6, 930], [67.8, 882], [68.0, 893], [68.2, 914], [68.4, 910], [68.6, 870], [68.8, 894], [69.0, 915], [69.2, 916], [69.4, 925], [69.6, 929], [69.8, 933], [70.0, 942], [70.2, 948], [70.4, 934], [70.6, 921], [70.8, 910], [71.0, 906], [71.2, 911], [71.4, 891], [71.6, 884], [71.8, 878], [72.0, 858], [72.2, 838], [72.4, 797], [72.6, 792], [72.8, 825], [73.0, 845], [73.2, 872], [73.4, 864], [73.6, 900], [73.8, 902], [74.0, 898], [74.2, 898], [74.4, 899], [74.6, 899], [74.8, 895], [75.0, 895], [75.2, 891], [75.4, 884], [75.6, 889], [75.8, 876], [76.0, 846], [76.2, 809], [76.4, 812], [76.6, 811], [76.8, 813], [77.0, 805], [77.2, 815], [77.4, 817], [77.6, 799], [77.8, 832], [78.0, 855], [78.2, 860], [78.4, 866], [78.6, 870], [78.8, 870], [79.0, 879], [79.2, 881], [79.4, 886], [79.6, 893], [79.8, 892], [80.0, 880], [80.2, 869], [80.4, 871], [80.6, 867], [80.8, 860], [81.0, 868], [81.2, 869], [81.4, 854], [81.6, 839], [81.8, 833], [82.0, 836], [82.2, 832], [82.4, 835], [82.6, 848], [82.8, 855], [83.0, 840], [83.2, 816], [83.4, 804], [83.6, 801], [83.8, 800], [84.0, 798], [84.2, 798], [84.4, 803], [84.6, 796], [84.8, 781], [85.0, 752], [85.2, 723], [85.4, 703], [85.6, 696], [85.8, 673], [86.0, 640], [86.2, 614], [86.4, 596], [86.6, 572], [86.8, 539], [87.0, 523], [87.2, 517], [87.4, 491], [87.6, 482], [87.8, 467], [88.0, 462], [88.2, 446], [88.4, 430], [88.6, 409], [88.8, 400], [89.0, 379], [89.2, 353], [89.4, 332], [89.6, 322], [89.8, 300], [90.0, 266], [90.2, 243], [90.4, 220], [90.6, 206], [90.8, 232], [91.0, 251], [91.2, 279], [91.4, 307], [91.6, 332], [91.8, 322], [92.0, 307], [92.2, 301], [92.4, 306], [92.6, 328], [92.8, 354], [93.0, 370], [93.2, 398], [93.4, 401], [93.6, 393], [93.8, 375], [94.0, 357], [94.2, 333], [94.4, 303], [94.6, 291], [94.8, 325], [95.0, 355], [95.2, 383], [95.4, 410], [95.6, 411], [95.8, 415], [96.0, 442], [96.2, 459], [96.4, 487], [96.6, 516], [96.8, 547], [97.0, 574], [97.2, 601], [97.4, 615], [97.6, 637], [97.8, 634], [98.0, 646], [98.2, 643], [98.4, 641], [98.6, 620], [98.8, 629], [99.0, 652], [99.2, 678], [99.4, 701], [99.6, 719], [99.8, 728], [100.0, 695], [100.2, 670], [100.4, 663], [100.6, 673], [100.8, 654], [101.0, 671], [101.2, 694], [101.4, 720], [101.6, 733], [101.8, 715], [102.0, 715], [102.2, 715], [102.4, 714], [102.6, 709], [102.8, 715], [103.0, 722], [103.2, 728], [103.4, 757], [103.6, 782], [103.8, 818], [104.0, 872], [104.2, 910], [104.4, 949], [104.6, 972]], "legs": [{"name": "Tarros", "km": 13.8, "d": 13.8, "a": 99.9, "v": 60.5, "r": 81.5, "aPace": 7.24, "rPace": 5.91, "ratioV": 1.65, "ratioR": 1.23, "cumA": 99.9, "cumR": 81.5, "cumV": 60.5, "plan": 132}, {"name": "Foggy Knob", "km": 23.9, "d": 10.1, "a": 87.9, "v": 53.4, "r": 74.2, "aPace": 8.7, "rPace": 7.34, "ratioV": 1.64, "ratioR": 1.18, "cumA": 187.8, "cumR": 155.7, "cumV": 113.9, "plan": 216}, {"name": "Six Foot Track", "km": 37.4, "d": 13.5, "a": 117.1, "v": 75.5, "r": 103.7, "aPace": 8.68, "rPace": 7.68, "ratioV": 1.55, "ratioR": 1.13, "cumA": 304.9, "cumR": 259.4, "cumV": 189.4, "plan": 333}, {"name": "SFT Water Pt", "km": 45.1, "d": 7.7, "a": 88.6, "v": 50.2, "r": 70.9, "aPace": 11.51, "rPace": 9.21, "ratioV": 1.77, "ratioR": 1.25, "cumA": 393.5, "cumR": 330.3, "cumV": 239.6, "plan": 406}, {"name": "Katoomba AC", "km": 56.3, "d": 11.2, "a": 113.3, "v": 72.2, "r": 113.9, "aPace": 10.12, "rPace": 10.17, "ratioV": 1.57, "ratioR": 1.0, "cumA": 506.8, "cumR": 444.2, "cumV": 311.8, "plan": 506}, {"name": "Fairmont", "km": 68.4, "d": 12.1, "a": 146.6, "v": 89.2, "r": 109.4, "aPace": 12.12, "rPace": 9.05, "ratioV": 1.64, "ratioR": 1.34, "cumA": 653.4, "cumR": 553.6, "cumV": 401.0, "plan": 623}, {"name": "QVH", "km": 79.4, "d": 11.0, "a": 118.2, "v": 79.0, "r": 95.4, "aPace": 10.75, "rPace": 8.67, "ratioV": 1.5, "ratioR": 1.24, "cumA": 771.7, "cumR": 649.0, "cumV": 479.9, "plan": 754}, {"name": "Emergency AS", "km": 92.6, "d": 13.2, "a": 130.1, "v": 84.7, "r": 98.0, "aPace": 9.85, "rPace": 7.42, "ratioV": 1.54, "ratioR": 1.33, "cumA": 901.7, "cumR": 747.0, "cumV": 564.6, "plan": 891}, {"name": "Furber Base", "km": 100.3, "d": 7.7, "a": 97.6, "v": 66.1, "r": 75.5, "aPace": 12.68, "rPace": 9.8, "ratioV": 1.48, "ratioR": 1.29, "cumA": 999.3, "cumR": 822.5, "cumV": 630.8, "plan": null}, {"name": "Finish", "km": 101.6, "d": 1.3, "a": 22.6, "v": 15.4, "r": 15.6, "aPace": 17.37, "rPace": 12.04, "ratioV": 1.47, "ratioR": 1.44, "cumA": 1021.9, "cumR": 838.1, "cumV": 646.1, "plan": 989}], "stops": [{"km": 9.1, "t": 1.08, "dur": 2.2, "label": "Trail stop (Narrow Neck)"}, {"km": 13.8, "t": 1.59, "dur": 2.5, "label": "CP1 Tarros"}, {"km": 14.1, "t": 1.75, "dur": 2.8, "label": "Post-CP1 (poles/gear)"}, {"km": 38.1, "t": 5.1, "dur": 4.8, "label": "CP3 Six Foot Track"}, {"km": 46.8, "t": 6.62, "dur": 1.0, "label": "SFT Water Point"}, {"km": 58.3, "t": 8.78, "dur": 12.0, "label": "CP4 Katoomba AC"}, {"km": 70.6, "t": 10.9, "dur": 2.7, "label": "CP5 Fairmont"}, {"km": 78.7, "t": 12.31, "dur": 5.5, "label": "Pre-QVH"}, {"km": 95.6, "t": 15.03, "dur": 1.8, "label": "Emergency AS"}], "restsA": [["Six Foot Track", 9.43], ["SFT Water Pt", 5.23], ["Katoomba AC", 32.78], ["Fairmont", 4.75], ["QVH", 10.83]], "restsR": [["Six Foot Track", 3.18], ["Fairmont", 4.67], ["QVH", 6.03]], "steepDesc": {"P1": 8.38, "P2": 10.26, "P3": 10.51}, "midDesc": {"P1": 6.11, "P2": 7.99, "P3": 8.37}, "degr": {"total": 135, "P2": 75, "P3": 60, "fade": 25, "itb": 110}, "waterfall": [{"label": "Finish 17:01:54", "from": 0, "to": 1021.9, "type": "total"}, {"label": "Excess stopped time", "val": 43, "note": "55 min vs ~12 min sub-14h field"}, {"label": "ITB-attributable loss", "val": 110, "note": "descent + compensation cost, km 40\u2013101"}, {"label": "Expected late-race fade", "val": 25, "note": "normal well-paced drift, kept in budget"}, {"label": "Residual fitness gap", "val": 4, "note": "pure moving-pace deficit at P1 form"}, {"label": "Sub-14h target", "from": 0, "to": 840, "type": "target"}], "sim": {"movingBase": 831, "fadeMin": 25, "itbMax": 110, "stopBase": 55, "stopMin": 12}, "track": [[0.0, 8.931, 2.341], [0.2, 8.841, 2.496], [0.39, 8.819, 2.659], [0.56, 8.729, 2.658], [0.76, 8.617, 2.574], [0.92, 8.613, 2.43], [1.12, 8.474, 2.298], [1.26, 8.353, 2.259], [1.45, 8.183, 2.21], [1.64, 8.02, 2.24], [1.83, 7.905, 2.35], [2.02, 7.796, 2.481], [2.2, 7.653, 2.577], [2.36, 7.554, 2.681], [2.55, 7.47, 2.747], [2.72, 7.375, 2.859], [2.88, 7.295, 2.982], [3.07, 7.208, 3.113], [3.25, 7.15, 3.227], [3.44, 7.163, 3.415], [3.62, 7.113, 3.582], [3.8, 7.076, 3.755], [3.98, 7.059, 3.925], [4.16, 7.072, 4.098], [4.34, 7.049, 4.252], [4.51, 6.997, 4.402], [4.72, 6.898, 4.581], [4.89, 6.804, 4.695], [5.06, 6.746, 4.584], [5.25, 6.577, 4.656], [5.44, 6.409, 4.734], [5.6, 6.3, 4.836], [5.79, 6.226, 5.016], [5.95, 6.174, 5.164], [6.13, 6.075, 5.304], [6.31, 5.921, 5.248], [6.52, 5.742, 5.302], [6.68, 5.736, 5.365], [6.87, 5.805, 5.52], [7.03, 5.739, 5.66], [7.2, 5.69, 5.818], [7.41, 5.664, 6.01], [7.57, 5.676, 6.16], [7.77, 5.622, 6.337], [7.94, 5.702, 6.477], [8.11, 5.773, 6.602], [8.31, 5.7, 6.787], [8.48, 5.582, 6.893], [8.65, 5.583, 7.063], [8.83, 5.561, 7.242], [9.04, 5.446, 7.407], [9.19, 5.435, 7.486], [9.38, 5.478, 7.672], [9.57, 5.426, 7.829], [9.75, 5.365, 7.988], [9.92, 5.338, 8.151], [10.1, 5.365, 8.323], [10.28, 5.293, 8.487], [10.46, 5.24, 8.659], [10.66, 5.318, 8.824], [10.85, 5.321, 9.008], [10.99, 5.339, 9.15], [11.18, 5.419, 9.317], [11.36, 5.495, 9.467], [11.54, 5.523, 9.642], [11.73, 5.686, 9.701], [11.89, 5.844, 9.705], [12.1, 5.961, 9.836], [12.24, 5.953, 9.969], [12.43, 5.994, 10.146], [12.62, 6.029, 10.33], [12.8, 6.04, 10.503], [12.98, 6.062, 10.675], [13.15, 6.005, 10.832], [13.36, 5.949, 11.03], [13.51, 5.867, 11.146], [13.72, 5.779, 11.336], [13.88, 5.741, 11.399], [14.07, 5.676, 11.505], [14.23, 5.68, 11.553], [14.4, 5.712, 11.541], [14.61, 5.567, 11.641], [14.77, 5.485, 11.778], [14.95, 5.397, 11.922], [15.13, 5.317, 12.076], [15.3, 5.233, 12.21], [15.49, 5.212, 12.392], [15.68, 5.199, 12.578], [15.87, 5.154, 12.74], [16.03, 5.097, 12.885], [16.22, 4.983, 13.023], [16.39, 4.89, 13.158], [16.57, 4.764, 13.224], [16.76, 4.617, 13.289], [16.93, 4.534, 13.214], [17.13, 4.614, 13.053], [17.31, 4.69, 12.892], [17.48, 4.746, 12.732], [17.66, 4.791, 12.579], [17.85, 4.865, 12.408], [18.0, 4.888, 12.26], [18.21, 4.719, 12.284], [18.4, 4.557, 12.219], [18.55, 4.465, 12.102], [18.75, 4.408, 11.911], [18.93, 4.441, 11.746], [19.1, 4.396, 11.589], [19.26, 4.327, 11.697], [19.45, 4.248, 11.54], [19.64, 4.186, 11.361], [19.82, 4.205, 11.186], [20.0, 4.214, 11.014], [20.2, 4.246, 10.82], [20.35, 4.301, 10.679], [20.55, 4.403, 10.51], [20.73, 4.399, 10.344], [20.89, 4.417, 10.208], [21.06, 4.347, 10.081], [21.27, 4.362, 9.883], [21.42, 4.294, 9.859], [21.6, 4.131, 9.92], [21.81, 4.11, 9.726], [21.98, 4.007, 9.607], [22.15, 3.927, 9.465], [22.33, 3.819, 9.328], [22.52, 3.675, 9.211], [22.7, 3.509, 9.256], [22.87, 3.343, 9.291], [23.04, 3.18, 9.24], [23.24, 3.02, 9.134], [23.43, 2.855, 9.046], [23.59, 2.721, 9.119], [23.79, 2.535, 9.117], [23.95, 2.462, 8.997], [24.13, 2.324, 8.983], [24.3, 2.168, 8.939], [24.49, 2.02, 9.003], [24.67, 1.854, 8.999], [24.87, 1.713, 9.117], [25.06, 1.54, 9.106], [25.22, 1.387, 9.16], [25.38, 1.266, 9.26], [25.59, 1.09, 9.341], [25.74, 0.968, 9.41], [25.92, 0.823, 9.503], [26.11, 0.728, 9.614], [26.29, 0.564, 9.606], [26.5, 0.372, 9.552], [26.66, 0.218, 9.544], [26.83, 0.088, 9.602], [27.03, 0.049, 9.637], [27.19, 0.162, 9.535], [27.4, 0.13, 9.365], [27.56, 0.207, 9.265], [27.74, 0.289, 9.14], [27.93, 0.346, 8.997], [28.08, 0.43, 8.877], [28.26, 0.572, 8.873], [28.45, 0.674, 9.0], [28.62, 0.698, 9.164], [28.82, 0.787, 9.273], [28.99, 0.933, 9.239], [29.18, 1.105, 9.173], [29.35, 1.232, 9.066], [29.54, 1.407, 9.007], [29.73, 1.551, 8.91], [29.91, 1.621, 8.768], [30.09, 1.706, 8.61], [30.25, 1.842, 8.604], [30.43, 1.895, 8.485], [30.6, 1.938, 8.361], [30.8, 2.098, 8.439], [30.97, 2.244, 8.438], [31.17, 2.408, 8.394], [31.35, 2.512, 8.259], [31.54, 2.597, 8.11], [31.68, 2.661, 7.98], [31.89, 2.766, 7.803], [32.05, 2.829, 7.669], [32.25, 2.872, 7.483], [32.41, 2.84, 7.33], [32.59, 2.773, 7.406], [32.77, 2.724, 7.564], [32.95, 2.631, 7.478], [33.12, 2.644, 7.403], [33.32, 2.623, 7.257], [33.5, 2.61, 7.076], [33.69, 2.54, 6.902], [33.87, 2.483, 6.742], [34.03, 2.496, 6.589], [34.22, 2.541, 6.407], [34.4, 2.47, 6.24], [34.59, 2.432, 6.062], [34.75, 2.498, 5.918], [34.94, 2.657, 5.824], [35.11, 2.774, 5.71], [35.29, 2.853, 5.553], [35.47, 2.919, 5.394], [35.65, 2.975, 5.226], [35.83, 3.029, 5.062], [36.0, 3.026, 4.892], [36.18, 3.002, 4.719], [36.36, 3.03, 4.552], [36.54, 3.064, 4.377], [36.72, 3.107, 4.206], [36.94, 3.096, 3.997], [37.09, 3.13, 3.883], [37.27, 3.267, 3.779], [37.45, 3.278, 3.623], [37.62, 3.142, 3.551], [37.8, 3.102, 3.411], [38.0, 3.168, 3.234], [38.17, 3.142, 3.201], [38.36, 3.132, 3.279], [38.53, 2.976, 3.322], [38.72, 2.844, 3.256], [38.9, 2.71, 3.344], [39.08, 2.665, 3.506], [39.25, 2.527, 3.588], [39.43, 2.374, 3.516], [39.63, 2.211, 3.503], [39.81, 2.072, 3.543], [39.96, 1.94, 3.493], [40.16, 1.808, 3.37], [40.34, 1.718, 3.216], [40.52, 1.595, 3.129], [40.69, 1.591, 2.985], [40.87, 1.525, 3.153], [41.05, 1.369, 3.165], [41.22, 1.2, 3.125], [41.41, 1.05, 3.075], [41.61, 0.953, 2.928], [41.78, 0.802, 2.939], [41.95, 0.721, 3.079], [42.14, 0.559, 3.096], [42.32, 0.5, 3.244], [42.49, 0.4, 3.173], [42.67, 0.43, 3.011], [42.88, 0.409, 2.814], [43.03, 0.468, 2.672], [43.23, 0.581, 2.516], [43.41, 0.519, 2.436], [43.58, 0.452, 2.353], [43.77, 0.626, 2.363], [43.93, 0.767, 2.412], [44.11, 0.795, 2.583], [44.29, 0.817, 2.757], [44.47, 0.965, 2.776], [44.64, 1.123, 2.8], [44.84, 1.251, 2.833], [45.01, 1.412, 2.787], [45.21, 1.601, 2.777], [45.38, 1.76, 2.814], [45.54, 1.884, 2.892], [45.72, 2.058, 2.92], [45.9, 2.206, 2.89], [46.1, 2.359, 2.992], [46.26, 2.501, 3.035], [46.46, 2.684, 3.024], [46.62, 2.844, 3.044], [46.81, 2.931, 3.058], [46.99, 3.095, 3.079], [47.18, 3.264, 3.01], [47.37, 3.42, 2.921], [47.54, 3.533, 2.823], [47.7, 3.605, 2.681], [47.89, 3.679, 2.534], [48.09, 3.873, 2.508], [48.27, 4.051, 2.517], [48.43, 4.208, 2.542], [48.62, 4.374, 2.462], [48.8, 4.524, 2.487], [48.98, 4.656, 2.579], [49.18, 4.848, 2.589], [49.32, 4.982, 2.62], [49.5, 5.109, 2.518], [49.69, 5.273, 2.464], [49.88, 5.452, 2.502], [50.05, 5.624, 2.516], [50.24, 5.8, 2.455], [50.44, 5.971, 2.367], [50.58, 6.1, 2.304], [50.78, 6.231, 2.167], [50.95, 6.36, 2.053], [51.12, 6.485, 1.934], [51.3, 6.546, 1.773], [51.49, 6.597, 1.599], [51.66, 6.683, 1.448], [51.84, 6.705, 1.269], [52.04, 6.856, 1.22], [52.22, 6.987, 1.116], [52.39, 7.087, 0.975], [52.58, 7.167, 0.822], [52.75, 7.304, 0.794], [52.93, 7.464, 0.792], [53.11, 7.636, 0.744], [53.29, 7.794, 0.689], [53.47, 7.912, 0.565], [53.65, 7.964, 0.408], [53.82, 7.903, 0.307], [54.01, 7.88, 0.189], [54.19, 7.85, 0.067], [54.37, 7.905, 0.016], [54.54, 7.942, 0.161], [54.72, 8.013, 0.007], [54.92, 8.141, 0.122], [55.09, 8.248, 0.172], [55.27, 8.352, 0.289], [55.46, 8.246, 0.305], [55.64, 8.208, 0.455], [55.8, 8.235, 0.612], [55.98, 8.381, 0.671], [56.18, 8.567, 0.694], [56.35, 8.712, 0.746], [56.52, 8.743, 0.896], [56.7, 8.864, 1.031], [56.92, 9.041, 1.14], [57.08, 9.196, 1.167], [57.27, 9.268, 1.032], [57.44, 9.276, 0.87], [57.6, 9.266, 0.823], [57.78, 9.269, 0.836], [57.97, 9.267, 0.804], [58.16, 9.26, 0.848], [58.36, 9.302, 0.792], [58.54, 9.469, 0.831], [58.7, 9.517, 0.955], [58.87, 9.535, 1.099], [59.06, 9.388, 1.137], [59.25, 9.325, 1.316], [59.4, 9.292, 1.451], [59.6, 9.29, 1.641], [59.79, 9.338, 1.81], [59.95, 9.459, 1.9], [60.15, 9.49, 2.044], [60.32, 9.436, 2.185], [60.51, 9.518, 2.3], [60.68, 9.563, 2.426], [60.87, 9.664, 2.4], [61.05, 9.778, 2.459], [61.22, 9.902, 2.543], [61.39, 10.017, 2.634], [61.59, 10.093, 2.659], [61.76, 10.241, 2.692], [61.92, 10.283, 2.838], [62.13, 10.295, 2.699], [62.31, 10.4, 2.58], [62.48, 10.397, 2.453], [62.66, 10.431, 2.328], [62.85, 10.497, 2.172], [63.03, 10.6, 2.06], [63.19, 10.604, 1.946], [63.39, 10.621, 1.822], [63.56, 10.533, 1.71], [63.73, 10.565, 1.572], [63.92, 10.535, 1.43], [64.1, 10.666, 1.447], [64.28, 10.635, 1.517], [64.46, 10.698, 1.649], [64.63, 10.78, 1.771], [64.81, 10.859, 1.703], [64.99, 10.963, 1.659], [65.16, 10.945, 1.583], [65.34, 10.985, 1.55], [65.54, 11.056, 1.423], [65.7, 11.068, 1.468], [65.88, 11.135, 1.593], [66.06, 11.202, 1.713], [66.26, 11.314, 1.766], [66.43, 11.364, 1.896], [66.62, 11.445, 1.946], [66.78, 11.541, 1.952], [67.0, 11.675, 2.017], [67.15, 11.816, 2.019], [67.35, 11.919, 1.94], [67.5, 12.009, 1.839], [67.69, 12.154, 1.785], [67.88, 12.222, 1.807], [68.05, 12.225, 1.932], [68.23, 12.252, 2.075], [68.42, 12.339, 2.16], [68.6, 12.4, 2.168], [68.77, 12.438, 2.279], [68.95, 12.591, 2.288], [69.12, 12.699, 2.378], [69.31, 12.875, 2.395], [69.48, 13.012, 2.3], [69.66, 13.105, 2.146], [69.87, 13.189, 1.963], [70.04, 13.15, 1.804], [70.22, 13.239, 1.668], [70.38, 13.339, 1.57], [70.57, 13.49, 1.577], [70.78, 13.613, 1.655], [70.95, 13.754, 1.674], [71.11, 13.887, 1.723], [71.28, 14.024, 1.765], [71.48, 14.185, 1.829], [71.66, 14.244, 1.735], [71.83, 14.258, 1.569], [72.01, 14.264, 1.408], [72.2, 14.205, 1.247], [72.37, 14.287, 1.277], [72.56, 14.305, 1.152], [72.72, 14.314, 1.051], [72.9, 14.209, 0.981], [73.09, 14.178, 0.817], [73.28, 14.227, 0.773], [73.45, 14.285, 0.623], [73.64, 14.373, 0.505], [73.82, 14.509, 0.465], [74.0, 14.667, 0.544], [74.16, 14.797, 0.628], [74.36, 14.699, 0.789], [74.53, 14.627, 0.947], [74.71, 14.642, 1.081], [74.91, 14.791, 1.207], [75.07, 14.76, 1.327], [75.25, 14.798, 1.436], [75.43, 14.852, 1.576], [75.6, 14.88, 1.719], [75.79, 14.901, 1.887], [75.97, 14.948, 2.001], [76.16, 15.035, 2.024], [76.32, 15.077, 1.985], [76.5, 15.206, 2.029], [76.7, 15.362, 2.099], [76.88, 15.472, 2.118], [77.06, 15.563, 2.111], [77.23, 15.68, 2.097], [77.43, 15.816, 2.136], [77.58, 15.833, 2.24], [77.76, 15.784, 2.323], [77.95, 15.814, 2.496], [78.13, 15.72, 2.636], [78.32, 15.674, 2.814], [78.5, 15.672, 2.97], [78.67, 15.632, 3.1], [78.85, 15.642, 3.16], [79.04, 15.687, 3.333], [79.22, 15.868, 3.359], [79.39, 16.024, 3.411], [79.59, 16.126, 3.526], [79.78, 16.112, 3.706], [79.94, 16.214, 3.803], [80.1, 16.221, 3.944], [80.3, 16.182, 4.118], [80.49, 16.145, 4.298], [80.68, 16.054, 4.457], [80.82, 15.984, 4.581], [81.01, 15.887, 4.737], [81.19, 15.845, 4.882], [81.37, 15.915, 5.036], [81.55, 15.958, 5.199], [81.75, 15.973, 5.385], [81.93, 15.975, 5.553], [82.08, 15.974, 5.677], [82.27, 15.977, 5.674], [82.45, 15.905, 5.733], [82.62, 15.79, 5.854], [82.82, 15.69, 6.01], [83.0, 15.72, 6.179], [83.17, 15.724, 6.347], [83.35, 15.781, 6.512], [83.54, 15.84, 6.684], [83.72, 15.918, 6.845], [83.88, 15.998, 6.973], [84.08, 16.113, 7.124], [84.25, 16.235, 7.243], [84.44, 16.286, 7.417], [84.62, 16.418, 7.518], [84.8, 16.409, 7.572], [84.97, 16.374, 7.717], [85.15, 16.312, 7.828], [85.33, 16.331, 7.985], [85.53, 16.269, 8.158], [85.7, 16.228, 8.313], [85.86, 16.16, 8.314], [86.05, 16.17, 8.136], [86.26, 16.218, 7.946], [86.44, 16.141, 7.789], [86.59, 16.029, 7.692], [86.77, 16.028, 7.818], [86.96, 16.05, 7.992], [87.14, 15.951, 7.881], [87.33, 15.846, 7.741], [87.5, 15.726, 7.661], [87.68, 15.656, 7.523], [87.85, 15.578, 7.409], [88.04, 15.414, 7.327], [88.21, 15.303, 7.198], [88.41, 15.163, 7.069], [88.57, 15.073, 6.956], [88.75, 14.958, 6.826], [88.94, 14.883, 6.655], [89.11, 14.833, 6.502], [89.31, 14.693, 6.464], [89.48, 14.576, 6.36], [89.66, 14.483, 6.287], [89.82, 14.42, 6.199], [90.02, 14.236, 6.149], [90.19, 14.095, 6.171], [90.39, 13.905, 6.212], [90.56, 13.754, 6.229], [90.74, 13.622, 6.206], [90.92, 13.45, 6.252], [91.08, 13.479, 6.111], [91.27, 13.413, 5.945], [91.45, 13.356, 5.775], [91.62, 13.4, 5.633], [91.82, 13.259, 5.519], [92.01, 13.177, 5.384], [92.17, 13.079, 5.26], [92.35, 12.951, 5.135], [92.54, 12.784, 5.093], [92.71, 12.673, 5.0], [92.91, 12.618, 4.835], [93.07, 12.502, 4.748], [93.24, 12.386, 4.706], [93.45, 12.274, 4.869], [93.62, 12.107, 4.874], [93.81, 11.938, 4.915], [93.97, 11.785, 4.91], [94.15, 11.87, 4.78], [94.34, 11.713, 4.772], [94.52, 11.683, 4.653], [94.69, 11.607, 4.56], [94.87, 11.543, 4.714], [95.04, 11.417, 4.637], [95.23, 11.334, 4.679], [95.42, 11.312, 4.51], [95.6, 11.189, 4.379], [95.77, 11.132, 4.259], [95.94, 11.086, 4.098], [96.13, 11.118, 3.956], [96.31, 11.052, 3.803], [96.48, 10.97, 3.665], [96.67, 10.858, 3.628], [96.84, 10.798, 3.634], [97.03, 10.73, 3.559], [97.21, 10.579, 3.512], [97.41, 10.575, 3.325], [97.57, 10.602, 3.166], [97.74, 10.65, 3.008], [97.93, 10.754, 2.907], [98.11, 10.811, 2.752], [98.29, 10.85, 2.575], [98.46, 10.973, 2.468], [98.65, 11.114, 2.365], [98.84, 11.053, 2.241], [99.02, 11.032, 2.15], [99.19, 10.95, 2.043], [99.37, 10.883, 1.899], [99.56, 10.805, 1.977], [99.74, 10.756, 2.138], [99.91, 10.753, 2.29], [100.08, 10.798, 2.451], [100.27, 10.843, 2.524], [100.44, 10.776, 2.672], [100.64, 10.747, 2.831], [100.8, 10.632, 2.868], [100.99, 10.579, 3.019], [101.18, 10.482, 3.149], [101.36, 10.39, 3.296], [101.52, 10.32, 3.431], [101.72, 10.207, 3.31], [101.9, 10.189, 3.139], [102.08, 10.159, 2.986], [102.25, 10.041, 2.887], [102.43, 9.909, 2.82], [102.61, 9.778, 2.713], [102.78, 9.659, 2.607], [102.97, 9.508, 2.528], [103.16, 9.366, 2.42], [103.33, 9.295, 2.339], [103.52, 9.194, 2.459], [103.68, 9.232, 2.323], [103.87, 9.219, 2.366], [104.05, 9.171, 2.29], [104.22, 9.141, 2.3], [104.4, 9.135, 2.192], [104.6, 9.03, 2.273], [104.72, 8.98, 2.3]], "trackExt": [16.49, 13.299], "co": {"pts": ["NN", "Tarros", "Foggy", "SFT", "WP", "KAC", "Cliff", "Echo", "Gordon", "FairA", "FairD", "QVH", "EAS", "Furber", "Board", "Fin"], "kms": [3.5, 13.8, 23.9, 37.4, 45.1, 56.3, 57.8, 59.5, 65.2, 68.4, 68.4, 79.4, 92.6, 100.3, 101.2, 101.6], "corridor": [{"p": "NN", "km": 3.5, "lo": 19.1, "hi": 24.1, "med": 21.8, "andre": 24.4}, {"p": "Tarros", "km": 13.8, "lo": 74.6, "hi": 89.1, "med": 82.7, "andre": 99.9}, {"p": "Foggy", "km": 23.9, "lo": 141.5, "hi": 174.9, "med": 160.2, "andre": 187.8}, {"p": "SFT", "km": 37.4, "lo": 232.3, "hi": 279.8, "med": 262.7, "andre": 304.9}, {"p": "WP", "km": 45.1, "lo": 300.3, "hi": 355.4, "med": 331.0, "andre": 393.5}, {"p": "KAC", "km": 56.3, "lo": 392.6, "hi": 447.0, "med": 430.0, "andre": 506.8}, {"p": "Cliff", "km": 57.8, "lo": 410.9, "hi": 466.9, "med": 447.4, "andre": 551.0}, {"p": "Echo", "km": 59.5, "lo": 424.8, "hi": 479.6, "med": 459.8, "andre": 563.3}, {"p": "Gordon", "km": 65.2, "lo": 484.5, "hi": 535.4, "med": 516.9, "andre": 621.5}, {"p": "FairA", "km": 68.4, "lo": 509.1, "hi": 562.7, "med": 546.1, "andre": 653.4}, {"p": "FairD", "km": 68.4, "lo": 516.9, "hi": 571.0, "med": 548.6, "andre": 658.2}, {"p": "QVH", "km": 79.4, "lo": 603.0, "hi": 655.8, "med": 643.3, "andre": 771.7}, {"p": "EAS", "km": 92.6, "lo": 717.9, "hi": 755.2, "med": 742.8, "andre": 901.7}, {"p": "Furber", "km": 100.3, "lo": 803.7, "hi": 838.7, "med": 820.5, "andre": 999.3}, {"p": "Board", "km": 101.2, "lo": 818.6, "hi": 858.2, "med": 835.0, "andre": 1019.5}, {"p": "Fin", "km": 101.6, "lo": 820.5, "hi": 860.4, "med": 836.7, "andre": 1021.9}], "legs": [{"name": "Tarros", "km": 13.8, "d": 13.8, "med": 4.39, "lo": 4.02, "hi": 4.71, "andre": 5.47}, {"name": "Foggy", "km": 23.9, "d": 10.1, "med": 7.53, "lo": 6.62, "hi": 8.5, "andre": 8.7}, {"name": "SFT", "km": 37.4, "d": 13.5, "med": 7.59, "lo": 6.73, "hi": 7.98, "andre": 8.68}, {"name": "WP", "km": 45.1, "d": 7.7, "med": 9.0, "lo": 8.17, "hi": 9.82, "andre": 11.51}, {"name": "KAC", "km": 56.3, "d": 11.2, "med": 8.45, "lo": 8.18, "hi": 10.17, "andre": 10.12}, {"name": "Fairmont", "km": 68.4, "d": 12.1, "med": 9.46, "lo": 8.79, "hi": 10.13, "andre": 12.12}, {"name": "QVH", "km": 79.4, "d": 11.0, "med": 8.36, "lo": 7.71, "hi": 9.29, "andre": 10.32}, {"name": "EAS", "km": 92.6, "d": 13.2, "med": 7.71, "lo": 7.25, "hi": 8.71, "andre": 9.85}, {"name": "Furber", "km": 100.3, "d": 7.7, "med": 10.63, "lo": 9.58, "hi": 11.72, "andre": 12.68}, {"name": "Finish", "km": 101.6, "d": 1.3, "med": 13.06, "lo": 12.04, "hi": 16.69, "andre": 17.37}], "rests": [{"rk": 159, "tot": 10.5}, {"rk": 146, "tot": 12.2}, {"rk": 135, "tot": 12.5}, {"rk": 157, "tot": 13.9}, {"rk": 151, "tot": 15.6}, {"rk": 172, "tot": 22.6}, {"rk": 182, "tot": 23.5}, {"rk": 140, "tot": 29.3}, {"rk": 132, "tot": 30.4}, {"rk": 179, "tot": 34.0}], "restAndre": 63.0, "kacRest": {"med": 8.1, "lo": 4.5, "hi": 14.4}, "fade": {"med": 1.542, "lo": 1.402, "hi": 1.74, "andre": 1.597}, "runners": {"132": [20.1, 75.5, 148.0, 241.9, 306.9, 402.8, 421.0, 432.3, 484.5, 509.1, 517.0, 603.0, 717.9, 803.7, 818.6, 820.5], "135": [19.3, 75.8, 143.3, 237.4, 300.3, 392.6, 410.9, 424.8, 486.1, 513.5, 516.9, 619.0, 722.8, 806.0, 821.1, 823.0], "140": [19.1, 74.6, 141.5, 232.3, 302.1, 401.5, 422.7, 434.5, 489.8, 517.8, 526.4, 619.5, 721.5, 807.0, 824.4, 826.7], "146": [21.4, 84.0, 165.2, 268.2, 335.3, 430.0, 447.1, 459.0, 513.2, 540.3, 543.0, 634.2, 732.4, 812.9, 828.2, 829.6], "151": [22.0, 85.8, 163.2, 270.9, 343.9, 437.4, 453.8, 466.4, 519.9, 547.1, 550.7, 643.4, 739.1, 818.5, 833.2, 835.4], "157": [21.9, 81.5, 155.7, 259.4, 330.3, 444.2, 456.1, 467.9, 524.7, 553.6, 558.3, 649.0, 747.0, 822.5, 836.7, 838.1], "159": [22.3, 85.6, 161.5, 262.4, 331.7, null, 444.2, 456.9, 516.9, 546.7, 548.9, 647.4, 749.0, 822.8, 837.6, 839.2], "172": [22.5, 82.7, 159.0, 263.0, 329.4, 422.9, 447.8, 460.5, 516.9, 545.5, 548.2, 644.0, 746.4, 830.1, 848.7, 851.0], "179": [24.1, 89.1, 174.9, 279.8, 355.4, 447.0, 466.9, 479.6, 535.4, 562.7, 571.0, 655.8, 755.2, 833.8, 851.7, 853.6], "182": [21.6, 82.6, 166.3, 268.3, 337.6, 435.2, 455.5, 466.9, 522.0, 549.7, 553.8, 643.3, 748.4, 838.7, 858.2, 860.4]}, "years": [{"y": 2026, "km": "101.6", "vert": "4,400", "win": "9:04:19", "fin": 1391, "men": 1065, "note": "Comparable course. Warm day (28.7\u00b0C on-device). Giant Stairs finish \u2014 Furber Steps closed for upgrades. Cohort year.", "ok": true}, {"y": 2025, "km": "101.6", "vert": "4,500", "win": "9:26:02", "fin": 1283, "men": null, "note": "Same course skeleton (LiveTrail point map matches 2026 within ~0.2 km). Splits not bulk-accessible \u2014 finish-level context only.", "ok": true}, {"y": 2024, "km": "100.4", "vert": "4,520", "win": "9:01:24", "fin": 1318, "men": null, "note": "EXCLUDED as outlier: heavy rain forced a clifftop out-and-back avoiding Kedumba Valley entirely (flood + rockfall risk). Different race.", "ok": false}]}, "waterfall2": [{"k": "Finish 17:01:54", "v": 1022, "col": "#2C4258"}, {"k": "\u2212 stops to cohort-tight (43)", "v": 43, "col": "#F1C453", "note": "56 min detected vs ~13 cohort"}, {"k": "\u2212 general late-race durability (~100)", "v": 100, "col": "#C77B53", "note": "all-terrain fatigue, km40+"}, {"k": "\u2212 descent-specific / load-tolerance (~25)", "v": 25, "col": "#E25C4A", "note": "ITB-consistent excess over general fade"}, {"k": "\u2212 baseline / early-pace gap (~14)", "v": 14, "col": "#6FA8DC", "note": "P1 form, held flat, still ~14:14"}, {"k": "Sub-14 target 13:59:54", "v": 840, "col": "#88B79B"}], "terrDeg": {"labels": ["descent", "flat", "climb"], "P2": [1.33, 1.19, 1.25], "P3": [1.34, 1.31, 1.29]}, "reattr": {"descentSpecific": 25, "general": 100, "totalDeg": 125, "descentTotal": 50, "flat": 26, "climb": 50, "descGeneral": 31, "descSpecific": 19}, "modelWin": [{"w": "km10\u201335", "h": 14.27}, {"w": "km8\u201338", "h": 14.11}, {"w": "km5\u201340", "h": 14.29}, {"w": "km10\u201340", "h": 14.48}, {"w": "km5\u201345", "h": 14.59}], "projBand": "14:10 \u2013 14:35", "sim2": {"movingFloor": 841, "lateLoss": 125, "stopBase": 56, "stopMin": 12}, "stopSens": [{"thr": 0.8, "min": 43.5}, {"thr": 1.0, "min": 49.8}, {"thr": 1.2, "min": 55.3}, {"thr": 1.5, "min": 67.8}], "add": {"heat": [{"km": 2.5, "temp": 18.2, "hr": 152, "pace": 6.92}, {"km": 7.5, "temp": 19.7, "hr": 152, "pace": 7.01}, {"km": 12.5, "temp": 21.4, "hr": 128, "pace": 7.71}, {"km": 17.5, "temp": 22.7, "hr": 155, "pace": 7.68}, {"km": 22.5, "temp": 23.8, "hr": 157, "pace": 7.39}, {"km": 27.5, "temp": 24.9, "hr": 160, "pace": 9.32}, {"km": 32.5, "temp": 26.4, "hr": 158, "pace": 9.02}, {"km": 37.5, "temp": 27.4, "hr": 147, "pace": 7.33}, {"km": 42.5, "temp": 28.7, "hr": 149, "pace": 9.72}, {"km": 47.5, "temp": 28.3, "hr": 144, "pace": 8.57}, {"km": 52.5, "temp": 27.8, "hr": 146, "pace": 12.05}, {"km": 57.5, "temp": 25.6, "hr": 133, "pace": 10.2}, {"km": 62.5, "temp": 24.1, "hr": 146, "pace": 8.65}, {"km": 67.5, "temp": 24.1, "hr": 145, "pace": 10.95}, {"km": 72.5, "temp": 22.0, "hr": 134, "pace": 9.84}, {"km": 77.5, "temp": 22.3, "hr": 132, "pace": 9.44}, {"km": 82.5, "temp": 20.4, "hr": 132, "pace": 8.95}, {"km": 87.5, "temp": 22.3, "hr": 122, "pace": 7.71}, {"km": 92.5, "temp": 25.8, "hr": 132, "pace": 10.8}, {"km": 97.5, "temp": 26.0, "hr": 135, "pace": 11.51}, {"km": 102.5, "temp": 25.5, "hr": 135, "pace": 14.13}], "heatStats": {"peak": 31.0, "minsOver26": 390, "kmHotStart": 42, "kmHotEnd": 52}, "techDesc": [{"band": "(-60, -15]", "P1": 10.0, "P2": 11.03, "P3": 11.72}, {"band": "(-15, -8]", "P1": 5.99, "P2": 8.41, "P3": 8.83}, {"band": "(-8, -3]", "P1": 5.98, "P2": 7.93, "P3": 8.22}], "techLegs": [{"leg": "Start\u2192Tarros", "note": "Tarros Ladders + Landslide \u2014 technical", "andre": 5.47, "cohortMed": 4.39, "gap": "+25%"}, {"leg": "Tarros\u2192Foggy", "note": "runnable fire trail + Ironpot climb", "andre": 8.7, "cohortMed": 7.53, "gap": "+16%"}, {"leg": "\u2192Six Foot Track", "note": "Megalong descent, fast & smooth", "andre": 8.68, "cohortMed": 7.59, "gap": "+14%"}], "decoupling": {"ei1": 0.9459, "ei2": 0.9178, "pct": 3.0}, "scenarios": [{"name": "2026 actual", "stop": 56, "dur": 0, "fit": 0, "t": 1022.0, "band_lo": 986.2, "band_hi": 1057.8}, {"name": "Stops fixed only", "stop": 16, "dur": 0, "fit": 0, "t": 982.0, "band_lo": 947.6, "band_hi": 1016.4}, {"name": "Sydney sub-3:20 done (+5% pace)", "stop": 40, "dur": 0, "fit": 5, "t": 957.7, "band_lo": 924.2, "band_hi": 991.2}, {"name": "+ durability block (70%)", "stop": 20, "dur": 70, "fit": 5, "t": 854.6, "band_lo": 824.7, "band_hi": 884.5}, {"name": "Full sub-14 path", "stop": 16, "dur": 85, "fit": 5, "t": 832.8, "band_lo": 803.6, "band_hi": 861.9}, {"name": "Everything (stretch)", "stop": 14, "dur": 100, "fit": 7, "t": 796.1, "band_lo": 768.3, "band_hi": 824.0}], "paceProxies": [{"metric": "30km/1107m benchmark @ fixed HR", "now": "7:00", "p3": "6:48", "p5": "6:39", "p7": "6:31"}, {"metric": "Flat runnable (P1 race 6:41)", "now": "6:41", "p3": "6:29", "p5": "6:21", "p7": "6:13"}, {"metric": "Sydney marathon pace", "now": "4:58", "p3": "4:49", "p5": "4:44", "p7": "4:38"}, {"metric": "Threshold rep pace", "now": "4:55", "p3": "4:46", "p5": "4:40", "p7": "4:34"}], "sydneyAnchor": {"pct": 5.0, "pace": "4:44", "note": "Sub-3:20 = 4:44/km = the ~5% road-speed uplift, externally validated on race day"}}, "gapPace": [{"km": 1, "gap": 6.63, "raw": 5.86}, {"km": 3, "gap": 6.23, "raw": 7.73}, {"km": 5, "gap": 6.49, "raw": 6.94}, {"km": 7, "gap": 7.27, "raw": 7.44}, {"km": 9, "gap": 6.04, "raw": 6.34}, {"km": 11, "gap": 7.14, "raw": 5.85}, {"km": 13, "gap": 7.63, "raw": 6.6}, {"km": 15, "gap": 10.26, "raw": 8.77}, {"km": 17, "gap": 8.5, "raw": 6.79}, {"km": 19, "gap": 7.25, "raw": 7.65}, {"km": 21, "gap": 6.48, "raw": 7.32}, {"km": 23, "gap": 7.82, "raw": 6.49}, {"km": 25, "gap": 7.04, "raw": 8.15}, {"km": 27, "gap": 9.94, "raw": 9.2}, {"km": 29, "gap": 7.83, "raw": 7.79}, {"km": 31, "gap": 8.76, "raw": 7.78}, {"km": 33, "gap": 6.87, "raw": 10.36}, {"km": 35, "gap": 7.89, "raw": 6.45}, {"km": 37, "gap": 7.74, "raw": 6.02}, {"km": 39, "gap": 8.58, "raw": 8.37}, {"km": 41, "gap": 9.19, "raw": 8.92}, {"km": 43, "gap": 9.92, "raw": 9.06}, {"km": 45, "gap": 9.46, "raw": 9.64}, {"km": 47, "gap": 8.5, "raw": 8.54}, {"km": 49, "gap": 7.29, "raw": 7.58}, {"km": 51, "gap": 7.41, "raw": 8.39}, {"km": 53, "gap": 7.39, "raw": 11.57}, {"km": 55, "gap": 10.19, "raw": 10.75}, {"km": 57, "gap": 8.95, "raw": 8.01}, {"km": 59, "gap": 7.36, "raw": 6.51}, {"km": 61, "gap": 5.77, "raw": 5.79}, {"km": 63, "gap": 8.05, "raw": 7.79}, {"km": 65, "gap": 10.28, "raw": 10.46}, {"km": 67, "gap": 9.68, "raw": 9.37}, {"km": 69, "gap": 8.65, "raw": 9.73}, {"km": 71, "gap": 9.67, "raw": 7.77}, {"km": 73, "gap": 11.01, "raw": 10.73}, {"km": 75, "gap": 9.66, "raw": 8.2}, {"km": 77, "gap": 10.11, "raw": 10.05}, {"km": 79, "gap": 7.81, "raw": 8.09}, {"km": 81, "gap": 9.08, "raw": 7.83}, {"km": 83, "gap": 9.3, "raw": 8.25}, {"km": 85, "gap": 10.22, "raw": 7.08}, {"km": 87, "gap": 11.49, "raw": 7.61}, {"km": 89, "gap": 12.33, "raw": 7.87}, {"km": 91, "gap": 10.14, "raw": 10.21}, {"km": 93, "gap": 9.26, "raw": 9.66}, {"km": 95, "gap": 11.32, "raw": 11.66}, {"km": 97, "gap": 7.05, "raw": 10.86}, {"km": 99, "gap": 10.31, "raw": 10.52}, {"km": 101, "gap": 12.91, "raw": 12.24}, {"km": 103, "gap": 9.77, "raw": 11.04}], "gapPhase": {"P1": 7.6, "P2": 8.83, "P3": 10.12}, "stride": [{"km": 2.5, "stride": 1.83, "cad": 92}, {"km": 7.5, "stride": 1.76, "cad": 92}, {"km": 12.5, "stride": 1.86, "cad": 92}, {"km": 17.5, "stride": 1.82, "cad": 91}, {"km": 22.5, "stride": 1.77, "cad": 92}, {"km": 27.5, "stride": 1.71, "cad": 91}, {"km": 32.5, "stride": 1.66, "cad": 92}, {"km": 37.5, "stride": 1.87, "cad": 92}, {"km": 42.5, "stride": 1.67, "cad": 90}, {"km": 47.5, "stride": 1.62, "cad": 91}, {"km": 52.5, "stride": 1.61, "cad": 92}, {"km": 57.5, "stride": 1.7, "cad": 91}, {"km": 62.5, "stride": 1.71, "cad": 91}, {"km": 67.5, "stride": 1.59, "cad": 90}, {"km": 72.5, "stride": 1.59, "cad": 91}, {"km": 77.5, "stride": 1.52, "cad": 90}, {"km": 82.5, "stride": 1.62, "cad": 91}, {"km": 87.5, "stride": 1.77, "cad": 89}], "strideCadPhase": {"P1": {"stride": 1.78, "cad": 92}, "P2": {"stride": 1.62, "cad": 91}, "P3": {"stride": 1.75, "cad": 88}}, "stopsCorrected": {"detected08": 81.8, "kacGap": 11.8, "usable": 81.8, "note": "1s data exposes an 11.8-min auto-pause at KAC the 15s file hid"}, "peakHR": {"hr": 183, "km": 17.4}, "viCV": {"P1": 37, "P2": 46, "P3": 46}, "power": {"phases": {"P1": {"avg": 199, "np": 233, "vi": 1.17}, "P2": {"avg": 160, "np": 196, "vi": 1.23}, "P3": {"avg": 100, "np": 166, "vi": 1.67}}, "pdc": {"5s": 772, "1min": 387, "5min": 283, "20min": 263, "60min": 248}, "climbs": [{"name": "Ironpot (km24-26)", "avg": 182}, {"name": "Nellie's Glen (km46-52)", "avg": 176}, {"name": "Giant Stairs/Furber (km100-101.6)", "avg": 53}], "powhr": {"P1": 1.49, "P2": 1.38, "P3": 1.37}, "powSeries": [{"km": 1, "avg": 267}, {"km": 3, "avg": 258}, {"km": 5, "avg": 248}, {"km": 7, "avg": 225}, {"km": 9, "avg": 254}, {"km": 11, "avg": 240}, {"km": 13, "avg": 212}, {"km": 15, "avg": 148}, {"km": 17, "avg": 188}, {"km": 19, "avg": 208}, {"km": 21, "avg": 175}, {"km": 23, "avg": 217}, {"km": 25, "avg": 179}, {"km": 27, "avg": 150}, {"km": 29, "avg": 200}, {"km": 31, "avg": 189}, {"km": 33, "avg": 141}, {"km": 35, "avg": 225}, {"km": 37, "avg": 202}, {"km": 39, "avg": 157}, {"km": 41, "avg": 100}, {"km": 43, "avg": 148}, {"km": 45, "avg": 142}, {"km": 47, "avg": 179}, {"km": 49, "avg": 206}, {"km": 51, "avg": 150}, {"km": 53, "avg": 84}, {"km": 55, "avg": 162}, {"km": 57, "avg": 179}, {"km": 59, "avg": 212}, {"km": 61, "avg": 218}, {"km": 63, "avg": 146}, {"km": 65, "avg": 169}, {"km": 67, "avg": 146}, {"km": 69, "avg": 208}, {"km": 71, "avg": 137}, {"km": 73, "avg": 177}, {"km": 75, "avg": 143}, {"km": 77, "avg": 180}, {"km": 79, "avg": 198}, {"km": 81, "avg": 168}, {"km": 83, "avg": 185}, {"km": 85, "avg": 139}, {"km": 87, "avg": 59}, {"km": 89, "avg": 79}, {"km": 91, "avg": 91}, {"km": 93, "avg": 73}, {"km": 95, "avg": 79}, {"km": 97, "avg": 93}, {"km": 99, "avg": 47}, {"km": 101, "avg": 66}, {"km": 103, "avg": 185}], "avg": 157, "np": 206, "vi": 1.31, "powGrad": [{"band": "<-15", "p": 104}, {"band": "-15:-8", "p": 143}, {"band": "-8:-3", "p": 207}, {"band": "-3:3", "p": 182}, {"band": "3:8", "p": 246}, {"band": "8:15", "p": 159}, {"band": ">15", "p": 113}], "weight": 67.6, "wkg": {"P1": 2.94, "P2": 2.37, "P3": 1.48}, "npWkg": 3.05, "pdcWkg": {"5s": 11.42, "1min": 5.72, "5min": 4.19, "20min": 3.89, "60min": 3.67}}, "dynamics": {"vo": {"phase": {"P1": 74.0, "P2": 70.4, "P3": 69.3}, "label": "Vertical oscillation", "unit": "mm", "series": [{"km": 2.5, "v": 75.7}, {"km": 7.5, "v": 74.1}, {"km": 12.5, "v": 75.2}, {"km": 17.5, "v": 75.2}, {"km": 22.5, "v": 73.5}, {"km": 27.5, "v": 71.9}, {"km": 32.5, "v": 70.9}, {"km": 37.5, "v": 75.3}, {"km": 42.5, "v": 70.6}, {"km": 47.5, "v": 70.6}, {"km": 52.5, "v": 68.3}, {"km": 57.5, "v": 72.9}, {"km": 62.5, "v": 70.9}, {"km": 67.5, "v": 69.8}, {"km": 72.5, "v": 70.0}, {"km": 77.5, "v": 68.9}, {"km": 82.5, "v": 70.7}, {"km": 87.5, "v": 67.4}]}, "vr": {"phase": {"P1": 8.6, "P2": 9.2, "P3": 8.8}, "label": "Vertical ratio", "unit": "%", "series": [{"km": 2.5, "v": 8.4}, {"km": 7.5, "v": 8.6}, {"km": 12.5, "v": 8.3}, {"km": 17.5, "v": 8.6}, {"km": 22.5, "v": 8.6}, {"km": 27.5, "v": 8.8}, {"km": 32.5, "v": 8.9}, {"km": 37.5, "v": 8.3}, {"km": 42.5, "v": 9.2}, {"km": 47.5, "v": 9.1}, {"km": 52.5, "v": 9.4}, {"km": 57.5, "v": 8.8}, {"km": 62.5, "v": 9.2}, {"km": 67.5, "v": 9.1}, {"km": 72.5, "v": 9.6}, {"km": 77.5, "v": 9.6}, {"km": 82.5, "v": 8.9}, {"km": 87.5, "v": 8.6}]}, "sl": {"phase": {"P1": 863.0, "P2": 764.0, "P3": 826.0}, "label": "Step length", "unit": "mm", "series": [{"km": 2.5, "v": 903.0}, {"km": 7.5, "v": 864.0}, {"km": 12.5, "v": 907.0}, {"km": 17.5, "v": 871.0}, {"km": 22.5, "v": 854.0}, {"km": 27.5, "v": 830.0}, {"km": 32.5, "v": 799.0}, {"km": 37.5, "v": 925.0}, {"km": 42.5, "v": 786.0}, {"km": 47.5, "v": 776.0}, {"km": 52.5, "v": 734.0}, {"km": 57.5, "v": 830.0}, {"km": 62.5, "v": 776.0}, {"km": 67.5, "v": 764.0}, {"km": 72.5, "v": 734.0}, {"km": 77.5, "v": 707.0}, {"km": 82.5, "v": 800.0}, {"km": 87.5, "v": 889.0}]}, "pc": {"series": [{"min": 5, "pc": 3.0}, {"min": 10, "pc": 1.0}, {"min": 15, "pc": -1.0}, {"min": 20, "pc": -1.0}, {"min": 25, "pc": -3.0}, {"min": 30, "pc": -2.5}, {"min": 35, "pc": -2.0}, {"min": 40, "pc": -3.0}, {"min": 45, "pc": -3.0}, {"min": 50, "pc": -3.0}, {"min": 55, "pc": -3.0}, {"min": 60, "pc": -4.0}, {"min": 65, "pc": -4.0}, {"min": 70, "pc": -4.0}, {"min": 75, "pc": -4.0}, {"min": 80, "pc": -4.0}, {"min": 85, "pc": -4.0}, {"min": 90, "pc": -3.0}, {"min": 95, "pc": -3.0}, {"min": 100, "pc": -3.0}, {"min": 105, "pc": -3.0}, {"min": 110, "pc": -3.0}, {"min": 115, "pc": -3.0}, {"min": 120, "pc": -3.0}, {"min": 125, "pc": -3.0}, {"min": 130, "pc": -3.0}, {"min": 135, "pc": -4.0}, {"min": 140, "pc": -4.0}, {"min": 145, "pc": -4.0}, {"min": 150, "pc": -4.0}, {"min": 155, "pc": -4.0}, {"min": 160, "pc": -4.0}, {"min": 165, "pc": -4.0}, {"min": 170, "pc": -4.0}, {"min": 175, "pc": -4.0}, {"min": 180, "pc": -4.0}, {"min": 185, "pc": -4.0}, {"min": 190, "pc": -4.0}, {"min": 195, "pc": -4.0}, {"min": 200, "pc": -4.0}, {"min": 205, "pc": -4.0}, {"min": 210, "pc": -4.0}, {"min": 215, "pc": -4.0}, {"min": 220, "pc": -4.0}, {"min": 225, "pc": -4.0}, {"min": 230, "pc": -4.0}, {"min": 235, "pc": -4.0}, {"min": 240, "pc": -5.0}, {"min": 245, "pc": -5.0}, {"min": 250, "pc": -5.0}, {"min": 255, "pc": -5.0}, {"min": 260, "pc": -5.0}, {"min": 265, "pc": -5.0}, {"min": 270, "pc": -5.0}, {"min": 275, "pc": -5.0}, {"min": 280, "pc": -5.0}, {"min": 285, "pc": -5.0}, {"min": 290, "pc": -5.0}, {"min": 295, "pc": -5.0}, {"min": 300, "pc": -5.0}, {"min": 305, "pc": -5.0}, {"min": 310, "pc": -5.0}, {"min": 315, "pc": -5.0}, {"min": 320, "pc": -5.0}, {"min": 325, "pc": -5.0}, {"min": 330, "pc": -5.0}, {"min": 335, "pc": -5.0}, {"min": 340, "pc": -5.0}, {"min": 345, "pc": -5.0}, {"min": 350, "pc": -5.0}, {"min": 355, "pc": -5.0}, {"min": 360, "pc": -5.0}, {"min": 365, "pc": -5.0}, {"min": 370, "pc": -5.0}, {"min": 375, "pc": -5.0}, {"min": 380, "pc": -5.0}, {"min": 385, "pc": -5.0}, {"min": 390, "pc": -5.0}, {"min": 395, "pc": -5.0}, {"min": 400, "pc": -5.0}, {"min": 405, "pc": -5.0}, {"min": 410, "pc": -5.0}, {"min": 415, "pc": -5.0}, {"min": 420, "pc": -5.0}, {"min": 425, "pc": -5.0}, {"min": 430, "pc": -6.0}, {"min": 435, "pc": -6.0}, {"min": 440, "pc": -6.0}, {"min": 445, "pc": -6.0}, {"min": 450, "pc": -6.0}, {"min": 455, "pc": -6.0}, {"min": 460, "pc": -6.0}, {"min": 465, "pc": -6.0}, {"min": 470, "pc": -6.0}, {"min": 475, "pc": -6.0}, {"min": 480, "pc": -6.0}, {"min": 485, "pc": -6.0}, {"min": 490, "pc": -6.0}, {"min": 495, "pc": -6.0}, {"min": 500, "pc": -6.0}, {"min": 505, "pc": -6.0}, {"min": 510, "pc": -6.0}, {"min": 515, "pc": -6.0}, {"min": 520, "pc": -6.0}, {"min": 525, "pc": -6.0}, {"min": 530, "pc": -6.0}, {"min": 535, "pc": -6.0}, {"min": 540, "pc": -6.0}, {"min": 545, "pc": -5.5}, {"min": 550, "pc": -5.0}, {"min": 555, "pc": -5.0}, {"min": 560, "pc": -5.0}, {"min": 565, "pc": -5.0}, {"min": 570, "pc": -5.0}, {"min": 575, "pc": -5.0}, {"min": 580, "pc": -5.0}, {"min": 585, "pc": -5.0}, {"min": 590, "pc": -5.0}, {"min": 595, "pc": -5.0}, {"min": 600, "pc": -5.0}, {"min": 605, "pc": -5.0}, {"min": 610, "pc": -5.0}, {"min": 615, "pc": -5.0}, {"min": 620, "pc": -6.0}, {"min": 625, "pc": -6.0}, {"min": 630, "pc": -6.0}, {"min": 635, "pc": -6.0}, {"min": 640, "pc": -6.0}, {"min": 645, "pc": -6.0}, {"min": 650, "pc": -6.0}, {"min": 655, "pc": -6.0}, {"min": 660, "pc": -6.0}, {"min": 665, "pc": -6.0}, {"min": 670, "pc": -5.0}, {"min": 675, "pc": -5.0}, {"min": 680, "pc": -5.0}, {"min": 685, "pc": -6.0}, {"min": 690, "pc": -6.0}, {"min": 695, "pc": -6.0}, {"min": 700, "pc": -6.0}, {"min": 705, "pc": -6.0}, {"min": 710, "pc": -6.0}, {"min": 715, "pc": -6.0}, {"min": 720, "pc": -6.0}, {"min": 725, "pc": -6.0}, {"min": 730, "pc": -6.0}, {"min": 735, "pc": -6.0}, {"min": 740, "pc": -6.0}, {"min": 745, "pc": -6.0}, {"min": 750, "pc": -6.0}, {"min": 755, "pc": -6.0}, {"min": 760, "pc": -6.0}, {"min": 765, "pc": -6.0}, {"min": 770, "pc": -6.0}, {"min": 775, "pc": -6.0}, {"min": 780, "pc": -6.0}, {"min": 785, "pc": -6.0}, {"min": 790, "pc": -6.0}, {"min": 795, "pc": -6.0}, {"min": 800, "pc": -6.0}, {"min": 805, "pc": -6.0}, {"min": 810, "pc": -6.0}, {"min": 815, "pc": -6.0}, {"min": 820, "pc": -6.0}, {"min": 825, "pc": -6.0}, {"min": 830, "pc": -6.0}, {"min": 835, "pc": -6.0}, {"min": 840, "pc": -6.0}, {"min": 845, "pc": -6.0}, {"min": 850, "pc": -6.0}, {"min": 855, "pc": -6.0}, {"min": 860, "pc": -6.0}, {"min": 865, "pc": -6.0}, {"min": 870, "pc": -6.0}, {"min": 875, "pc": -6.0}, {"min": 880, "pc": -6.0}, {"min": 885, "pc": -6.0}, {"min": 890, "pc": -6.0}, {"min": 895, "pc": -6.0}, {"min": 900, "pc": -6.0}, {"min": 905, "pc": -6.0}, {"min": 910, "pc": -6.0}, {"min": 915, "pc": -6.0}, {"min": 920, "pc": -6.0}, {"min": 925, "pc": -6.0}, {"min": 930, "pc": -6.0}, {"min": 935, "pc": -6.0}, {"min": 940, "pc": -6.0}, {"min": 945, "pc": -6.0}, {"min": 950, "pc": -6.0}, {"min": 955, "pc": -6.0}, {"min": 960, "pc": -6.0}, {"min": 965, "pc": -6.0}, {"min": 970, "pc": -6.0}, {"min": 975, "pc": -6.0}, {"min": 980, "pc": -6.0}, {"min": 985, "pc": -6.0}, {"min": 990, "pc": -6.0}, {"min": 995, "pc": -6.0}, {"min": 1000, "pc": -6.0}, {"min": 1005, "pc": -6.0}, {"min": 1010, "pc": -6.0}, {"min": 1015, "pc": -6.0}, {"min": 1020, "pc": -6.0}], "first": 2.0, "last": -6.0}}, "rundyn": {"stepLen": {"phase": {"P1": 0.84, "P2": 0.71, "P3": 0.82}, "series": []}, "vertOsc": {"phase": {"P1": 71.15, "P2": 65.8, "P3": 71.8}, "series": []}, "vertRatio": {"phase": {"P1": 8.48, "P2": 9.29, "P3": 8.87}, "series": []}, "gct": {"phase": {"P1": 251.5, "P2": 261.0, "P3": 260.0}, "series": []}}, "witnesses": [{"metric": "Power output", "p1": "199 W", "p3": "100 W", "drop": "\u221250%", "says": "propulsion collapsed"}, {"metric": "Step length", "p1": "0.84 m", "p3": "0.82 m", "drop": "P2 dip \u221215%", "says": "force, not turnover"}, {"metric": "Power:HR efficiency", "p1": "1.49", "p3": "1.37", "drop": "\u22128%", "says": "engine barely faded"}, {"metric": "Grade-adj pace", "p1": "7:36", "p3": "10:07", "drop": "+33%", "says": "whole-body decline"}, {"metric": "Variability index", "p1": "1.17", "p3": "1.67", "drop": "+43%", "says": "run-walk fragmentation"}], "eiRange": [0.54, 1.24], "ddCohort": [{"km": 2.5, "pace": 4.4}, {"km": 7.5, "pace": 4.92}, {"km": 12.5, "pace": 5.58}, {"km": 17.5, "pace": 5.56}, {"km": 22.5, "pace": 5.07}, {"km": 27.5, "pace": 6.26}, {"km": 32.5, "pace": 5.68}, {"km": 37.5, "pace": 4.9}, {"km": 42.5, "pace": 6.3}, {"km": 47.5, "pace": 6.3}, {"km": 52.5, "pace": 7.53}, {"km": 57.5, "pace": 5.87}, {"km": 62.5, "pace": 6.26}, {"km": 67.5, "pace": 7.34}, {"km": 72.5, "pace": 6.46}, {"km": 77.5, "pace": 6.85}, {"km": 82.5, "pace": 5.43}, {"km": 87.5, "pace": 5.62}, {"km": 92.5, "pace": 5.81}, {"km": 97.5, "pace": 6.0}, {"km": 102.5, "pace": 6.19}]};
+
+/* ---------- helpers ---------- */
+const C = {ochre:'#E08E3C',sage:'#88B79B',gold:'#F1C453',red:'#E25C4A',blue:'#6FA8DC',mut:'#8DA3AE',line:'#24384A',ink:'#E9EFF1',dim:'#5E7484',grid:'#1E3040',slate:'#2C4258'};
+const MONO='"IBM Plex Mono",monospace';
+function hm(min){const h=Math.floor(min/60),m=Math.round(min-h*60);return h+':'+String(m).padStart(2,'0');}
+function pace(p){const m=Math.floor(p),s=Math.round((p-m)*60);return m+':'+String(s).padStart(2,'0');}
+function phaseColor(km){return km<40?C.sage:(km<79?C.gold:C.red);}
+
+/* ================= MINI CHART ENGINE (no dependencies) ================= */
+function mk(id,draw){
+  const cv=document.getElementById(id);
+  if(!cv) return;
+  function r(){
+    const dpr=window.devicePixelRatio||1;
+    const w=cv.clientWidth||320, h=cv.clientHeight||260;
+    cv.width=Math.round(w*dpr); cv.height=Math.round(h*dpr);
+    const ctx=cv.getContext('2d'); ctx.setTransform(dpr,0,0,dpr,0,0);
+    ctx.font='10.5px '+MONO; ctx.textBaseline='middle';
+    try{draw(ctx,w,h);}catch(e){ctx.fillStyle=C.red;ctx.fillText('chart error: '+e.message,8,14);}
+  }
+  r(); window.addEventListener('resize',r);
+}
+function niceTicks(min,max,n){
+  n=n||5; const span=max-min||1;
+  const raw=span/n, mag=Math.pow(10,Math.floor(Math.log10(raw))), norm=raw/mag;
+  const step=(norm>=7.5?10:norm>=3.5?5:norm>=1.5?2:1)*mag;
+  const out=[]; for(let v=Math.ceil(min/step)*step; v<=max+1e-9; v+=step) out.push(+v.toFixed(6));
+  return out;
+}
+function frame(ctx,a,ymin,ymax,opt){
+  opt=opt||{};
+  const yt=opt.yticks||niceTicks(ymin,ymax,opt.yn||5);
+  const Y=v=>a.y1-(v-ymin)/(ymax-ymin)*(a.y1-a.y0);
+  ctx.strokeStyle=C.grid; ctx.lineWidth=1; ctx.fillStyle=C.mut; ctx.textAlign='right';
+  yt.forEach(v=>{
+    if(v<ymin-1e-9||v>ymax+1e-9)return;
+    const y=Y(v);
+    ctx.beginPath(); ctx.moveTo(a.x0,y); ctx.lineTo(a.x1,y); ctx.stroke();
+    ctx.fillText(opt.yfmt?opt.yfmt(v):v, a.x0-6, y);
+  });
+  if(opt.ylab){ctx.fillStyle=C.dim;ctx.textAlign='left';ctx.fillText(opt.ylab,a.x0, opt.hasLegend? a.y0+12 : a.y0-9);}
+  if(opt.xlab){ctx.fillStyle=C.dim;ctx.textAlign='center';ctx.fillText(opt.xlab,(a.x0+a.x1)/2,a.y1+(opt.xlabdy||26));}
+  return Y;
+}
+function legend(ctx,items,x,y){
+  ctx.textAlign='left';
+  items.forEach(it=>{
+    ctx.fillStyle=it.color; ctx.fillRect(x,y-5,10,10);
+    ctx.fillStyle=C.mut; ctx.fillText(it.name,x+15,y);
+    x+=15+ctx.measureText(it.name).width+16;
+  });
+}
+function rotLabel(ctx,t,x,y){
+  ctx.save(); ctx.translate(x,y); ctx.rotate(-Math.PI/4);
+  ctx.textAlign='right'; ctx.fillStyle=C.mut; ctx.fillText(t,0,0); ctx.restore();
+}
+function bands(ctx,a,X){
+  [[0,40,'rgba(136,183,155,.07)'],[40,79,'rgba(241,196,83,.07)'],[79,105,'rgba(226,92,74,.08)']].forEach(b=>{
+    const x0=Math.max(a.x0,X(b[0])), x1=Math.min(a.x1,X(b[1]));
+    if(x1>x0){ctx.fillStyle=b[2];ctx.fillRect(x0,a.y0,x1-x0,a.y1-a.y0);}
+  });
+}
+
+/* grouped vertical bars */
+function groupedBar(id,cfg){
+  mk(id,(ctx,w,h)=>{
+    const hasLeg=cfg.series.length>1;
+    const a={x0:46,x1:w-8,y0:hasLeg?30:14,y1:h-(cfg.rot?62:34)};
+    let ymax=cfg.ymax;
+    if(ymax==null){ymax=0;cfg.series.forEach(s=>s.data.forEach(v=>{if(v!=null&&v>ymax)ymax=v;}));ymax*=1.12;}
+    const ymin=cfg.ymin||0;
+    const Y=frame(ctx,a,ymin,ymax,Object.assign({hasLegend:hasLeg},cfg));
+    if(hasLeg)legend(ctx,cfg.series.map(s=>({name:s.name,color:Array.isArray(s.color)?s.color[0]:s.color})),a.x0,12);
+    const n=cfg.labels.length, gw=(a.x1-a.x0)/n;
+    const bw=Math.min(26,(gw*0.72)/cfg.series.length);
+    cfg.labels.forEach((lb,i)=>{
+      const cxm=a.x0+gw*i+gw/2;
+      const total=bw*cfg.series.length;
+      cfg.series.forEach((s,j)=>{
+        const v=s.data[i]; if(v==null)return;
+        const x=cxm-total/2+j*bw;
+        const col=Array.isArray(s.color)?s.color[i]:s.color;
+        ctx.fillStyle=col;
+        const y=Y(Math.min(v,ymax));
+        ctx.beginPath(); ctx.roundRect(x,y,bw-2,a.y1-y,2); ctx.fill();
+        if(cfg.valFmt){ctx.fillStyle=C.mut;ctx.textAlign='center';ctx.fillText(cfg.valFmt(v),x+(bw-2)/2,y-8);}
+      });
+      ctx.fillStyle=C.mut;
+      if(cfg.rot) rotLabel(ctx,lb,cxm+4,a.y1+12);
+      else {ctx.textAlign='center';ctx.fillText(lb,cxm,a.y1+14);}
+    });
+    if(cfg.refY!=null){const y=Y(cfg.refY);ctx.strokeStyle=C.dim;ctx.setLineDash([4,4]);ctx.beginPath();ctx.moveTo(a.x0,y);ctx.lineTo(a.x1,y);ctx.stroke();ctx.setLineDash([]);}
+    if(cfg.after)cfg.after(ctx,a,Y);
+  });
+}
+
+/* numeric-x line chart */
+function lineChart(id,cfg){
+  mk(id,(ctx,w,h)=>{
+    const a={x0:46,x1:w-10,y0:16,y1:h-36};
+    const X=x=>a.x0+(x-cfg.xmin)/(cfg.xmax-cfg.xmin)*(a.x1-a.x0);
+    if(cfg.bands)bands(ctx,a,X);
+    const Y=frame(ctx,a,cfg.ymin,cfg.ymax,Object.assign({hasLegend:!!cfg.legend},cfg));
+    // x ticks
+    ctx.fillStyle=C.mut;ctx.textAlign='center';
+    (cfg.xticks||niceTicks(cfg.xmin,cfg.xmax,6)).forEach(v=>{ctx.fillText(cfg.xfmt?cfg.xfmt(v):v,X(v),a.y1+14);});
+    cfg.series.forEach(s=>{
+      const pts=s.pts.filter(p=>p.y!=null);
+      if(s.fill){
+        ctx.beginPath(); ctx.moveTo(X(pts[0].x),a.y1);
+        pts.forEach(p=>ctx.lineTo(X(p.x),Y(p.y)));
+        ctx.lineTo(X(pts[pts.length-1].x),a.y1); ctx.closePath();
+        ctx.fillStyle=s.fill; ctx.fill();
+      }
+      ctx.strokeStyle=s.color; ctx.lineWidth=s.width||2;
+      if(s.dash)ctx.setLineDash([5,4]);
+      ctx.beginPath(); pts.forEach((p,i)=>i?ctx.lineTo(X(p.x),Y(p.y)):ctx.moveTo(X(p.x),Y(p.y))); ctx.stroke();
+      ctx.setLineDash([]);
+      if(s.points!==false){
+        pts.forEach((p,i)=>{
+          ctx.fillStyle=(s.ptColor?s.ptColor(p):s.color);
+          ctx.beginPath(); ctx.arc(X(p.x),Y(p.y),3.4,0,7); ctx.fill();
+        });
+      }
+    });
+    if(cfg.legend)legend(ctx,cfg.legend,a.x0,12);
+    if(cfg.after)cfg.after(ctx,a,X,Y);
+  });
+}
+
+/* horizontal bars (plain or floating ranges) */
+function hBars(id,cfg){
+  mk(id,(ctx,w,h)=>{
+    const a={x0:cfg.left||100,x1:w-(cfg.right||44),y0:10,y1:h-(cfg.xlab?34:24)};
+    const n=cfg.rows.length, rh=(a.y1-a.y0)/n;
+    const X=v=>a.x0+(v-cfg.xmin)/(cfg.xmax-cfg.xmin)*(a.x1-a.x0);
+    // grid
+    ctx.strokeStyle=C.grid;ctx.fillStyle=C.mut;ctx.textAlign='center';
+    (cfg.xticks||niceTicks(cfg.xmin,cfg.xmax,5)).forEach(v=>{
+      const x=X(v); ctx.beginPath();ctx.moveTo(x,a.y0);ctx.lineTo(x,a.y1);ctx.stroke();
+      ctx.fillText(cfg.xfmt?cfg.xfmt(v):v,x,a.y1+12);
+    });
+    if(cfg.xlab){ctx.fillStyle=C.dim;ctx.fillText(cfg.xlab,(a.x0+a.x1)/2,a.y1+26);}
+    cfg.rows.forEach((r,i)=>{
+      const yc=a.y0+rh*i+rh/2, bh=Math.min(20,rh*0.55);
+      const v0=r.range?r.range[0]:cfg.xmin, v1=r.range?r.range[1]:r.value;
+      ctx.fillStyle=r.color;
+      ctx.beginPath(); ctx.roundRect(X(v0),yc-bh/2,Math.max(2,X(v1)-X(v0)),bh,3); ctx.fill();
+      ctx.fillStyle=C.ink; ctx.textAlign='right'; ctx.font='10.5px '+MONO;
+      ctx.fillText(r.label,a.x0-8,yc);
+      if(r.tag){ctx.textAlign='left';ctx.fillStyle=C.mut;ctx.fillText(r.tag,X(Math.max(v0,v1))+6,yc);}
+    });
+  });
+}
+
+/* ================= HERO RIBBON + COURSE MAP (linked) ================= */
+(function(){
+  const rcv=document.getElementById('ribbon'), tip=document.getElementById('ribTip');
+  const mcv=document.getElementById('cmap');
+  const prof=D.prof, ks=D.ks, T=D.track, EXT=D.trackExt;
+  const maxKm=prof[prof.length-1][0];
+  const eMin=180, eMax=1120;
+  const CPS=[[14.0,'CP1'],[24.3,'CP2'],[38.2,'CP3'],[46.4,'WP'],[58.0,'CP4'],[70.4,'CP5'],[81.7,'CP6'],[95.4,'EAS'],[104.6,'FIN']];
+  let cursorKm=null;
+  let cum=0, dawnKm=0, duskKm=maxKm;
+  for(const k of ks){cum+=k.pace; if(cum<=66) dawnKm=k.km+1; if(cum<=677) duskKm=k.km+1;}
+  function rowAt(km){return ks.reduce((a,b)=>Math.abs(b.km+0.5-km)<Math.abs(a.km+0.5-km)?b:a);}
+  function profAt(km){return prof.reduce((a,b)=>Math.abs(b[0]-km)<Math.abs(a[0]-km)?b:a);}
+  function trkAt(km){return T.reduce((a,b)=>Math.abs(b[0]-km)<Math.abs(a[0]-km)?b:a);}
+
+  /* ---- ribbon ---- */
+  function drawRibbon(){
+    const w=rcv.clientWidth, h=rcv.clientHeight, dpr=window.devicePixelRatio||1;
+    rcv.width=w*dpr; rcv.height=h*dpr;
+    const ctx=rcv.getContext('2d'); ctx.setTransform(dpr,0,0,dpr,0,0);
+    const padT=18,padB=26;
+    const X=km=>km/maxKm*w;
+    const Y=e=>padT+(1-(e-eMin)/(eMax-eMin))*(h-padT-padB);
+    ctx.fillStyle='rgba(27,43,63,.55)';
+    ctx.fillRect(0,0,X(dawnKm),h-padB);
+    ctx.fillRect(X(duskKm),0,w-X(duskKm),h-padB);
+    function seg(k0,k1,col){
+      const pts=prof.filter(p=>p[0]>=k0-0.3&&p[0]<=k1+0.3);
+      if(pts.length<2)return;
+      ctx.beginPath(); ctx.moveTo(X(pts[0][0]),h-padB);
+      pts.forEach(p=>ctx.lineTo(X(p[0]),Y(p[1])));
+      ctx.lineTo(X(pts[pts.length-1][0]),h-padB); ctx.closePath();
+      ctx.fillStyle=col+'33'; ctx.fill();
+      ctx.beginPath(); pts.forEach((p,i)=>i?ctx.lineTo(X(p[0]),Y(p[1])):ctx.moveTo(X(p[0]),Y(p[1])));
+      ctx.strokeStyle=col; ctx.lineWidth=2; ctx.stroke();
+    }
+    seg(0,40,C.sage); seg(40,79,C.gold); seg(79,maxKm,C.red);
+    ctx.textAlign='center'; ctx.font='600 10px '+MONO;
+    CPS.forEach(c=>{
+      const p=profAt(c[0]);
+      const x=X(p[0]), y=Y(p[1]);
+      ctx.fillStyle='#0E1720'; ctx.strokeStyle=C.ink; ctx.lineWidth=1.4;
+      ctx.beginPath(); ctx.arc(x,y,3.4,0,7); ctx.fill(); ctx.stroke();
+      ctx.fillStyle=C.mut; ctx.fillText(c[1],x,y-9);
+    });
+    ctx.strokeStyle=C.line; ctx.beginPath(); ctx.moveTo(0,h-padB); ctx.lineTo(w,h-padB); ctx.stroke();
+    ctx.fillStyle=C.dim; ctx.font='10px '+MONO;
+    for(let k=0;k<=100;k+=20){ctx.fillText(k+'km',X(k)+(k===0?14:0),h-9);}
+    if(cursorKm!=null){
+      const p=profAt(cursorKm), x=X(p[0]);
+      ctx.strokeStyle=C.ink; ctx.setLineDash([3,3]); ctx.lineWidth=1;
+      ctx.beginPath(); ctx.moveTo(x,padT-6); ctx.lineTo(x,h-padB); ctx.stroke(); ctx.setLineDash([]);
+      ctx.fillStyle=phaseColor(cursorKm); ctx.strokeStyle=C.ink; ctx.lineWidth=1.6;
+      ctx.beginPath(); ctx.arc(x,Y(p[1]),5,0,7); ctx.fill(); ctx.stroke();
+    }
+  }
+
+  /* ---- map ---- */
+  let mapGeom=null;
+  function drawMap(){
+    if(!mcv)return;
+    const w=mcv.clientWidth, dpr=window.devicePixelRatio||1;
+    const hCss=Math.max(250,Math.min(430,w/(EXT[0]/EXT[1])));
+    mcv.style.height=hCss+'px';
+    const h=hCss;
+    mcv.width=w*dpr; mcv.height=h*dpr;
+    const ctx=mcv.getContext('2d'); ctx.setTransform(dpr,0,0,dpr,0,0);
+    const pad=26;
+    const s=Math.min((w-pad*2)/EXT[0],(h-pad*2)/EXT[1]);
+    const ox=(w-EXT[0]*s)/2, oy=(h-EXT[1]*s)/2;
+    const MX=p=>ox+p[1]*s, MY=p=>oy+p[2]*s;
+    mapGeom={MX,MY};
+    // soft track shadow
+    ctx.lineJoin='round'; ctx.lineCap='round';
+    ctx.strokeStyle='rgba(0,0,0,.45)'; ctx.lineWidth=5;
+    ctx.beginPath(); T.forEach((p,i)=>i?ctx.lineTo(MX(p)+1,MY(p)+2):ctx.moveTo(MX(p)+1,MY(p)+2)); ctx.stroke();
+    // phase-coloured path
+    [[0,40,C.sage],[40,79,C.gold],[79,200,C.red]].forEach(b=>{
+      const pts=T.filter(p=>p[0]>=b[0]-0.2&&p[0]<=b[1]+0.2);
+      if(pts.length<2)return;
+      ctx.strokeStyle=b[2]; ctx.lineWidth=2.6;
+      ctx.beginPath(); pts.forEach((p,i)=>i?ctx.lineTo(MX(p),MY(p)):ctx.moveTo(MX(p),MY(p))); ctx.stroke();
+    });
+    // checkpoints
+    ctx.font='600 10px '+MONO; ctx.textAlign='center';
+    CPS.forEach(c=>{
+      const p=trkAt(c[0]);
+      ctx.fillStyle='#0E1720'; ctx.strokeStyle=C.ink; ctx.lineWidth=1.4;
+      ctx.beginPath(); ctx.arc(MX(p),MY(p),3.6,0,7); ctx.fill(); ctx.stroke();
+      ctx.fillStyle=C.mut; ctx.fillText(c[1],MX(p),MY(p)-9);
+    });
+    // start marker
+    const st=T[0];
+    ctx.fillStyle=C.ink;
+    ctx.beginPath(); ctx.arc(MX(st),MY(st),4,0,7); ctx.fill();
+    ctx.fillStyle=C.mut; ctx.fillText('START',MX(st),MY(st)+14);
+    // scale bar (5 km) + north arrow
+    const bx=14, by=h-16, bl=5*s;
+    ctx.strokeStyle=C.mut; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.moveTo(bx,by); ctx.lineTo(bx+bl,by); ctx.stroke();
+    ctx.strokeStyle=C.mut; ctx.lineWidth=1;
+    [[bx,by],[bx+bl,by]].forEach(p=>{ctx.beginPath();ctx.moveTo(p[0],p[1]-4);ctx.lineTo(p[0],p[1]+4);ctx.stroke();});
+    ctx.fillStyle=C.dim; ctx.textAlign='left'; ctx.font='10px '+MONO;
+    ctx.fillText('5 km',bx+bl+7,by);
+    ctx.textAlign='center';
+    ctx.fillText('N',w-18,16);
+    ctx.beginPath(); ctx.moveTo(w-18,22); ctx.lineTo(w-22,32); ctx.lineTo(w-14,32); ctx.closePath();
+    ctx.fillStyle=C.mut; ctx.fill();
+    // cursor + info chip
+    if(cursorKm!=null){
+      const p=trkAt(cursorKm), row=rowAt(cursorKm);
+      ctx.fillStyle='rgba(233,239,241,.18)';
+      ctx.beginPath(); ctx.arc(MX(p),MY(p),10,0,7); ctx.fill();
+      ctx.fillStyle=phaseColor(cursorKm); ctx.strokeStyle=C.ink; ctx.lineWidth=1.6;
+      ctx.beginPath(); ctx.arc(MX(p),MY(p),5,0,7); ctx.fill(); ctx.stroke();
+      const lines=['km '+row.km+' · '+row.ele+' m','pace '+pace(row.pace)+' · HR '+row.hr];
+      ctx.font='10.5px '+MONO;
+      const tw=Math.max(...lines.map(l=>ctx.measureText(l).width))+16;
+      ctx.fillStyle='rgba(11,19,27,.92)'; ctx.strokeStyle=C.line;
+      ctx.beginPath(); ctx.roundRect(w-tw-10,28,tw,40,6); ctx.fill(); ctx.stroke();
+      ctx.textAlign='left'; ctx.fillStyle=C.ink;
+      ctx.fillText(lines[0],w-tw-2,42);
+      ctx.fillStyle=C.mut;
+      ctx.fillText(lines[1],w-tw-2,57);
+    }
+  }
+
+  /* ---- shared cursor ---- */
+  function setCursor(km,fromMap){
+    cursorKm=km;
+    drawRibbon(); drawMap();
+    if(km!=null && !fromMap){
+      const row=rowAt(km), r=rcv.getBoundingClientRect();
+      const cx=km/maxKm*r.width;
+      tip.style.display='block';
+      tip.style.left=Math.min(r.width-160,Math.max(4,cx+10))+'px';
+      tip.style.top='14px';
+      tip.innerHTML='<b>km '+row.km+'</b> · '+row.ele+' m<br>pace '+pace(row.pace)+' /km<br>HR '+row.hr+' · +'+row.gain+' m';
+    } else {
+      tip.style.display='none';
+    }
+  }
+  function ribbonEv(ev){
+    const r=rcv.getBoundingClientRect();
+    const cx=(ev.touches?ev.touches[0].clientX:ev.clientX)-r.left;
+    setCursor(Math.max(0,Math.min(maxKm,cx/r.width*maxKm)),false);
+  }
+  function mapEv(ev){
+    if(!mapGeom)return;
+    const r=mcv.getBoundingClientRect();
+    const cx=(ev.touches?ev.touches[0].clientX:ev.clientX)-r.left;
+    const cy=(ev.touches?ev.touches[0].clientY:ev.clientY)-r.top;
+    let best=T[0], bd=1e9;
+    T.forEach(p=>{const dx=mapGeom.MX(p)-cx,dy=mapGeom.MY(p)-cy;const d=dx*dx+dy*dy;if(d<bd){bd=d;best=p;}});
+    setCursor(best[0],true);
+  }
+  rcv.addEventListener('mousemove',ribbonEv);
+  rcv.addEventListener('touchstart',ribbonEv,{passive:true});
+  rcv.addEventListener('touchmove',ribbonEv,{passive:true});
+  rcv.addEventListener('mouseleave',()=>setCursor(null,false));
+  if(mcv){
+    mcv.addEventListener('mousemove',mapEv);
+    mcv.addEventListener('touchstart',mapEv,{passive:true});
+    mcv.addEventListener('touchmove',mapEv,{passive:true});
+    mcv.addEventListener('mouseleave',()=>setCursor(null,true));
+  }
+  drawRibbon(); drawMap();
+  window.addEventListener('resize',()=>{drawRibbon();drawMap();});
+})();
+
+/* ================= 02 cumulative deficit ================= */
+(function(){
+  const L=D.legs;
+  const labels=['Start'].concat(L.map(l=>l.name));
+  const vals=[0].concat(L.map(l=>+(l.cumA-l.cumR).toFixed(0)));
+  mk('chDeficit',(ctx,w,h)=>{
+    const a={x0:46,x1:w-12,y0:18,y1:h-72};
+    const ymax=200;
+    const Y=frame(ctx,a,0,ymax,{ylab:'minutes behind'});
+    const X=i=>a.x0+i/(labels.length-1)*(a.x1-a.x0);
+    // fill
+    ctx.beginPath(); ctx.moveTo(X(0),a.y1);
+    vals.forEach((v,i)=>ctx.lineTo(X(i),Y(v)));
+    ctx.lineTo(X(vals.length-1),a.y1); ctx.closePath();
+    ctx.fillStyle='rgba(224,142,60,.13)'; ctx.fill();
+    ctx.strokeStyle=C.ochre; ctx.lineWidth=2;
+    ctx.beginPath(); vals.forEach((v,i)=>i?ctx.lineTo(X(i),Y(v)):ctx.moveTo(X(i),Y(v))); ctx.stroke();
+    vals.forEach((v,i)=>{
+      const jump=i&&(vals[i]-vals[i-1])>25;
+      ctx.fillStyle=jump?C.red:C.ochre;
+      ctx.beginPath(); ctx.arc(X(i),Y(v),3.6,0,7); ctx.fill();
+      if(i){ctx.fillStyle=jump?C.red:C.mut;ctx.textAlign='center';ctx.fillText('+'+v,X(i),Y(v)-11);}
+      rotLabel(ctx,labels[i],X(i)+4,a.y1+12);
+    });
+  });
+})();
+
+/* ================= 02 leg table ================= */
+(function(){
+  const tb=document.querySelector('#legTable tbody');
+  D.legs.forEach(l=>{
+    const tr=document.createElement('tr');
+    if(l.ratioR>=1.28) tr.className='hot';
+    let plan='—';
+    if(l.plan!=null){
+      const d=Math.round(l.cumA-l.plan);
+      plan=d<=0?'<span class="pill g">'+d+' min</span>':(d<=20?'<span class="pill y">+'+d+'</span>':'<span class="pill r">+'+d+' min</span>');
+    }
+    tr.innerHTML='<td class="nm">'+l.name+'</td><td>'+l.km+'</td><td>'+l.d+'</td><td>'+hm(l.a)+'</td><td>'+pace(l.aPace)+'</td><td>'+hm(l.r)+'</td>'+
+      '<td>'+(l.ratioR===1?'<span class="pill g">1.00</span>':'×'+l.ratioR.toFixed(2))+'</td><td>×'+l.ratioV.toFixed(2)+'</td><td>'+plan+'</td>';
+    tb.appendChild(tr);
+  });
+})();
+
+/* ================= 03 terrain ================= */
+groupedBar('chShare',{
+  labels:D.gshare.map(x=>x.bin),
+  series:[{name:'distance km',data:D.gshare.map(x=>x.km),color:'rgba(111,168,220,.55)'},
+          {name:'moving min',data:D.gshare.map(x=>x.min),color:C.ochre}],
+  xlab:'gradient band (%)'});
+
+groupedBar('chGradPace',{
+  labels:['<-15','-15:-8','-8:-3','-3:3','3:8','8:15','>15'],
+  series:[{name:'P1 clean',data:D.gp.P1,color:C.sage},
+          {name:'P2 onset',data:D.gp.P2,color:C.gold},
+          {name:'P3 survival',data:D.gp.P3,color:C.red}],
+  ymax:20, yfmt:v=>pace(v), ylab:'min/km (lower = faster)', xlab:'gradient band (%)'});
+
+/* ================= 04 ITB ================= */
+lineChart('chDescent',{
+  xmin:0,xmax:105,ymin:4,ymax:15,bands:true,
+  ylab:'min/km on <−5% gradient', yfmt:v=>pace(v),
+  xticks:[0,20,40,60,80,100], xfmt:v=>v+'km',
+  series:[
+    D.ddCohort?{pts:D.ddCohort.map(p=>({x:p.km,y:p.pace})),color:C.sage,width:1.8,points:false,dash:true}:null,
+    {pts:D.dd.map(p=>({x:p.km,y:p.pace})),color:C.ink,width:2,ptColor:p=>phaseColor(p.x)}
+  ].filter(Boolean),
+  legend:[{name:'you',color:C.ink},{name:'sub-14 cohort (est.)',color:C.sage}]});
+
+groupedBar('chSteep',{
+  labels:['P1 clean','P2 onset','P3 survival'],
+  series:[{name:'',data:[D.steepDesc.P1,D.steepDesc.P2,D.steepDesc.P3],color:[C.sage,C.gold,C.red]}],
+  ymin:0,ymax:12.5,yfmt:v=>pace(v),ylab:'min/km, descents steeper than −15%',valFmt:v=>pace(v)});
+
+groupedBar('chDegr',{
+  labels:['km 40–79','km 79–finish'],
+  series:[{name:'Phase-1 model',data:[312,208],color:'rgba(136,183,155,.55)'},
+          {name:'actual moving',data:[387,268],color:C.red}],
+  ylab:'moving minutes',
+  after:(ctx,a,Y)=>{
+    ctx.fillStyle=C.red;ctx.textAlign='center';ctx.font='600 11px '+MONO;
+    const gw=(a.x1-a.x0)/2;
+    ctx.fillText('+75 min lost',a.x0+gw*0.5,Y(387)-22);
+    ctx.fillText('+60 min lost',a.x0+gw*1.5,Y(268)-22);
+  }});
+
+/* ================= 05 engine room ================= */
+mk('chHrEi',(ctx,w,h)=>{
+  const a={x0:46,x1:w-46,y0:30,y1:h-40};
+  const xmin=0,xmax=17.5;
+  const X=x=>a.x0+(x-xmin)/(xmax-xmin)*(a.x1-a.x0);
+  const Y=frame(ctx,a,110,165,{hasLegend:true,ylab:'bpm',yticks:[110,120,130,140,150,160]});
+  legend(ctx,[{name:'avg HR / hour',color:'rgba(111,168,220,.6)'},{name:'efficiency (right)',color:C.ochre}],a.x0,12);
+  ctx.fillStyle=C.mut;ctx.textAlign='center';
+  [0,3,6,9,12,15].forEach(v=>ctx.fillText(v+'h',X(v),a.y1+14));
+  ctx.fillStyle=C.dim;ctx.fillText('race hour',(a.x0+a.x1)/2,a.y1+28);
+  // HR bars
+  const bw=(a.x1-a.x0)/18*0.62;
+  D.hh.forEach(p=>{
+    const x=X(p.h-0.5)-bw/2, y=Y(p.hr);
+    ctx.fillStyle='rgba(111,168,220,.45)';
+    ctx.beginPath(); ctx.roundRect(x,y,bw,a.y1-y,2); ctx.fill();
+  });
+  // EI right axis
+  const er=(D.eiRange||[0.6,1.15]); const e0=er[0],e1=er[1];
+  const Y2=v=>a.y1-(v-e0)/(e1-e0)*(a.y1-a.y0);
+  ctx.fillStyle=C.mut;ctx.textAlign='left';
+  niceTicks(e0,e1,4).forEach(v=>{if(v>=e0&&v<=e1)ctx.fillText((e1<0.1?v.toFixed(3):v.toFixed(2)),a.x1+6,Y2(v));});
+  ctx.fillStyle=C.dim;ctx.font='9px '+MONO;ctx.fillText('m/min',a.x1+4,a.y0-9);ctx.fillText('/bpm',a.x1+4,a.y0+2);ctx.font='10.5px '+MONO;
+  const pts=D.ei.map(e=>({x:e.t/60,y:e.ei}));
+  ctx.strokeStyle=C.ochre;ctx.lineWidth=2;
+  ctx.beginPath(); pts.forEach((p,i)=>i?ctx.lineTo(X(p.x),Y2(p.y)):ctx.moveTo(X(p.x),Y2(p.y))); ctx.stroke();
+  pts.forEach(p=>{ctx.fillStyle=C.ochre;ctx.beginPath();ctx.arc(X(p.x),Y2(p.y),3,0,7);ctx.fill();});
+});
+
+hBars('chZones',{
+  xmin:0,xmax:65,left:96,xfmt:v=>v+'%',xlab:'% of race time',
+  rows:D.zones.map((z,i)=>({label:z.z,value:z.pct,color:[C.blue,C.sage,C.gold,C.ochre,C.red][i],tag:z.pct+'%'}))});
+
+groupedBar('chCost',{
+  labels:D.cc.map(c=>c.km),
+  series:[{name:'',data:D.cc.map(c=>c.bpk),color:D.cc.map(c=>phaseColor(c.km))}],
+  ymin:900,ymax:1600,ylab:'heartbeats per km',xlab:'km (10-km block centre)'});
+
+lineChart('chCad',{
+  xmin:0,xmax:105,ymin:80,ymax:94,bands:true,
+  ylab:'cadence, spm (flat ground)',xticks:[0,20,40,60,80,100],xfmt:v=>v+'km',
+  series:[{pts:D.cad.map(c=>({x:c.km,y:c.cad})),color:C.blue,width:2,ptColor:p=>phaseColor(p.x)}]});
+
+lineChart('chTemp',{
+  xmin:0,xmax:105,ymin:16,ymax:30,bands:true,
+  ylab:'device temp °C',xticks:[0,20,40,60,80,100],xfmt:v=>v+'km',
+  series:[{pts:D.temp.map(t=>({x:t.km,y:t.t})),color:C.gold,width:2,points:false,fill:'rgba(241,196,83,.12)'}]});
+
+/* ================= 06 stops ================= */
+(function(){
+  const box=document.getElementById('stopList');
+  const max=Math.max.apply(null,D.stops.map(s=>s.dur));
+  D.stops.forEach(s=>{
+    const row=document.createElement('div');row.className='stopRow';
+    row.innerHTML='<div class="km">km '+s.km+' · '+s.t.toFixed(1)+' h</div>'+
+      '<div><div class="bar" style="width:'+(s.dur/max*100)+'%;background:'+(s.dur>=10?C.red:(s.dur>=4?C.gold:C.ochre))+'"></div>'+
+      '<div style="font-size:11.5px;color:var(--mut);margin-top:2px">'+s.label+'</div></div>'+
+      '<div class="dur">'+s.dur.toFixed(1)+'\u2009min</div>';
+    box.appendChild(row);
+  });
+  const tot=document.createElement('div');tot.className='stopRow';
+  tot.innerHTML='<div class="km">+ micro-stops</div><div style="font-size:12px;color:var(--mut)">~20 min in stops under 60 s</div>'+
+    '<div class="dur" style="color:var(--ochre)">55.3 total</div>';
+  box.appendChild(tot);
+})();
+
+/* ================= 07 waterfall (corrected 4-way) ================= */
+hBars('chWater',{
+  xmin:780,xmax:1040,left:8,right:8,xfmt:v=>hm(v),xlab:'race clock (h:mm)',
+  xticks:[780,840,900,960,1020],
+  rows:(()=>{
+    const w=D.waterfall2; let cur=w[0].v; const out=[];
+    out.push({label:'',range:[840,1022],color:w[0].col,tag:''});
+    [1,2,3,4].forEach(i=>{const v=w[i].v; out.push({label:'',range:[cur-v,cur],color:w[i].col,tag:'−'+v}); cur-=v;});
+    out.push({label:'',range:[780,840],color:w[5].col,tag:''});
+    return out;
+  })()});
+(function(){
+  const cv=document.getElementById('chWater'); if(!cv)return;
+  const names=D.waterfall2.map(x=>x.k);
+  const ov=document.createElement('div');
+  ov.style.cssText='position:absolute;inset:0;pointer-events:none;display:flex;flex-direction:column;justify-content:space-around;padding:6px 10px 30px';
+  names.forEach(n=>{const dd=document.createElement('div');dd.textContent=n;
+    dd.style.cssText='font-family:"IBM Plex Mono",monospace;font-size:10px;color:#E9EFF1;text-shadow:0 1px 3px #0E1720,0 0 6px #0E1720;line-height:1';
+    ov.appendChild(dd);});
+  cv.parentElement.appendChild(ov);
+})();
+
+/* ---- terrain-degradation: the re-attribution exhibit ---- */
+groupedBar('chTerrDeg',{
+  labels:D.terrDeg.labels,
+  series:[{name:'Phase 2 (km40–79)',data:D.terrDeg.P2,color:C.gold},
+          {name:'Phase 3 (km79–end)',data:D.terrDeg.P3,color:C.red}],
+  ymin:1,ymax:1.5,refY:1.0,ylab:'slowdown vs Phase-1 pace (×)',
+  valFmt:v=>'×'+v.toFixed(2)});
+
+/* ================= 08 simulator (3-lever, corrected model) ================= */
+(function(){
+  const S=D.sim2;
+  const sStop=document.getElementById('sStop'),sDur=document.getElementById('sItb'),sFit=document.getElementById('sFit');
+  const vStop=document.getElementById('vStop'),vDur=document.getElementById('vItb'),vFit=document.getElementById('vFit');
+  const simTime=document.getElementById('simTime'),simDelta=document.getElementById('simDelta'),simBar=document.getElementById('simBar');
+  function calc(){
+    const stop=+sStop.value, dur=+sDur.value/100, fit=+sFit.value/100;
+    const moving=(S.movingFloor + S.lateLoss*(1-dur))*(1-fit);
+    const total=moving+stop;
+    vStop.textContent=stop+' min'; vDur.textContent=Math.round(dur*100)+'%'; vFit.textContent=(fit*100).toFixed(1)+'%';
+    simTime.textContent=hm(total);
+    const dlt=total-840;
+    simDelta.textContent=(dlt<=0?'−':'+')+hm(Math.abs(dlt))+' vs sub-14h';
+    simDelta.style.color=dlt<=0?C.sage:(dlt<=30?C.gold:C.red);
+    const span=1022-780;
+    simBar.style.width=Math.max(2,Math.min(100,(1022-total)/span*100))+'%';
+    simBar.style.background=dlt<=0?C.sage:(dlt<=30?C.gold:C.ochre);
+  }
+  [sStop,sDur,sFit].forEach(e=>e.addEventListener('input',calc));
+  function set(s,d,f){sStop.value=s;sDur.value=d;sFit.value=f;calc();}
+  document.getElementById('pCons').onclick=()=>set(25,60,2);
+  document.getElementById('pTarget').onclick=()=>set(16,85,5);
+  document.getElementById('pStretch').onclick=()=>set(14,100,7);
+  document.getElementById('pReset').onclick=()=>set(56,0,0);
+  calc();
+})();
+
+/* ================= 09 coach ================= */
+groupedBar('chCoach',{
+  labels:D.legs.map(l=>l.name),
+  series:[{name:'× sub-14h runner',data:D.legs.map(l=>l.ratioR),color:C.ochre},
+          {name:'× Vlad (10:46)',data:D.legs.map(l=>l.ratioV),color:'rgba(111,168,220,.6)'}],
+  ymin:0,ymax:2.0,rot:true,refY:1.0,ylab:'leg-time ratio (dashed = equal)'});
+
+/* ================= nav scrollspy + reveal ================= */
+(function(){
+  const links=Array.from(document.querySelectorAll('nav a'));
+  const secs=links.map(a=>document.querySelector(a.getAttribute('href')));
+  const spy=new IntersectionObserver(es=>{
+    es.forEach(e=>{if(e.isIntersecting){
+      links.forEach(l=>l.classList.toggle('on',l.getAttribute('href')==='#'+e.target.id));}});
+  },{rootMargin:'-30% 0px -60% 0px'});
+  secs.forEach(s=>s&&spy.observe(s));
+  document.querySelectorAll('section, header .kpis, header .phaseCards, .card, .callout').forEach(el=>el.classList.add('reveal'));
+  const rev=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');rev.unobserve(e.target);}}),{threshold:.06});
+  document.querySelectorAll('.reveal').forEach(el=>rev.observe(el));
+})();
+
+/* ================= 10 SUB-14 FIELD (cohort) ================= */
+(function(){
+  if(!D.co) return;
+  const co=D.co;
+
+  /* --- corridor chart --- */
+  mk('chCorridor',(ctx,w,h)=>{
+    const a={x0:46,x1:w-10,y0:16,y1:h-36};
+    const xmin=0,xmax=102,ymin=0,ymax=17.5;
+    const X=km=>a.x0+(km-xmin)/(xmax-xmin)*(a.x1-a.x0);
+    const Y=frame(ctx,a,ymin,ymax,{ylab:'elapsed hours',yticks:[0,2,4,6,8,10,12,14,16],yfmt:v=>v+'h'});
+    ctx.fillStyle=C.mut;ctx.textAlign='center';
+    [0,20,40,60,80,100].forEach(v=>ctx.fillText(v+'km',X(v),a.y1+14));
+    // sub-14 line
+    const y14=Y(14);
+    ctx.strokeStyle=C.gold;ctx.setLineDash([5,4]);ctx.beginPath();
+    ctx.moveTo(X(101.6)-30,y14);ctx.lineTo(a.x1,y14);ctx.stroke();ctx.setLineDash([]);
+    // band lo-hi
+    const pts=[{km:0,lo:0,hi:0,med:0,andre:0}].concat(co.corridor.map(c=>({km:c.km,lo:c.lo/60,hi:c.hi/60,med:c.med/60,andre:c.andre/60})));
+    ctx.beginPath();
+    pts.forEach((p,i)=>i?ctx.lineTo(X(p.km),Y(p.lo)):ctx.moveTo(X(p.km),Y(p.lo)));
+    for(let i=pts.length-1;i>=0;i--) ctx.lineTo(X(pts[i].km),Y(pts[i].hi));
+    ctx.closePath(); ctx.fillStyle='rgba(136,183,155,.22)'; ctx.fill();
+    // median
+    ctx.strokeStyle=C.sage;ctx.lineWidth=2;ctx.setLineDash([6,4]);
+    ctx.beginPath();pts.forEach((p,i)=>i?ctx.lineTo(X(p.km),Y(p.med)):ctx.moveTo(X(p.km),Y(p.med)));ctx.stroke();ctx.setLineDash([]);
+    // Andre
+    ctx.strokeStyle=C.red;ctx.lineWidth=2.4;
+    ctx.beginPath();pts.forEach((p,i)=>i?ctx.lineTo(X(p.km),Y(p.andre)):ctx.moveTo(X(p.km),Y(p.andre)));ctx.stroke();
+    // labels
+    ctx.font='600 10.5px '+MONO;ctx.textAlign='left';
+    ctx.fillStyle=C.red; ctx.fillText('you 17:02',X(78),Y(13.6));
+    ctx.fillStyle=C.sage; ctx.fillText('cohort 13:40–14:20',X(55),Y(10.2));
+    ctx.fillStyle=C.gold; ctx.fillText('14h',a.x1-24,y14-9);
+  });
+
+  /* --- leg pace with whiskers --- */
+  mk('chLegPace',(ctx,w,h)=>{
+    const L=co.legs;
+    const a={x0:46,x1:w-8,y0:30,y1:h-62};
+    const ymin=3,ymax=18;
+    const Y=frame(ctx,a,ymin,ymax,{ylab:'leg pace min/km (lower = faster)',yfmt:v=>pace(v)});
+    legend(ctx,[{name:'cohort median (whisker = range)',color:C.sage},{name:'you 2026',color:C.red}],a.x0,12);
+    const n=L.length, gw=(a.x1-a.x0)/n, bw=Math.min(22,gw*0.3);
+    L.forEach((l,i)=>{
+      const cx=a.x0+gw*i+gw/2;
+      // cohort bar + whisker
+      ctx.fillStyle=C.sage;
+      ctx.beginPath();ctx.roundRect(cx-bw-2,Y(l.med),bw,a.y1-Y(l.med),2);ctx.fill();
+      ctx.strokeStyle='rgba(233,239,241,.8)';ctx.lineWidth=1.4;
+      const wx=cx-2-bw/2;
+      ctx.beginPath();ctx.moveTo(wx,Y(l.lo));ctx.lineTo(wx,Y(l.hi));ctx.stroke();
+      ctx.beginPath();ctx.moveTo(wx-4,Y(l.lo));ctx.lineTo(wx+4,Y(l.lo));ctx.moveTo(wx-4,Y(l.hi));ctx.lineTo(wx+4,Y(l.hi));ctx.stroke();
+      // Andre bar
+      ctx.fillStyle=C.red;
+      ctx.beginPath();ctx.roundRect(cx+2,Y(l.andre),bw,a.y1-Y(l.andre),2);ctx.fill();
+      rotLabel(ctx,l.name,cx+4,a.y1+12);
+    });
+  });
+
+  /* --- rest bars --- */
+  hBars('chRest',{
+    xmin:0,xmax:66,left:118,xfmt:v=>v+"'",xlab:'recorded checkpoint rest, minutes (LiveTrail mat-to-mat)',
+    rows:co.rests.map(r=>({label:'#'+r.rk+' · '+hm(D.co.runners[String(r.rk)][15])+'h',value:r.tot,
+      color:r.tot<16?C.sage:(r.tot<26?C.gold:'#B98A4E'),tag:r.tot+"'"}))
+      .concat([{label:'YOU · 17:02',value:co.restAndre,color:C.red,tag:"63'"}])});
+
+  /* --- blueprint table --- */
+  const tb=document.querySelector('#bpTable tbody');
+  if(tb){
+    co.corridor.forEach((c,i)=>{
+      if(['Cliff','Echo','Gordon','FairD','Board'].includes(c.p))return;
+      const leg=co.legs.find(l=>Math.abs(l.km-c.km)<0.2);
+      const clock=(()=>{const t=5*60+40+c.med;const hh=Math.floor(t/60)%24,mm=Math.round(t%60);
+        const ap=hh>=12?'pm':'am';const h12=((hh+11)%12)+1;return h12+':'+String(mm).padStart(2,'0')+ap;})();
+      const tr=document.createElement('tr');
+      tr.innerHTML='<td class="nm">'+c.p+'</td><td>'+c.km+'</td><td>'+hm(c.med)+'</td><td>'+hm(c.lo)+'–'+hm(c.hi)+'</td>'+
+        '<td>'+(leg?pace(leg.med):'—')+'</td><td>'+clock+'</td><td>'+hm(c.andre)+'</td>';
+      tb.appendChild(tr);
+    });
+  }
+
+  /* --- year cards --- */
+  const yb=document.getElementById('yearCards');
+  if(yb){
+    co.years.forEach(y=>{
+      const d=document.createElement('div');d.className='pc';
+      d.style.borderLeftColor=y.ok?C.sage:C.red;
+      d.innerHTML='<h3>'+y.y+(y.ok?'':' · excluded')+'</h3><div class="rng">'+y.km+' km · '+y.vert+' m+ · winner '+y.win+' · '+y.fin+' finishers'+(y.men?' ('+y.men+' men)':'')+'</div><p>'+y.note+'</p>';
+      yb.appendChild(d);
+    });
+  }
+})();
+
+/* ================= NEW: heat / technical / what-if / drift ================= */
+(function(){
+  if(!D.add) return; const A=D.add;
+
+  /* --- HEAT: temp + HR dual axis --- */
+  mk('chHeat',(ctx,w,h)=>{
+    const a={x0:42,x1:w-42,y0:26,y1:h-34};
+    const X=k=>a.x0+(k-0)/105*(a.x1-a.x0);
+    const Y=frame(ctx,a,16,32,{ylab:'°C',yticks:[16,20,24,28,32]});
+    legend(ctx,[{name:'device temp',color:C.gold},{name:'HR (right)',color:C.red}],a.x0,12);
+    bands(ctx,a,X);
+    // hot zone shading km42-52
+    ctx.fillStyle='rgba(226,92,74,.10)';ctx.fillRect(X(42),a.y0,X(52)-X(42),a.y1-a.y0);
+    ctx.fillStyle=C.mut;ctx.textAlign='center';[0,20,40,60,80,100].forEach(v=>ctx.fillText(v+'km',X(v),a.y1+14));
+    // temp line
+    const tp=A.heat.map(p=>({x:p.km,y:p.temp}));
+    ctx.strokeStyle=C.gold;ctx.lineWidth=2;ctx.beginPath();tp.forEach((p,i)=>i?ctx.lineTo(X(p.x),Y(p.y)):ctx.moveTo(X(p.x),Y(p.y)));ctx.stroke();
+    // HR right axis 110-165
+    const Y2=v=>a.y1-(v-110)/(165-110)*(a.y1-a.y0);
+    ctx.fillStyle=C.mut;ctx.textAlign='left';[120,140,160].forEach(v=>ctx.fillText(v,a.x1+6,Y2(v)));
+    ctx.fillStyle=C.dim;ctx.fillText('bpm',a.x1+6,a.y0-9);
+    const hp=A.heat.map(p=>({x:p.km,y:p.hr}));
+    ctx.strokeStyle=C.red;ctx.lineWidth=1.6;ctx.setLineDash([4,3]);ctx.beginPath();hp.forEach((p,i)=>i?ctx.lineTo(X(p.x),Y2(p.y)):ctx.moveTo(X(p.x),Y2(p.y)));ctx.stroke();ctx.setLineDash([]);
+  });
+
+  /* --- TECHNICAL: descent control P1 vs P3 by steepness --- */
+  groupedBar('chTechDesc',{
+    labels:['−3 to −8%','−8 to −15%','steeper −15%'],
+    series:[{name:'Phase 1 (fresh)',data:[A.techDesc[2].P1,A.techDesc[1].P1,A.techDesc[0].P1],color:C.sage},
+            {name:'Phase 3 (late)',data:[A.techDesc[2].P3,A.techDesc[1].P3,A.techDesc[0].P3],color:C.red}],
+    ymin:0,ymax:13,yfmt:v=>pace(v),ylab:'descent control, min/km',valFmt:v=>pace(v)});
+
+  /* --- TECHNICAL early legs table --- */
+  const tb=document.querySelector('#techTable tbody');
+  if(tb) A.techLegs.forEach(l=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML='<td class="nm">'+l.leg+'</td><td style="font-family:Archivo;text-align:left;color:var(--mut)">'+l.note+'</td><td>'+pace(l.andre)+'</td><td>'+pace(l.cohortMed)+'</td><td><span class="pill r">'+l.gap+'</span></td>';
+    tb.appendChild(tr);
+  });
+
+  /* --- WHAT-IF scenarios with bands --- */
+  mk('chScen',(ctx,w,h)=>{
+    const S=A.scenarios;
+    const a={x0:8,x1:w-8,y0:12,y1:h-30};
+    const xmin=770,xmax=1060;
+    const X=v=>a.x0+(v-xmin)/(xmax-xmin)*(a.x1-a.x0);
+    const n=S.length, rh=(a.y1-a.y0)/n;
+    ctx.strokeStyle=C.grid;ctx.fillStyle=C.mut;ctx.textAlign='center';
+    [780,840,900,960,1020].forEach(v=>{ctx.beginPath();ctx.moveTo(X(v),a.y0);ctx.lineTo(X(v),a.y1);ctx.stroke();ctx.fillText(hm(v),X(v),a.y1+12);});
+    // sub14 line
+    ctx.strokeStyle=C.sage;ctx.setLineDash([5,4]);ctx.beginPath();ctx.moveTo(X(840),a.y0);ctx.lineTo(X(840),a.y1);ctx.stroke();ctx.setLineDash([]);
+    S.forEach((s,i)=>{
+      const yc=a.y0+rh*i+rh/2;
+      const sub=s.t<=840;
+      // band
+      ctx.fillStyle='rgba(141,163,174,.25)';
+      ctx.beginPath();ctx.roundRect(X(s.band_lo),yc-3,X(s.band_hi)-X(s.band_lo),6,3);ctx.fill();
+      // point
+      ctx.fillStyle=sub?C.sage:(s.t<=870?C.gold:C.ochre);
+      ctx.beginPath();ctx.arc(X(s.t),yc,5,0,7);ctx.fill();
+      // label + time
+      ctx.fillStyle=C.ink;ctx.textAlign='left';ctx.font='10.5px '+MONO;
+      ctx.fillText(s.name,a.x0+4,yc-7);
+      ctx.fillStyle=sub?C.sage:C.mut;ctx.textAlign='right';
+      ctx.fillText(hm(s.t),X(s.band_lo)-6,yc);
+    });
+  });
+
+  /* --- simulator proxy table --- */
+  const pt=document.querySelector('#proxyTable tbody');
+  if(pt) A.paceProxies.forEach(p=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML='<td class="nm" style="text-align:left">'+p.metric+'</td><td>'+p.now+'</td><td>'+p.p3+'</td><td class="acc">'+p.p5+'</td><td>'+p.p7+'</td>';
+    pt.appendChild(tr);
+  });
+})();
+
+/* ================= NEW 1s METRICS: GAP + stride ================= */
+(function(){
+  if(!D.gapPace) return;
+
+  /* --- Grade-Adjusted Pace vs raw pace --- */
+  lineChart('chGapPace',{
+    xmin:0,xmax:105,ymin:4,ymax:16,bands:true,
+    ylab:'pace min/km', yfmt:v=>pace(v), xticks:[0,20,40,60,80,100], xfmt:v=>v+'km',
+    series:[
+      {pts:D.gapPace.map(p=>({x:p.km,y:p.raw})),color:'#3E5A70',width:1.5,points:false},
+      {pts:D.gapPace.map(p=>({x:p.km,y:p.gap})),color:C.ochre,width:2,points:false}
+    ]});
+
+  /* --- stride length + cadence dual --- */
+  mk('chStride',(ctx,w,h)=>{
+    const a={x0:44,x1:w-44,y0:30,y1:h-34};
+    const X=k=>a.x0+k/105*(a.x1-a.x0);
+    const Yr=frame(ctx,a,1.4,1.9,{ylab:'stride length (m)',yticks:[1.4,1.5,1.6,1.7,1.8,1.9]});
+    const Y=v=>Yr(Math.max(1.4,Math.min(1.9,v)));
+    legend(ctx,[{name:'stride length',color:C.ochre},{name:'cadence (right)',color:C.blue}],a.x0,12);
+    bands(ctx,a,X);
+    ctx.fillStyle=C.mut;ctx.textAlign='center';[0,20,40,60,80,100].forEach(v=>ctx.fillText(v+'km',X(v),a.y1+14));
+    const sp=D.stride.map(p=>({x:p.km,y:p.stride}));
+    ctx.strokeStyle=C.ochre;ctx.lineWidth=2.4;ctx.beginPath();sp.forEach((p,i)=>i?ctx.lineTo(X(p.x),Y(p.y)):ctx.moveTo(X(p.x),Y(p.y)));ctx.stroke();
+    sp.forEach(p=>{ctx.fillStyle=phaseColor(p.x);ctx.beginPath();ctx.arc(X(p.x),Y(p.y),3,0,7);ctx.fill();});
+    const Y2=v=>a.y1-(Math.max(82,Math.min(96,v))-82)/(96-82)*(a.y1-a.y0);
+    ctx.fillStyle=C.mut;ctx.textAlign='left';[84,88,92].forEach(v=>ctx.fillText(v,a.x1+6,Y2(v)));
+    ctx.fillStyle=C.dim;ctx.fillText('spm',a.x1+6,a.y0-9);
+    const cp=D.stride.map(p=>({x:p.km,y:p.cad}));
+    ctx.strokeStyle=C.blue;ctx.lineWidth=1.6;ctx.setLineDash([4,3]);ctx.beginPath();cp.forEach((p,i)=>i?ctx.lineTo(X(p.x),Y2(p.y)):ctx.moveTo(X(p.x),Y2(p.y)));ctx.stroke();ctx.setLineDash([]);
+  });
+})();
+
+/* ---- interim VI proxy (GAP-speed CV by phase) ---- */
+(function(){
+  if(!D.viCV) return;
+  groupedBar('chVI',{
+    labels:['P1 clean','P2 fade','P3 survival'],
+    series:[{name:'',data:[D.viCV.P1,D.viCV.P2,D.viCV.P3],color:[C.sage,C.gold,C.red]}],
+    ymin:0,ymax:55,ylab:'GAP-speed variability (CV %)',valFmt:v=>v+'%'});
+})();
+
+/* ================= POWER (real, from .fit) ================= */
+(function(){
+  if(!D.power) return; const P=D.power;
+
+  /* power through the race, phase-coloured */
+  lineChart('chPower',{
+    xmin:0,xmax:105,ymin:0,ymax:260,bands:true,
+    ylab:'power (W), 2-km moving avg', xticks:[0,20,40,60,80,100], xfmt:v=>v+'km',
+    series:[{pts:P.powSeries.map(p=>({x:p.km,y:p.avg})),color:C.ochre,width:2,points:false}]});
+
+  /* avg vs NP by phase + VI */
+  groupedBar('chPowPhase',{
+    labels:['P1 clean','P2 fade','P3 survival'],
+    series:[{name:'avg power',data:['P1','P2','P3'].map(x=>P.phases[x].avg),color:'rgba(224,142,60,.55)'},
+            {name:'normalized power',data:['P1','P2','P3'].map(x=>P.phases[x].np),color:C.ochre}],
+    ymin:0,ymax:250,ylab:'watts',valFmt:v=>v+'W'});
+
+  /* power by gradient band */
+  groupedBar('chPowGrad',{
+    labels:P.powGrad.map(x=>x.band),
+    series:[{name:'',data:P.powGrad.map(x=>x.p),color:P.powGrad.map(x=>x.band.indexOf('-')===0?C.sage:C.ochre)}],
+    ymin:0,ymax:260,ylab:'avg power (W) by gradient',valFmt:v=>v+'W'});
+
+  /* power-duration curve */
+  mk('chPDC',(ctx,w,h)=>{
+    const pts=[[5,P.pdc['5s']],[60,P.pdc['1min']],[300,P.pdc['5min']],[1200,P.pdc['20min']],[3600,P.pdc['60min']]];
+    const a={x0:46,x1:w-12,y0:16,y1:h-36};
+    const lx=v=>Math.log10(v);
+    const X=v=>a.x0+(lx(v)-lx(5))/(lx(3600)-lx(5))*(a.x1-a.x0);
+    const ymax=Math.max(...pts.map(p=>p[1]))*1.1;
+    const Y=frame(ctx,a,0,ymax,{ylab:'best sustained power (W)'});
+    ctx.fillStyle=C.mut;ctx.textAlign='center';
+    pts.forEach(p=>ctx.fillText(p[0]<60?p[0]+'s':(p[0]/60)+'m',X(p[0]),a.y1+14));
+    ctx.strokeStyle=C.ochre;ctx.lineWidth=2;ctx.beginPath();
+    pts.forEach((p,i)=>i?ctx.lineTo(X(p[0]),Y(p[1])):ctx.moveTo(X(p[0]),Y(p[1])));ctx.stroke();
+    pts.forEach(p=>{ctx.fillStyle=C.ochre;ctx.beginPath();ctx.arc(X(p[0]),Y(p[1]),4,0,7);ctx.fill();
+      ctx.fillStyle=C.ink;ctx.textAlign='center';ctx.fillText(p[1]+'W',X(p[0]),Y(p[1])-12);});
+  });
+
+  /* fill the summary KPI strip */
+  const kp=document.getElementById('powKpis');
+  if(kp){
+    const cells=[['NP / VI',P.np+'W · '+P.vi.toFixed(2),'normalized power · variability index'],
+      ['Avg moving',P.avg+'W','whole race'],
+      ['P1 → P3 avg',P.phases.P1.avg+' → '+P.phases.P3.avg+'W','−50% output, same course type'],
+      ['Best 20 min',P.pdc['20min']+'W','power-duration peak']];
+    kp.innerHTML=cells.map(c=>'<div class="kpi"><div class="v" style="font-size:24px">'+c[1]+'</div><div class="l">'+c[0]+'</div><div class="d">'+c[2]+'</div></div>').join('');
+  }
+})();
+
+/* ================= RUNNING DYNAMICS (form/economy from .fit) ================= */
+(function(){
+  if(!D.dynamics) return; const Y=D.dynamics;
+
+  /* step length (Garmin native) — corroborates stride finding */
+  if(Y.sl&&Y.sl.series.length){
+    lineChart('chStepLen',{
+      xmin:0,xmax:105,ymin:700,ymax:920,bands:true,
+      ylab:'step length (mm)', xticks:[0,20,40,60,80,100], xfmt:v=>v+'km',
+      series:[{pts:Y.sl.series.map(p=>({x:p.km,y:p.v})),color:C.ochre,width:2,ptColor:p=>phaseColor(p.x)}]});
+  }
+  /* vertical oscillation — running economy */
+  if(Y.vo&&Y.vo.series.length){
+    lineChart('chVertOsc',{
+      xmin:0,xmax:105,ymin:60,ymax:85,bands:true,
+      ylab:'vertical oscillation (mm)', xticks:[0,20,40,60,80,100], xfmt:v=>v+'km',
+      series:[{pts:Y.vo.series.map(p=>({x:p.km,y:p.v})),color:C.blue,width:2,points:false}]});
+  }
+  /* performance condition (Garmin fitness-vs-fatigue) over time */
+  if(Y.pc&&Y.pc.series.length){
+    mk('chPerfCond',(ctx,w,h)=>{
+      const S=Y.pc.series, a={x0:42,x1:w-10,y0:16,y1:h-34};
+      const xmax=Math.max(...S.map(p=>p.min));
+      const X=v=>a.x0+v/xmax*(a.x1-a.x0);
+      const ymin=-12,ymax=6;
+      const YY=frame(ctx,a,ymin,ymax,{ylab:'perf condition',yticks:[-12,-8,-4,0,4]});
+      // zero line
+      ctx.strokeStyle=C.dim;ctx.setLineDash([4,4]);ctx.beginPath();ctx.moveTo(a.x0,YY(0));ctx.lineTo(a.x1,YY(0));ctx.stroke();ctx.setLineDash([]);
+      ctx.fillStyle=C.mut;ctx.textAlign='center';[0,180,360,540,720,900].forEach(v=>{if(v<=xmax)ctx.fillText(Math.round(v/60)+'h',X(v),a.y1+14);});
+      // area
+      ctx.beginPath();ctx.moveTo(X(S[0].min),YY(0));
+      S.forEach(p=>ctx.lineTo(X(p.min),YY(p.pc)));ctx.lineTo(X(S[S.length-1].min),YY(0));ctx.closePath();
+      ctx.fillStyle='rgba(226,92,74,.15)';ctx.fill();
+      ctx.strokeStyle=C.red;ctx.lineWidth=2;ctx.beginPath();
+      S.forEach((p,i)=>i?ctx.lineTo(X(p.min),YY(p.pc)):ctx.moveTo(X(p.min),YY(p.pc)));ctx.stroke();
+    });
+  }
+})();
+
+/* ================= W/kg overlay on power section ================= */
+(function(){
+  if(!D.power||!D.power.wkg) return; const P=D.power;
+  const el=document.getElementById('wkgStrip');
+  if(el){
+    const cells=[['Race weight',P.weight+' kg',''],
+      ['NP',P.npWkg+' W/kg','normalized'],
+      ['P1 → P3',P.wkg.P1+' → '+P.wkg.P3+' W/kg','clean to survival'],
+      ['Best 20 min',P.pdcWkg['20min']+' W/kg','threshold proxy']];
+    el.innerHTML=cells.map(c=>'<div class="kpi"><div class="v" style="font-size:24px">'+c[1]+'</div><div class="l">'+c[0]+'</div><div class="d">'+c[2]+'</div></div>').join('');
+  }
+})();
+
+/* ================= RUNNING DYNAMICS ================= */
+(function(){
+  if(!D.rundyn) return; const R=D.rundyn;
+  groupedBar('chGCT',{
+    labels:['P1 clean','P2 fade','P3 survival'],
+    series:[{name:'',data:['P1','P2','P3'].map(p=>R.gct.phase[p]),color:[C.sage,C.gold,C.red]}],
+    ymin:230,ymax:270,ylab:'ground contact time (ms)',valFmt:v=>v+'ms'});
+  groupedBar('chVR',{
+    labels:['P1 clean','P2 fade','P3 survival'],
+    series:[{name:'',data:['P1','P2','P3'].map(p=>R.vertRatio.phase[p]),color:[C.sage,C.gold,C.red]}],
+    ymin:7,ymax:10,ylab:'vertical ratio % (lower = better economy)',valFmt:v=>v+'%'});
+
+  /* five witnesses table */
+  const tb=document.querySelector('#witTable tbody');
+  if(tb && D.witnesses) D.witnesses.forEach(w=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML='<td class="nm" style="text-align:left">'+w.metric+'</td><td>'+w.p1+'</td><td>'+w.p3+'</td><td class="neg">'+w.drop+'</td><td style="font-family:Archivo;text-align:left;color:var(--mut)">'+w.says+'</td>';
+    tb.appendChild(tr);
+  });
+})();
+
+</script>
+</body>
+</html>
