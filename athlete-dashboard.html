@@ -195,6 +195,17 @@
    CHANGELOG
    v1.0  02/07/26  first HTML build (ported from React artifact)
    (v1.0–v1.6 archived — full history in OPERATING_BRIEF.md CHANGELOG)
+   v1.44 17/07/26 Phase 7 — Events tab (simplified scope per 13-Jul roadmap ruling).
+                   New Events tab: s.events[] CRUD (seeded once from RACES — Sydney/UTK/
+                   UTA with km + D+), per-event card with date/countdown/notes, link-out
+                   to the event's own project dashboard (target=_blank noopener), GPX
+                   import per card → parseGPX (trkpt haversine) → downsampleProfile
+                   (even-by-distance ≤200 pts, ele linear-interp) → ~4 KB stored profile
+                   → evSparkSVG elevation thumbnail. Quota guards: 15 MB file cap +
+                   60 KB stored-profile cap. No-<ele> GPX degrades gracefully. Demo mode
+                   read-only for all ev* acts. Events never touch PLAN. CARD_INFO gains
+                   "events". norm() seed is additive — STORE_KEY + schema version
+                   unchanged.
    v1.43 17/07/26 D041 plan-sync — Ph9 floor + Ph10 gate mirrored into the app.
                    PLAN W26–31 raised to the ratified 8–10 h floor (66→83 km, progressive
                    long 2:15→3:00, down-dip W30); IF_W 26–31 re-fit as curve-calibration
@@ -746,10 +757,64 @@ const RACES = [
   {name:"UTA100 2027", date:"2027-05-15", w:46},
 ];
 
+/* ── Phase 7 (v1.44): Events tab — GPX → compact elevation profile ─────────
+   parseGPX: trkpt lat/lon/ele → cumulative haversine distance. downsampleProfile:
+   even-by-distance resample to ≤N points (linear-interp ele), so a stored profile
+   is ~4 KB regardless of source-file size. Nothing else from the GPX is kept. ── */
+function parseGPX(txt){
+  const pts=[]; const re=/<trkpt[^>]*lat="([-\d.]+)"[^>]*lon="([-\d.]+)"[^>]*>([\s\S]*?)<\/trkpt>/g;
+  let m;
+  while((m=re.exec(txt))){
+    const em=/<ele>\s*([-\d.]+)\s*<\/ele>/.exec(m[3]);
+    pts.push({lat:+m[1],lon:+m[2],ele:em?+em[1]:null});
+  }
+  if(!pts.length) return null;
+  const R=6371, rad=x=>x*Math.PI/180;
+  let dist=0; const distKm=[0], ele=[pts[0].ele];
+  for(let i=1;i<pts.length;i++){
+    const a=pts[i-1],b=pts[i];
+    const dLat=rad(b.lat-a.lat), dLon=rad(b.lon-a.lon);
+    const h=Math.sin(dLat/2)**2+Math.cos(rad(a.lat))*Math.cos(rad(b.lat))*Math.sin(dLon/2)**2;
+    dist+=2*R*Math.asin(Math.sqrt(h));
+    distKm.push(dist); ele.push(pts[i].ele);
+  }
+  return {distKm, ele:ele.some(e=>e!=null)?ele:null, totalKm:dist};
+}
+function downsampleProfile(distKm, ele, N=200){
+  const n=distKm.length;
+  if(n<=N) return {distKm:distKm.map(x=>Math.round(x*100)/100), ele:ele?ele.map(e=>e==null?null:Math.round(e)):null};
+  const total=distKm[n-1]; const oD=[], oE=[]; let j=0;
+  for(let i=0;i<N;i++){
+    const target=total*i/(N-1);
+    while(j<n-1 && distKm[j+1]<target) j++;
+    const d0=distKm[j], d1=distKm[Math.min(j+1,n-1)];
+    const t=d1>d0?(target-d0)/(d1-d0):0;
+    oD.push(Math.round(target*100)/100);
+    if(ele){ const e0=ele[j], e1=ele[Math.min(j+1,n-1)];
+      oE.push((e0==null||e1==null)?(e0!=null?Math.round(e0):(e1!=null?Math.round(e1):null)):Math.round(e0+t*(e1-e0))); }
+  }
+  return {distKm:oD, ele:ele?oE:null};
+}
+function evSparkSVG(profile){
+  if(!profile||!profile.ele||!profile.ele.some(e=>e!=null)) return `<div class="note">no elevation data in this GPX</div>`;
+  const D=profile.distKm, E=profile.ele;
+  const W=300,H=64,P=4;
+  const vals=E.filter(e=>e!=null);
+  const emin=Math.min(...vals), emax=Math.max(...vals);
+  const span=Math.max(1,emax-emin), total=D[D.length-1]||1;
+  let p="";
+  D.forEach((dk,i)=>{ if(E[i]==null) return;
+    const x=P+(dk/total)*(W-2*P), y=H-P-((E[i]-emin)/span)*(H-2*P);
+    p+=(p?"L":"M")+x.toFixed(1)+" "+y.toFixed(1); });
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" preserveAspectRatio="none" style="display:block"><path d="${p}" fill="none" stroke="var(--c-teal)" stroke-width="1.6"/></svg>
+    <div class="note" style="display:flex;justify-content:space-between"><span>${Math.round(emin)} m</span><span>${fmt(total,1)} km · ${Math.round(emax)} m max</span></div>`;
+}
+
 /* #R1 (v1.39): static card-info registry — What/Source/Why, texts verbatim from
    DASHBOARD_PHASE1_BLUEPRINT.md §5 (Andre-approved). infoBtn(id)/infoPanel(id) render
    against this; registry-parity asserted by the harness (every infoBtn id has an entry). */
 const CARD_INFO = {
+  events:{what:"Race calendar — every planned event with date, countdown, distance, climb, notes, and an elevation thumbnail from an imported GPX.",src:"Manually added events; the three macro races (Sydney · UTK 2026 · UTA100) seed the list. GPX imports are downsampled to ≤200 points — nothing else from the file is stored.",why:"One glanceable calendar of what is coming; deep per-race intelligence (course, crew, aid stations) lives in each event's own project dashboard, linked from the card."},
   week_lens:{what:"The current macro week — planned sessions vs what's actually logged, with completion ticks.",src:"PLAN/PHASES (the locked macro) + logged sessions from Sync/import.",why:"The week is the unit of execution; if it's not on this strip, it won't happen."},
   plan_chart:{what:"The full 46-week plan as load bands, with executed load, CTL/ATL/TSB and weight overlaid.",src:"RUNNING_PLAN.md macro + intervals.icu FFF + Withings weekly points.",why:"One picture of plan vs body — where you are in the season and whether the load is landing."},
   ready:{what:"Garmin/intervals.icu daily training-readiness score (0–100).",src:"intervals.icu via Sync; depth limited to what the device recorded.",why:"A cheap daily gate — a low score before a quality day is a flag to check sleep/HRV before pushing."},
@@ -1219,6 +1284,9 @@ const norm = s => {
   if(!s.taxNotes||!s.taxNotes.length) s.taxNotes=[...TAX_SEED];
   if(!s.boardNotes||!s.boardNotes.length) s.boardNotes=[...BOARD_SEED];
   s.checkins=s.checkins||[];
+  /* Phase 7 (v1.44): events seeded from RACES on first run; user-managed thereafter */
+  if(!s.events||!s.events.length) s.events=RACES.map(r=>({id:"ev"+r.w, name:r.name, date:r.date,
+    km:r.w===9?42.2:r.w===22?102:101.6, gain:r.w===9?null:r.w===22?3196:4400, url:"", notes:"", profile:null}));
   return s;
 };
 
@@ -2581,7 +2649,7 @@ const App = {
     const races = RACES.map(r=>{ const d=daysTo(r.date);
       return `<div style="text-align:right"><div style="font-family:var(--mono);font-size:18px;color:${d<0?"var(--c-dim)":"var(--c-chalk)"}">${d<0?"✓":d}</div>
       <div style="font-family:var(--mono);font-size:8.5px;letter-spacing:.14em;color:var(--c-dim);text-transform:uppercase">${d<0?esc(r.name):"days · "+esc(r.name.split(" ")[0])}</div></div>`; }).join("");
-    const tabs=[["overview","Overview"],["running","Running"],["sessions","Sessions"],["strength","Strength"],["body","Body · Fuel"],["health","Health"],["data","Data"],["changelog","Changelog"]]
+    const tabs=[["overview","Overview"],["running","Running"],["sessions","Sessions"],["strength","Strength"],["body","Body · Fuel"],["health","Health"],["events","Events"],["data","Data"],["changelog","Changelog"]]
       .map(t=>`<button class="tab ${this.tab===t[0]?"on":""}" data-act="tab" data-v="${t[0]}">${t[1]}</button>`).join("");
     const storeNote = Store.mode==="memory" ? `<div class="note" style="color:${C.rose}">⚠ storage blocked in this context — data is session-only; use Export JSON to keep it</div>` : "";
     return `
@@ -3868,8 +3936,84 @@ const App = {
         <input id="tx_n" placeholder="focus note for this period" style="flex:1;min-width:200px">
         <button class="btn solid" data-act="taxAdd">Add note</button></div></div>`;
   },
+  /* ── Phase 7 (v1.44): Events tab — CRUD + link-out + GPX elevation profile ── */
+  view_events(){
+    const evs=[...(this.state.events||[])].sort((a,b)=>String(a.date).localeCompare(String(b.date)));
+    const cards=evs.map(ev=>{
+      const dt=daysTo(ev.date);
+      const cd=dt>0?`in ${dt} d`:dt===0?"today":`${-dt} d ago`;
+      return `<div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px">
+          <div><div class="eyebrow" style="color:var(--c-teal)">${esc(ev.name)}</div>
+            <div style="font-family:var(--mono);font-size:13px;margin-top:4px">${fmtD(ev.date)} · <span style="color:var(--c-mist)">${cd}</span></div>
+            <div class="note" style="margin-top:3px">${ev.km!=null?`${fmt(ev.km,1)} km`:""}${ev.gain!=null?` · ${ev.gain} m D+`:""}</div></div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            ${ev.url?`<a class="btn" href="${esc(ev.url)}" target="_blank" rel="noopener noreferrer">↗ Event dashboard</a>`:""}
+            <button class="btn" data-act="evGpx" data-v="${esc(ev.id)}">${ev.profile?"⟳ Replace GPX":"⛰ Import GPX"}</button>
+            <button class="btn" data-act="evDel" data-v="${esc(ev.id)}" style="border-color:${C.rose};color:${C.rose}">✕</button></div></div>
+        ${ev.notes?`<div class="note" style="margin-top:8px">${esc(ev.notes)}</div>`:""}
+        ${ev.profile?`<div style="margin-top:10px">${evSparkSVG(ev.profile)}</div>`:""}
+      </div>`; }).join("");
+    return `<div class="card">
+      <div class="eyebrow" style="color:var(--c-teal)">Events — race calendar ${this.infoBtn("events")}</div>
+      ${this.infoPanel("events")}
+      <div class="note" style="margin-top:4px">Per-event deep intelligence stays in each event's own project dashboard — link out from the card. GPX import keeps only a ≤200-point elevation profile for the thumbnail.</div>
+    </div>
+    ${cards||`<div class="card note">no events yet — add one below</div>`}
+    <div class="card">
+      <div class="eyebrow" style="margin-bottom:8px">Add event</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <input id="ev_name" placeholder="name" style="flex:2;min-width:140px">
+        <input id="ev_date" placeholder="YYYY-MM-DD" style="flex:1;min-width:110px">
+        <input id="ev_km" placeholder="km" style="width:70px">
+        <input id="ev_gain" placeholder="D+ m" style="width:80px">
+        <input id="ev_url" placeholder="event dashboard URL (optional)" style="flex:2;min-width:160px">
+        <input id="ev_notes" placeholder="notes (optional)" style="flex:2;min-width:140px">
+        <button class="btn solid" data-act="evAdd">Add event</button></div>
+      <div class="note" style="margin-top:6px">Editing = remove + re-add (v1). The three macro races are seeded and removable like any event. Adding/removing events never touches the PLAN.</div>
+    </div>`;
+  },
+  addEvent(){
+    const name=qs("ev_name").value.trim(), date=qs("ev_date").value.trim();
+    if(!name||!/^\d{4}-\d{2}-\d{2}$/.test(date)) return this.flash("Need a name + date as YYYY-MM-DD");
+    this.state.events.push({id:"ev"+Date.now(), name, date, km:num(qs("ev_km").value), gain:num(qs("ev_gain").value), url:qs("ev_url").value.trim(), notes:qs("ev_notes").value.trim(), profile:null});
+    this.persist(); this.render(); this.flash("Event added");
+  },
+  delEvent(id){
+    const i=(this.state.events||[]).findIndex(e=>e.id===id); if(i<0) return;
+    if(typeof confirm==="function" && !confirm(`Remove "${this.state.events[i].name}"? (its GPX profile goes with it)`)) return;
+    this.state.events.splice(i,1); this.persist(); this.render(); this.flash("Event removed");
+  },
+  pickGPX(id){
+    const ev=(this.state.events||[]).find(e=>e.id===id); if(!ev) return;
+    const inp=document.createElement("input"); inp.type="file"; inp.accept=".gpx,application/gpx+xml,text/xml";
+    inp.onchange=()=>{ const f=inp.files&&inp.files[0]; if(!f) return;
+      if(f.size>15*1024*1024) return this.flash("GPX too large (>15 MB) — export a lighter track");
+      const rd=new FileReader();
+      rd.onload=()=>{
+        const parsed=parseGPX(String(rd.result||""));
+        if(!parsed) return this.flash("No track points found in that GPX");
+        const prof=downsampleProfile(parsed.distKm, parsed.ele, 200);
+        if(JSON.stringify(prof).length>60000) return this.flash("Profile too large after downsampling — quota guard tripped");
+        ev.profile=prof;
+        this.persist(); this.render();
+        this.flash(parsed.ele?`GPX imported — ${fmt(parsed.totalKm,1)} km profile stored (${prof.distKm.length} pts)`:"GPX imported without <ele> — distance only, no elevation thumbnail");
+      };
+      rd.onerror=()=>this.flash("Could not read that file");
+      rd.readAsText(f);
+    };
+    inp.click();
+  },
   view_changelog(){
-    const log=`v1.43  17/07/26  Plan volumes synced to the ratified D041 amendments.
+    const log=`v1.44  17/07/26  New Events tab.
+                   Your race calendar in one place: the three macro races are pre-seeded,
+                   and any event can be added with date, distance, climb, notes and a
+                   link to that race's own dashboard. Import a GPX onto an event card to
+                   get an elevation-profile thumbnail (the file is boiled down to ~200
+                   points — nothing heavy is stored). Removing/adding events never
+                   changes the training plan.
+
+v1.43  17/07/26  Plan volumes synced to the ratified D041 amendments.
                    The Dec–Jan hypertrophy block (W26–31) now shows the raised 8–10 h
                    running floor with the progressive hilly long run (2:15→3:00) and its
                    down week; the projection line re-fits the updated governance baseline.
@@ -4215,6 +4359,10 @@ v1.0–v1.4  02–04/07/26  Initial build; ported from React artifact.
         else if(a==="addProt") this.addProt();
         else if(a==="setTarget") this.setTarget();
         else if(a==="demoToggle") this.toggleDemo();
+        else if(this.demo && ["evAdd","evDel","evGpx"].includes(a)){ this.flash("Demo mode is read-only — toggle off at the bottom"); }
+        else if(a==="evAdd") this.addEvent();
+        else if(a==="evDel") this.delEvent(v);
+        else if(a==="evGpx") this.pickGPX(v);
         else if(this.demo && ["addWeek","addBody","addLab","addLift","addGirth","addProt","setTarget","tgtAdopt","import","importSess","importFFF","reset","taxAdd","addCheckin","addProtein","export"].includes(a)){ this.flash("Demo mode is read-only — toggle off at the bottom"); }
         else if(a==="gymday"){ const [w,i]=v.split("-").map(Number); this.gymDay=(this.gymDay&&this.gymDay.w===w&&this.gymDay.i===i)?null:{w,i}; this.render(); }
         else if(a==="gymclose"){ this.gymDay=null; this.render(); }
