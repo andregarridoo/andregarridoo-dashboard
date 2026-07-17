@@ -1,6 +1,6 @@
 /* sw.js — Athlete OS PWA shell (D038). Network-first runtime cache.
    Shell version bumps ONLY when this file's logic changes — never per dashboard release. */
-const CACHE = 'athlete-os-shell-v1';
+const CACHE = 'athlete-os-shell-v2';   /* v2 (17/07/26): icon refresh — AthleteOS badge (Andre's Gemini pick) */
 const PRECACHE = ['./athlete-dashboard.html', './manifest.json',
                   './icons/icon-192.png', './icons/icon-512.png'];
 
