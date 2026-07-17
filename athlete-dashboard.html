@@ -195,6 +195,16 @@
    CHANGELOG
    v1.0  02/07/26  first HTML build (ported from React artifact)
    (v1.0–v1.6 archived — full history in OPERATING_BRIEF.md CHANGELOG)
+   v1.47 17/07/26 Event links + hosted UTA intel. Event schema gains `site` (official
+                   website) alongside `url` (intel/dashboard); norm() BACKFILLS existing
+                   states additively (fills empty fields only, never overwrites) with
+                   verified links: Sydney → tcssydneymarathon.com · UTK → kosciuszko.
+                   utmb.world/races/kosci-100 · UTA100 → uta.utmb.world/races/UTA100 +
+                   intel ./uta100-2026-intel.html (RELATIVE — the 2026 race-intelligence
+                   page now ships beside the app on Pages). Per-card ✎ Links editor
+                   (inline site/intel inputs, works on seeded AND manual events);
+                   add-form gains the site field. Demo-safe. Icons also refreshed this
+                   deploy (AthleteOS badge, Andre's Gemini pick) + sw cache v1→v2.
    v1.46 17/07/26 Phase 8 CORE — niggle system, manual path (D026 locked fields).
                    s.niggles[] (ships empty); Data-tab entry card (date · region [20-item
                    coarse list] · side · structure · severity 1–10 · timing · warmup
@@ -770,6 +780,16 @@ const RACES = [
   {name:"UTK 2026", date:"2026-11-27", w:22},
   {name:"UTA100 2027", date:"2027-05-15", w:46},
 ];
+/* v1.47: canonical links for the seeded races — verified 17/07/26 (official sites via
+   web search; the UTA intel link is RELATIVE so it works on any domain the app serves
+   from — the 2026-edition race-intelligence page is hosted beside the app). norm()
+   backfills these into EXISTING states (additive: only fills empty fields, never
+   overwrites Andre's own links). */
+const EV_LINKS={
+  "Sydney Marathon 2026":{site:"https://www.tcssydneymarathon.com/"},
+  "UTK 2026":{site:"https://kosciuszko.utmb.world/races/kosci-100"},
+  "UTA100 2027":{site:"https://uta.utmb.world/races/UTA100", url:"./uta100-2026-intel.html"},
+};
 
 /* ── Phase 7 (v1.44): Events tab — GPX → compact elevation profile ─────────
    parseGPX: trkpt lat/lon/ele → cumulative haversine distance. downsampleProfile:
@@ -1338,7 +1358,10 @@ const norm = s => {
   s.niggles=s.niggles||[];   /* Phase 8 core (v1.46): ships empty by design */
   /* Phase 7 (v1.44): events seeded from RACES on first run; user-managed thereafter */
   if(!s.events||!s.events.length) s.events=RACES.map(r=>({id:"ev"+r.w, name:r.name, date:r.date,
-    km:r.w===9?42.2:r.w===22?102:101.6, gain:r.w===9?null:r.w===22?3196:4400, url:"", notes:"", profile:null}));
+    km:r.w===9?42.2:r.w===22?102:101.6, gain:r.w===9?null:r.w===22?3196:4400, url:"", site:"", notes:"", profile:null}));
+  /* v1.47 backfill: existing events gain official-site + intel links (empty fields only) */
+  (s.events||[]).forEach(ev=>{ const L=EV_LINKS[ev.name];
+    if(L){ if(!ev.site&&L.site) ev.site=L.site; if(!ev.url&&L.url) ev.url=L.url; } });
   return s;
 };
 
@@ -2633,7 +2656,7 @@ function makeDemo(){
 /* ── APP ── */
 const App = {
   state: norm(JSON.parse(JSON.stringify(EMPTY))),
-  tab: "overview", unit: "km", clinical: false, selMarker: "ferritin",
+  tab: "overview", unit: "km", clinical: false, selMarker: "ferritin", evEdit: null,
   theme: "dark",  // "dark" (G8 default) | "light"; persisted via Store.pref, applied in render()
   week: null, selSeg: "tr", selWeek: null,
   selType: null, gymDay: null, boardOpen: false, demo: false, _real: null,
@@ -4013,9 +4036,16 @@ const App = {
             <div style="font-family:var(--mono);font-size:13px;margin-top:4px">${fmtD(ev.date)} · <span style="color:var(--c-mist)">${cd}</span></div>
             <div class="note" style="margin-top:3px">${ev.km!=null?`${fmt(ev.km,1)} km`:""}${ev.gain!=null?` · ${ev.gain} m D+`:""}</div></div>
           <div style="display:flex;gap:6px;flex-wrap:wrap">
-            ${ev.url?`<a class="btn" href="${esc(ev.url)}" target="_blank" rel="noopener noreferrer">↗ Event dashboard</a>`:""}
+            ${ev.site?`<a class="btn" href="${esc(ev.site)}" target="_blank" rel="noopener noreferrer">↗ Official site</a>`:""}
+            ${ev.url?`<a class="btn" href="${esc(ev.url)}" target="_blank" rel="noopener noreferrer">⚑ Intel / dashboard</a>`:""}
+            <button class="btn" data-act="evLinks" data-v="${esc(ev.id)}">✎ Links</button>
             <button class="btn" data-act="evGpx" data-v="${esc(ev.id)}">${ev.profile?"⟳ Replace GPX":"⛰ Import GPX"}</button>
             <button class="btn" data-act="evDel" data-v="${esc(ev.id)}" style="border-color:${C.rose};color:${C.rose}">✕</button></div></div>
+        ${this.evEdit===ev.id?`<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
+            <label class="f"><span>official site URL</span><input id="evl_site" value="${esc(ev.site||"")}" style="min-width:220px" placeholder="https://…"></label>
+            <label class="f"><span>intel / dashboard URL</span><input id="evl_url" value="${esc(ev.url||"")}" style="min-width:220px" placeholder="https://… or ./page.html"></label>
+            <button class="btn solid" data-act="evLinksSave" data-v="${esc(ev.id)}">Save links</button>
+            <button class="btn" data-act="evLinks" data-v="${esc(ev.id)}">Cancel</button></div>`:""}
         ${ev.notes?`<div class="note" style="margin-top:8px">${esc(ev.notes)}</div>`:""}
         ${ev.profile?`<div style="margin-top:10px;display:flex;gap:12px;align-items:stretch;flex-wrap:wrap">${evRouteSVG(ev.profile)}<div style="flex:1;min-width:160px">${evSparkSVG(ev.profile)}</div></div>`:""}
       </div>`; }).join("");
@@ -4032,7 +4062,8 @@ const App = {
         <input id="ev_date" placeholder="YYYY-MM-DD" style="flex:1;min-width:110px">
         <input id="ev_km" placeholder="km" style="width:70px">
         <input id="ev_gain" placeholder="D+ m" style="width:80px">
-        <input id="ev_url" placeholder="event dashboard URL (optional)" style="flex:2;min-width:160px">
+        <input id="ev_site" placeholder="official site URL (optional)" style="flex:2;min-width:160px">
+        <input id="ev_url" placeholder="intel / dashboard URL (optional)" style="flex:2;min-width:160px">
         <input id="ev_notes" placeholder="notes (optional)" style="flex:2;min-width:140px">
         <button class="btn solid" data-act="evAdd">Add event</button></div>
       <div class="note" style="margin-top:6px">Editing = remove + re-add (v1). The three macro races are seeded and removable like any event. Adding/removing events never touches the PLAN.</div>
@@ -4067,8 +4098,13 @@ const App = {
   addEvent(){
     const name=qs("ev_name").value.trim(), date=qs("ev_date").value.trim();
     if(!name||!/^\d{4}-\d{2}-\d{2}$/.test(date)) return this.flash("Need a name + date as YYYY-MM-DD");
-    this.state.events.push({id:"ev"+Date.now(), name, date, km:num(qs("ev_km").value), gain:num(qs("ev_gain").value), url:qs("ev_url").value.trim(), notes:qs("ev_notes").value.trim(), profile:null});
+    this.state.events.push({id:"ev"+Date.now(), name, date, km:num(qs("ev_km").value), gain:num(qs("ev_gain").value), url:qs("ev_url").value.trim(), site:qs("ev_site").value.trim(), notes:qs("ev_notes").value.trim(), profile:null});
     this.persist(); this.render(); this.flash("Event added");
+  },
+  setEvLinks(id){
+    const ev=(this.state.events||[]).find(e=>e.id===id); if(!ev) return;
+    ev.site=qs("evl_site").value.trim(); ev.url=qs("evl_url").value.trim();
+    this.evEdit=null; this.persist(); this.render(); this.flash("Links saved");
   },
   delEvent(id){
     const i=(this.state.events||[]).findIndex(e=>e.id===id); if(i<0) return;
@@ -4096,7 +4132,15 @@ const App = {
     inp.click();
   },
   view_changelog(){
-    const log=`v1.46  17/07/26  Niggle tracking (core).
+    const log=`v1.47  17/07/26  Event links + the new badge.
+                   Every event card now carries two links — the official race website
+                   and your own intel/dashboard page — editable in place via ✎ Links on
+                   any card, including the three pre-seeded races (their official sites
+                   arrive automatically; UTA100 also links your 2026 race-intelligence
+                   analysis, now hosted beside the app). Plus: the AthleteOS badge is
+                   the app icon from this deploy.
+
+v1.46  17/07/26  Niggle tracking (core).
                    Log any niggle in the Data tab — region, side, structure, severity,
                    when it hurts and how it responds to warmup. The Health tab now opens
                    with the niggle log: recurrence chips light amber at 2 and red at 3
@@ -4469,6 +4513,9 @@ v1.0–v1.4  02–04/07/26  Initial build; ported from React artifact.
         else if(a==="evAdd") this.addEvent();
         else if(a==="evDel") this.delEvent(v);
         else if(a==="evGpx") this.pickGPX(v);
+        else if(a==="evLinks"){ this.evEdit=(this.evEdit===v?null:v); this.render(); }
+        else if(this.demo && a==="evLinksSave"){ this.flash("Demo mode is read-only — toggle off at the bottom"); }
+        else if(a==="evLinksSave") this.setEvLinks(v);
         else if(this.demo && ["addWeek","addBody","addLab","addLift","addGirth","addProt","setTarget","tgtAdopt","import","importSess","importFFF","reset","taxAdd","addCheckin","addProtein","export"].includes(a)){ this.flash("Demo mode is read-only — toggle off at the bottom"); }
         else if(a==="gymday"){ const [w,i]=v.split("-").map(Number); this.gymDay=(this.gymDay&&this.gymDay.w===w&&this.gymDay.i===i)?null:{w,i}; this.render(); }
         else if(a==="gymclose"){ this.gymDay=null; this.render(); }
