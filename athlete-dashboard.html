@@ -195,6 +195,16 @@
    CHANGELOG
    v1.0  02/07/26  first HTML build (ported from React artifact)
    (v1.0–v1.6 archived — full history in OPERATING_BRIEF.md CHANGELOG)
+   v1.43 17/07/26 D041 plan-sync — Ph9 floor + Ph10 gate mirrored into the app.
+                   PLAN W26–31 raised to the ratified 8–10 h floor (66→83 km, progressive
+                   long 2:15→3:00, down-dip W30); IF_W 26–31 re-fit as curve-calibration
+                   to FFF Revision 1 (55→60 TSS/d) so the projection line matches the
+                   governance baseline. Ph10 notes: 3 back-to-backs fixed (W35/W38/W41 —
+                   intra-week redistribution, weekly volume unchanged), down weeks
+                   labelled (W36/W39 = D041 ramp gate; internal wk5+wk8 — exec amendment
+                   of F2's wk4, race-sim spacing preserved, filed in RUNNING_PLAN).
+                   Ph2 verified already matching corrected F3 inputs (49–65 TSS/d) —
+                   no change. FFF_PROJ machinery untouched; file-first order respected.
    v1.42 17/07/26 Phase 1d — PWA install shell (D038, blueprint PWA_SHELL_BLUEPRINT.md).
                    Head: manifest link + theme-color #0C1116 (= live --c-night). Tail:
                    guarded SW registration (https-only, serviceWorker-capable only) +
@@ -691,22 +701,22 @@ const PLAN = [
  [23,"30/11",0,0.0,"week off"],
  [24,"07/12",15,1.7,"legs decide"],
  [25,"14/12",25,2.9,""],
- [26,"21/12",30,3.6,"Nippard restart wk1 deload"],
- [27,"28/12",34,4.1,""],
- [28,"04/01",38,4.6,""],
- [29,"11/01",40,4.8,""],
- [30,"18/01",34,4.1,"down week"],
- [31,"25/01",44,5.4,"benchmark 30 km / 1,107 m"],
+ [26,"21/12",66,8.0,"Nippard restart wk1 deload · run floor 8 h (D041)"],
+ [27,"28/12",70,8.5,"long 2:15"],
+ [28,"04/01",75,9.0,"long 2:30"],
+ [29,"11/01",79,9.5,"long 2:45"],
+ [30,"18/01",62,7.5,"down week"],
+ [31,"25/01",83,10.0,"benchmark 30 km / 1,107 m · long 3:00 (D041 floor peak)"],
  [32,"01/02",55,7.1,"UTA build opens"],
  [33,"08/02",62,8.0,""],
  [34,"15/02",66,8.6,""],
- [35,"22/02",70,9.2,"race-sim #1 · long 5:00"],
- [36,"01/03",50,6.5,"down week"],
+ [35,"22/02",70,9.2,"race-sim #1 · B2B 5:00 + 2:00 (1 of 3, D041)"],
+ [36,"01/03",50,6.5,"down week (D041 ramp gate)"],
  [37,"08/03",66,8.6,""],
- [38,"15/03",72,9.5,"race-sim #2 · B2B 5:30 + 2:00"],
- [39,"22/03",52,6.8,"down week"],
+ [38,"15/03",72,9.5,"race-sim #2 · B2B 5:30 + 2:00 (2 of 3)"],
+ [39,"22/03",52,6.8,"down week (D041 ramp gate)"],
  [40,"29/03",70,9.2,""],
- [41,"05/04",74,9.8,"peak week · long 6:00"],
+ [41,"05/04",74,9.8,"peak week · B2B 6:00 + 2:00 (3 of 3)"],
  [42,"12/04",72,9.5,"race-sim #3 · dress rehearsal"],
  [43,"19/04",55,7.2,"consolidate"],
  [44,"26/04",50,6.5,"taper −30%"],
@@ -872,7 +882,11 @@ const FFF_PROJ = (()=>{
     18:0.78,19:0.78,20:0.75,
     21:0.58,
     23:0.45,24:0.50,25:0.52,
-    26:0.62,27:0.63,28:0.63,29:0.63,30:0.62,31:0.65,
+    /* Ph9 (D041, 17/07/26): PLAN hours raised to the 8–10 h floor; iF here is a
+       CURVE-CALIBRATION factor (h×iF×100/7 = daily TSS), re-fit so the projection
+       tracks FFF_PROJECTION_BASELINE §5 Revision 1 (55→60 TSS/d, down-dip W30) —
+       lower iF = honest for all-easy Z2 volume at higher hours. */
+    26:0.48,27:0.46,28:0.45,29:0.44,30:0.48,31:0.42,
     32:0.75,33:0.77,34:0.77,
     35:0.80,36:0.70,37:0.78,38:0.80,39:0.70,
     40:0.80,41:0.82,42:0.82,43:0.76,
@@ -3855,7 +3869,14 @@ const App = {
         <button class="btn solid" data-act="taxAdd">Add note</button></div></div>`;
   },
   view_changelog(){
-    const log=`v1.42  17/07/26  Phase 1d — installable app (PWA shell).
+    const log=`v1.43  17/07/26  Plan volumes synced to the ratified D041 amendments.
+                   The Dec–Jan hypertrophy block (W26–31) now shows the raised 8–10 h
+                   running floor with the progressive hilly long run (2:15→3:00) and its
+                   down week; the projection line re-fits the updated governance baseline.
+                   UTA-block down weeks and the three back-to-back weekends are labelled
+                   on the plan. No mechanics changed — data only.
+
+v1.42  17/07/26  Phase 1d — installable app (PWA shell).
                    The dashboard can now be installed from Chrome (menu → Add to Home
                    screen → Install): home-screen icon, full-screen standalone window,
                    dark #0C1116 status bar, and offline access to the last-loaded
