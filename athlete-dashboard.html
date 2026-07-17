@@ -195,6 +195,20 @@
    CHANGELOG
    v1.0  02/07/26  first HTML build (ported from React artifact)
    (v1.0–v1.6 archived — full history in OPERATING_BRIEF.md CHANGELOG)
+   v1.46 17/07/26 Phase 8 CORE — niggle system, manual path (D026 locked fields).
+                   s.niggles[] (ships empty); Data-tab entry card (date · region [20-item
+                   coarse list] · side · structure · severity 1–10 · timing · warmup
+                   response · session ref · note — D026 minimum fields verbatim);
+                   Health-tab niggleSection() first: recurrence chips per region+side
+                   (amber ×2, red ×3) + last-10 log. Voice path + anatomical body-map
+                   SVG stay with the dedicated Phase 8 session (reference image acquired,
+                   vault assets/). Region strings are map-forward-compatible. CARD_INFO
+                   gains "niggles". Demo-safe. Schema additive; STORE_KEY unchanged.
+   v1.45 17/07/26 Events route map. parseGPX + downsampleProfile now carry lat/lon
+                   (5-dp, same ≤200-pt resample — profile ~10 KB, guards unchanged);
+                   evRouteSVG equirectangular track thumbnail (teal path, teal start /
+                   amber finish dots) beside the elevation spark. Pre-v1.45 profiles
+                   (no lat/lon) show a re-import hint — elevation keeps working.
    v1.44 17/07/26 Phase 7 — Events tab (simplified scope per 13-Jul roadmap ruling).
                    New Events tab: s.events[] CRUD (seeded once from RACES — Sydney/UTK/
                    UTA with km + D+), per-event card with date/countdown/notes, link-out
@@ -770,31 +784,67 @@ function parseGPX(txt){
   }
   if(!pts.length) return null;
   const R=6371, rad=x=>x*Math.PI/180;
-  let dist=0; const distKm=[0], ele=[pts[0].ele];
+  let dist=0; const distKm=[0], ele=[pts[0].ele], lat=[pts[0].lat], lon=[pts[0].lon];
   for(let i=1;i<pts.length;i++){
     const a=pts[i-1],b=pts[i];
     const dLat=rad(b.lat-a.lat), dLon=rad(b.lon-a.lon);
     const h=Math.sin(dLat/2)**2+Math.cos(rad(a.lat))*Math.cos(rad(b.lat))*Math.sin(dLon/2)**2;
     dist+=2*R*Math.asin(Math.sqrt(h));
-    distKm.push(dist); ele.push(pts[i].ele);
+    distKm.push(dist); ele.push(pts[i].ele); lat.push(pts[i].lat); lon.push(pts[i].lon);
   }
-  return {distKm, ele:ele.some(e=>e!=null)?ele:null, totalKm:dist};
+  return {distKm, ele:ele.some(e=>e!=null)?ele:null, lat, lon, totalKm:dist};
 }
-function downsampleProfile(distKm, ele, N=200){
+function downsampleProfile(distKm, ele, N=200, lat=null, lon=null){
   const n=distKm.length;
-  if(n<=N) return {distKm:distKm.map(x=>Math.round(x*100)/100), ele:ele?ele.map(e=>e==null?null:Math.round(e)):null};
-  const total=distKm[n-1]; const oD=[], oE=[]; let j=0;
+  const r5=x=>Math.round(x*1e5)/1e5;
+  if(n<=N) return {distKm:distKm.map(x=>Math.round(x*100)/100),
+    ele:ele?ele.map(e=>e==null?null:Math.round(e)):null,
+    lat:lat?lat.map(r5):null, lon:lon?lon.map(r5):null};
+  const total=distKm[n-1]; const oD=[], oE=[], oLa=[], oLo=[]; let j=0;
   for(let i=0;i<N;i++){
     const target=total*i/(N-1);
     while(j<n-1 && distKm[j+1]<target) j++;
     const d0=distKm[j], d1=distKm[Math.min(j+1,n-1)];
     const t=d1>d0?(target-d0)/(d1-d0):0;
+    const k=Math.min(j+1,n-1);
     oD.push(Math.round(target*100)/100);
-    if(ele){ const e0=ele[j], e1=ele[Math.min(j+1,n-1)];
+    if(ele){ const e0=ele[j], e1=ele[k];
       oE.push((e0==null||e1==null)?(e0!=null?Math.round(e0):(e1!=null?Math.round(e1):null)):Math.round(e0+t*(e1-e0))); }
+    if(lat){ oLa.push(r5(lat[j]+t*(lat[k]-lat[j]))); oLo.push(r5(lon[j]+t*(lon[k]-lon[j]))); }
   }
-  return {distKm:oD, ele:ele?oE:null};
+  return {distKm:oD, ele:ele?oE:null, lat:lat?oLa:null, lon:lon?oLo:null};
 }
+/* v1.45: route-map thumbnail — equirectangular polyline of the stored lat/lon track.
+   Profiles imported before v1.45 have no lat/lon → card shows a re-import hint. */
+function evRouteSVG(profile){
+  if(!profile||!profile.lat||!profile.lat.length) return `<div class="note" style="align-self:center">re-import the GPX to add the route map</div>`;
+  const la=profile.lat, lo=profile.lon;
+  const laMin=Math.min(...la), laMax=Math.max(...la), loMin=Math.min(...lo), loMax=Math.max(...lo);
+  const cosM=Math.cos((laMin+laMax)/2*Math.PI/180);
+  const w=(loMax-loMin)*cosM, hgt=(laMax-laMin);
+  const S=120,P=6, span=Math.max(w,hgt)||1e-9, sc=(S-2*P)/span;
+  const ox=P+((S-2*P)-w*sc)/2, oy=P+((S-2*P)-hgt*sc)/2;
+  let p="";
+  la.forEach((v,i)=>{ const x=ox+(lo[i]-loMin)*cosM*sc, y=oy+(laMax-v)*sc;
+    p+=(p?"L":"M")+x.toFixed(1)+" "+y.toFixed(1); });
+  const x0=ox+(lo[0]-loMin)*cosM*sc, y0=oy+(laMax-la[0])*sc;
+  const xn=ox+(lo[lo.length-1]-loMin)*cosM*sc, yn=oy+(laMax-la[la.length-1])*sc;
+  return `<svg viewBox="0 0 ${S} ${S}" width="${S}" height="${S}" style="flex:0 0 ${S}px;border:1px solid var(--c-contour);border-radius:8px">
+    <path d="${p}" fill="none" stroke="var(--c-teal)" stroke-width="1.4" stroke-linejoin="round"/>
+    <circle cx="${x0.toFixed(1)}" cy="${y0.toFixed(1)}" r="2.6" fill="var(--c-teal)"/>
+    <circle cx="${xn.toFixed(1)}" cy="${yn.toFixed(1)}" r="2.6" fill="var(--c-amber)"/></svg>`;
+}
+
+/* ── Phase 8 core (v1.46): niggle system — MANUAL path only (D026 locked fields).
+   Voice → Whisper Flow → Claude extraction AND the anatomical body-map SVG ship in the
+   dedicated Phase 8 session (reference image acquired 17/07/26, vault assets/). The
+   region list is deliberately coarse; the body map refines granularity later —
+   entries carry region strings, so map-era zones can only ADD precision, not break. ── */
+const NIGGLE_REGIONS=["foot","toes/sesamoid","ankle","achilles","calf","shin","knee","ITB","quad","hamstring","adductor/groin","glute","hip","lower back","mid/upper back","shoulder","elbow","forearm/wrist","neck","other"];
+const NIGGLE_SIDE=["R","L","bilateral","central"];
+const NIGGLE_STRUCT=["muscle","tendon","ligament","joint","bone","fascia","nerve","unsure"];
+const NIGGLE_TIMING=["during session","after session","next morning","constant"];
+const NIGGLE_WARMUP=["improves with warmup","unchanged","worsens with warmup"];
 function evSparkSVG(profile){
   if(!profile||!profile.ele||!profile.ele.some(e=>e!=null)) return `<div class="note">no elevation data in this GPX</div>`;
   const D=profile.distKm, E=profile.ele;
@@ -814,6 +864,7 @@ function evSparkSVG(profile){
    DASHBOARD_PHASE1_BLUEPRINT.md §5 (Andre-approved). infoBtn(id)/infoPanel(id) render
    against this; registry-parity asserted by the harness (every infoBtn id has an entry). */
 const CARD_INFO = {
+  niggles:{what:"Every logged niggle (region, side, structure, severity 1–10, timing, warmup response) with recurrence counts per region — amber at ×2, red at ×3.",src:"Manual entry in the Data tab (D026 minimum fields). Voice entry + the tappable anatomical body map arrive with the full Phase 8 build.",why:"Self-coached means no second set of eyes — the recurrence chips are the early-warning system that connects the same complaint across weeks before it becomes an injury."},
   events:{what:"Race calendar — every planned event with date, countdown, distance, climb, notes, and an elevation thumbnail from an imported GPX.",src:"Manually added events; the three macro races (Sydney · UTK 2026 · UTA100) seed the list. GPX imports are downsampled to ≤200 points — nothing else from the file is stored.",why:"One glanceable calendar of what is coming; deep per-race intelligence (course, crew, aid stations) lives in each event's own project dashboard, linked from the card."},
   week_lens:{what:"The current macro week — planned sessions vs what's actually logged, with completion ticks.",src:"PLAN/PHASES (the locked macro) + logged sessions from Sync/import.",why:"The week is the unit of execution; if it's not on this strip, it won't happen."},
   plan_chart:{what:"The full 46-week plan as load bands, with executed load, CTL/ATL/TSB and weight overlaid.",src:"RUNNING_PLAN.md macro + intervals.icu FFF + Withings weekly points.",why:"One picture of plan vs body — where you are in the season and whether the load is landing."},
@@ -1284,6 +1335,7 @@ const norm = s => {
   if(!s.taxNotes||!s.taxNotes.length) s.taxNotes=[...TAX_SEED];
   if(!s.boardNotes||!s.boardNotes.length) s.boardNotes=[...BOARD_SEED];
   s.checkins=s.checkins||[];
+  s.niggles=s.niggles||[];   /* Phase 8 core (v1.46): ships empty by design */
   /* Phase 7 (v1.44): events seeded from RACES on first run; user-managed thereafter */
   if(!s.events||!s.events.length) s.events=RACES.map(r=>({id:"ev"+r.w, name:r.name, date:r.date,
     km:r.w===9?42.2:r.w===22?102:101.6, gain:r.w===9?null:r.w===22?3196:4400, url:"", notes:"", profile:null}));
@@ -3216,7 +3268,7 @@ const App = {
       <div class="note" style="margin-top:10px">Tape is same-conditions monthly (AM, cold muscles, same anatomical landmarks). L/R kept separate on purpose — the right-side history makes asymmetry a signal, not noise.</div>
     </div>`;
   },
-  view_health(){ return this.wellnessSection() + this.healthHTML(false); },
+  view_health(){ return this.niggleSection() + this.wellnessSection() + this.healthHTML(false); },
 
   wellnessSection(){
     /* Daily device-wellness block — RHR / HRV / readiness / sleep from
@@ -3365,6 +3417,19 @@ const App = {
         ${f("wk_long","long h",60)}${f("wk_dec","decoup %",70)}${f("wk_ef","EF W/bpm",72)}${f("wk_z","% ≤AeT",64)}${f("wk_z3","% Z3",60)}${f("wk_z45","% Z4-5",64)}
         <button class="btn solid" data-act="addWeek">Save week</button></div>
       <div class="note" style="margin-top:10px">Any field can be left blank — partial weeks merge. Executed line on the plan chart appears from the first saved week.</div></div>
+    <div class="card"><div class="eyebrow" style="color:var(--c-amber)">Log a niggle (manual path — voice entry ships with the body map)</div>
+      <div class="row" style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
+        <label class="f"><span>date</span><input id="ng_d" style="width:110px" placeholder="2026-07-17"></label>
+        <label class="f"><span>region</span><select id="ng_region">${NIGGLE_REGIONS.map(r=>`<option>${r}</option>`).join("")}</select></label>
+        <label class="f"><span>side</span><select id="ng_side">${NIGGLE_SIDE.map(r=>`<option>${r}</option>`).join("")}</select></label>
+        <label class="f"><span>structure</span><select id="ng_struct">${NIGGLE_STRUCT.map(r=>`<option>${r}</option>`).join("")}</select></label>
+        <label class="f"><span>severity 1–10</span><input id="ng_sev" style="width:60px" placeholder="3"></label>
+        <label class="f"><span>timing</span><select id="ng_timing">${NIGGLE_TIMING.map(r=>`<option>${r}</option>`).join("")}</select></label>
+        <label class="f"><span>warmup</span><select id="ng_warm">${NIGGLE_WARMUP.map(r=>`<option>${r}</option>`).join("")}</select></label>
+        <label class="f"><span>session (opt)</span><input id="ng_ref" style="width:130px" placeholder="Tue threshold"></label>
+        <label class="f"><span>note (opt)</span><input id="ng_note" style="width:200px" placeholder="first felt on the descent reps"></label>
+        <button class="btn solid" data-act="addNiggle">Save niggle</button></div>
+      <div class="note" style="margin-top:8px">D026 minimum fields. Entries feed the Health-tab niggle log + recurrence counts — the project's second set of eyes.</div></div>
     <div class="cols3">
       <div class="card"><div class="eyebrow">Body point (Withings, weekly)</div><div class="grid" style="margin-top:10px;gap:8px">
         ${f("bd_d","date",120,"2026-07-09")}<div style="display:flex;gap:8px">${f("bd_kg","kg",64)}${f("bd_bf","bf %",64)}</div>
@@ -3952,7 +4017,7 @@ const App = {
             <button class="btn" data-act="evGpx" data-v="${esc(ev.id)}">${ev.profile?"⟳ Replace GPX":"⛰ Import GPX"}</button>
             <button class="btn" data-act="evDel" data-v="${esc(ev.id)}" style="border-color:${C.rose};color:${C.rose}">✕</button></div></div>
         ${ev.notes?`<div class="note" style="margin-top:8px">${esc(ev.notes)}</div>`:""}
-        ${ev.profile?`<div style="margin-top:10px">${evSparkSVG(ev.profile)}</div>`:""}
+        ${ev.profile?`<div style="margin-top:10px;display:flex;gap:12px;align-items:stretch;flex-wrap:wrap">${evRouteSVG(ev.profile)}<div style="flex:1;min-width:160px">${evSparkSVG(ev.profile)}</div></div>`:""}
       </div>`; }).join("");
     return `<div class="card">
       <div class="eyebrow" style="color:var(--c-teal)">Events — race calendar ${this.infoBtn("events")}</div>
@@ -3971,6 +4036,32 @@ const App = {
         <input id="ev_notes" placeholder="notes (optional)" style="flex:2;min-width:140px">
         <button class="btn solid" data-act="evAdd">Add event</button></div>
       <div class="note" style="margin-top:6px">Editing = remove + re-add (v1). The three macro races are seeded and removable like any event. Adding/removing events never touches the PLAN.</div>
+    </div>`;
+  },
+  addNiggle(){
+    const dte=qs("ng_d").value.trim();
+    const sev=num(qs("ng_sev").value);
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(dte)) return this.flash("Need the date as YYYY-MM-DD");
+    if(sev==null||sev<1||sev>10) return this.flash("Severity must be 1–10");
+    this.state.niggles.push({d:dte, region:qs("ng_region").value, side:qs("ng_side").value,
+      struct:qs("ng_struct").value, sev, timing:qs("ng_timing").value, warmup:qs("ng_warm").value,
+      ref:qs("ng_ref").value.trim(), note:qs("ng_note").value.trim()});
+    this.persist(); this.render(); this.flash("Niggle logged — watching for recurrence");
+  },
+  niggleSection(){
+    const ns=[...(this.state.niggles||[])].sort((a,b)=>String(b.d).localeCompare(String(a.d)));
+    const counts={};
+    ns.forEach(n=>{ const k=n.region+(n.side&&n.side!=="central"?" "+n.side:""); counts[k]=(counts[k]||0)+1; });
+    const chips=Object.entries(counts).sort((a,b)=>b[1]-a[1])
+      .map(([k,c])=>`<span class="pill${c>=3?" on":""}" style="${c>=3?`border-color:${C.rose};color:${C.rose}`:c===2?`border-color:${C.amber};color:${C.amber}`:""}">${esc(k)} ×${c}</span>`).join(" ");
+    const rows=ns.slice(0,10).map(n=>`<div class="note" style="padding:6px 0;border-bottom:1px solid var(--c-contour)">
+      <span style="font-family:var(--mono)">${fmtD(n.d)}</span> · <b>${esc(n.region)}${n.side&&n.side!=="central"?" "+esc(n.side):""}</b> · ${esc(n.struct)} · sev <b>${n.sev}</b> · ${esc(n.timing)} · ${esc(n.warmup)}${n.ref?` · <span style="color:var(--c-mist)">${esc(n.ref)}</span>`:""}${n.note?`<br><span style="color:var(--c-mist)">${esc(n.note)}</span>`:""}</div>`).join("");
+    return `<div class="card">
+      <div class="eyebrow" style="color:var(--c-amber)">Niggle log — recurrence watch ${this.infoBtn("niggles")}</div>
+      ${this.infoPanel("niggles")}
+      ${ns.length?`<div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap">${chips}</div>
+        <div style="margin-top:10px">${rows}</div>${ns.length>10?`<div class="note" style="margin-top:6px">…${ns.length-10} older entries in state</div>`:""}`
+      :`<div class="note" style="margin-top:8px">No niggles logged — good. Log via the Data tab the moment something registers; the amber/red chips fire at ×2/×3 recurrences of the same region+side.</div>`}
     </div>`;
   },
   addEvent(){
@@ -3993,7 +4084,7 @@ const App = {
       rd.onload=()=>{
         const parsed=parseGPX(String(rd.result||""));
         if(!parsed) return this.flash("No track points found in that GPX");
-        const prof=downsampleProfile(parsed.distKm, parsed.ele, 200);
+        const prof=downsampleProfile(parsed.distKm, parsed.ele, 200, parsed.lat, parsed.lon);
         if(JSON.stringify(prof).length>60000) return this.flash("Profile too large after downsampling — quota guard tripped");
         ev.profile=prof;
         this.persist(); this.render();
@@ -4005,7 +4096,20 @@ const App = {
     inp.click();
   },
   view_changelog(){
-    const log=`v1.44  17/07/26  New Events tab.
+    const log=`v1.46  17/07/26  Niggle tracking (core).
+                   Log any niggle in the Data tab — region, side, structure, severity,
+                   when it hurts and how it responds to warmup. The Health tab now opens
+                   with the niggle log: recurrence chips light amber at 2 and red at 3
+                   hits on the same spot, the project's second set of eyes. Voice entry
+                   and the tappable body map come in the full Phase 8 build.
+
+v1.45  17/07/26  Route maps on event cards.
+                   GPX imports now also keep a slimmed lat/lon track, drawn as a small
+                   route outline (start dot teal, finish dot amber) next to the elevation
+                   profile. Cards with GPX imported before today: hit ⟳ Replace GPX once
+                   to pick up the map.
+
+v1.44  17/07/26  New Events tab.
                    Your race calendar in one place: the three macro races are pre-seeded,
                    and any event can be added with date, distance, climb, notes and a
                    link to that race's own dashboard. Import a GPX onto an event card to
@@ -4360,6 +4464,8 @@ v1.0–v1.4  02–04/07/26  Initial build; ported from React artifact.
         else if(a==="setTarget") this.setTarget();
         else if(a==="demoToggle") this.toggleDemo();
         else if(this.demo && ["evAdd","evDel","evGpx"].includes(a)){ this.flash("Demo mode is read-only — toggle off at the bottom"); }
+        else if(this.demo && a==="addNiggle"){ this.flash("Demo mode is read-only — toggle off at the bottom"); }
+        else if(a==="addNiggle") this.addNiggle();
         else if(a==="evAdd") this.addEvent();
         else if(a==="evDel") this.delEvent(v);
         else if(a==="evGpx") this.pickGPX(v);
