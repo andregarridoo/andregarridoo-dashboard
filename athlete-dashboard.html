@@ -106,13 +106,22 @@
      cards so nothing is cramped 2-wide; charts already viewBox+max-width:100%
      so they reflow. Landscape reuses the ≥760px multi-col grid below. ── */
   @media(max-width:480px){
-    /* #C1 (v1.40): clip the app container's horizontal overflow on mobile. #app IS .wrap
-       (holds header + tabs + view), so this stops any descendant from expanding the layout
-       viewport — the cause of the Overview-only shrink-to-fit (small font, left-skewed tabs,
-       cards clipping right). All real Overview content is width:100%, so nothing is hidden;
-       inner scrollers (.scroll/.lens-grid/.tabbar) keep their own overflow. clip (not hidden)
-       leaves the vertical axis visible and creates no scroll container. */
-    .wrap{padding:16px 10px 64px;overflow-x:clip}
+    /* #C1 (v1.40) → #C4 (v1.41): contain the app container's horizontal overflow on mobile.
+       v1.40 used overflow-x:clip, which stops layout-viewport expansion but AMPUTATES any
+       residual overflow at paint level — the clipped strip is unreachable at ANY zoom level,
+       which presented as "right side cut off" AND "pinch zoom broken" (one bug, two symptoms).
+       v1.41 = auto: still a scroll container (same anti-shrink-to-fit property), but any
+       residue pans by swipe instead of vanishing. With the #C4 guards below there should be
+       no residue at all; auto is the honest fallback. */
+    .wrap{padding:16px 10px 64px;overflow-x:auto}
+    /* #C4 (v1.41): min-content guard — the actual root cause CLASS. Grid tracks (1fr/auto)
+       refuse to shrink below a child's min-content width, so one unbreakable element quietly
+       widens the whole app a few px past the viewport. Invisible to static width audits
+       (computed-layout phenomenon, not a declared width — why the v1.40 audit found "no
+       offender"). min-width:0 restores shrinkability on every track child + card; long
+       tokens in notes/eyebrows become breakable. */
+    .grid>*,.cols2>*,.cols3>*,.cols4>*,.card{min-width:0}
+    .note,.eyebrow{overflow-wrap:anywhere}
     .cols4{grid-template-columns:1fr}   /* stop forcing 2-wide on narrow portrait */
     .card{padding:13px}
     h1{font-size:20px!important}
@@ -184,6 +193,15 @@
    CHANGELOG
    v1.0  02/07/26  first HTML build (ported from React artifact)
    (v1.0–v1.6 archived — full history in OPERATING_BRIEF.md CHANGELOG)
+   v1.41 17/07/26 Phase 1c-2 — mobile layout root-cause fix (#C4/#C5).
+                   #C4 min-content guard at ≤480 (.grid / .cols2-4 / .card children min-width:0 +
+                   overflow-wrap:anywhere on notes/eyebrows) — grid tracks no longer widen
+                   past the viewport on unbreakable content; .wrap mobile containment
+                   clip→auto so residual overflow pans instead of being amputated (the
+                   unreachable clipped strip presented as both "right cut" and "zoom
+                   broken"). #C5 zoom-permissive invariant encoded in the harness (no
+                   user-scalable / maximum-scale / touch-action locks anywhere — standing
+                   ruling 17/07/26: zoom available on every tab). node --check + harness.
    v1.40 16/07/26 Phase 1c — mobile polish + bodyweight EWMA (D040, α=0.10/day).
                    #C1 Overview no longer shrink-to-fits on mobile (.wrap overflow-x:clip
                    stops the layout-viewport expansion); #C2 custom range sliders
@@ -3826,7 +3844,17 @@ const App = {
         <button class="btn solid" data-act="taxAdd">Add note</button></div></div>`;
   },
   view_changelog(){
-    const log=`v1.40  16/07/26  Phase 1c — mobile polish + bodyweight EWMA trend.
+    const log=`v1.41  17/07/26  Phase 1c-2 — mobile layout root-cause fix.
+                   #C4: grid tracks could silently grow wider than the phone screen when a
+                   child refused to shrink (min-content), and v1.40's clip then cut that
+                   strip off the right edge — unreachable at any zoom, which is why pinch
+                   zoom seemed broken. Fixed at the source (min-width:0 guards + breakable
+                   note text on mobile); the container now pans instead of amputating if
+                   anything ever overflows again. #C5: pinch-zoom is guaranteed on every
+                   tab — the harness now fails any build that blocks zoom (standing ruling).
+                   STORE_KEY unchanged.
+
+v1.40  16/07/26  Phase 1c — mobile polish + bodyweight EWMA trend.
                    #C1: the Overview tab no longer shrink-to-fits on mobile — the app
                    container now clips horizontal overflow (overflow-x:clip), so a wide
                    descendant can't expand the layout viewport (which had made the font
