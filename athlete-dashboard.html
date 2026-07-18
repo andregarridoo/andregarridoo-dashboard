@@ -131,6 +131,16 @@
     .tabbar{flex-wrap:wrap;row-gap:0;overflow-x:visible}
     .tab{flex:1 1 25%;min-height:44px;display:inline-flex;align-items:center;justify-content:center;padding:8px 6px}
     .row{gap:8px}
+    /* #8 (Phase 4, v1.49): gym exercise table stacks to per-exercise blocks
+       instead of a 4-col table — CSS-only, no fixed widths, wrap not scroll,
+       fits 412px with no horizontal scroll. */
+    .gym-tbl,.gym-tbl tbody,.gym-tbl tr{display:block;width:100%}
+    .gym-tbl tr{padding:6px 0;border-bottom:1px solid var(--c-contour)}
+    .gym-tbl tr:last-child{border-bottom:none}
+    .gym-tbl td{text-align:left!important;padding:1px 0!important;white-space:normal;overflow-wrap:anywhere}
+    .gym-tbl td.gt-name{display:block;font-size:12px;color:var(--c-chalk);font-weight:600}
+    .gym-tbl td.gt-sr,.gym-tbl td.gt-rpe,.gym-tbl td.gt-rest{display:inline;font-size:11px;color:var(--c-mist);font-family:var(--mono)}
+    .gym-tbl td.gt-rpe::before,.gym-tbl td.gt-rest::before{content:" · "}
     /* #15: bump chart-text tokens so viewBox-downscaled SVG text stays legible on
        narrow portrait. The chart helpers read these via cssvNum() at render time,
        and the resize/orientation listener (bindResize) re-renders so the new value
@@ -195,6 +205,33 @@
    CHANGELOG
    v1.0  02/07/26  first HTML build (ported from React artifact)
    (v1.0–v1.6 archived — full history in OPERATING_BRIEF.md CHANGELOG)
+   v1.49 18/07/26 Phase 4 — RX + inline run detail cards + gym card fixes (D043).
+                   #9: two-tier RUN_RX registry (RX_TEMPLATES/RX_OVERRIDES,
+                   resolveRX mirrors plannedDay's merge) generated from
+                   RUNNING_PLAN + weekly xlsx — regenerated at each phase build,
+                   never forks from the plan. Matcher (D023 verbatim, ±2 d window,
+                   nearest-first, type binding, one-to-one, quarantine excluded,
+                   additive nullable rx_d manual override/unlink) + scorer (D043:
+                   in-range 100, linear→0 at 50% dev, weights vol 0.6/vert 0.2/
+                   intensity 0.2 renormalised, ⚑G5-symmetric over/under-delivery,
+                   races never scored, INTENSITY_SCORED=false — intensity renders
+                   as a flag until post-W6 TT + AeT re-probe confirmation, one
+                   const flip). syncICU gains additive nullable volume-class
+                   channels gain/avg_hr/np/load (refresh-on-sync, zero Worker
+                   change). Week-strip run chip (data-act runtype→runday) opens
+                   an inline runDayCard (gymDayCard pattern, teal border): RX
+                   table pre-log; plan-vs-actual + grade dots + score badge +
+                   "scored on n/m channels" + re-link select post-log; "full
+                   definition →" keeps the old Sessions jump one tap deeper.
+                   #8: gymDayCard exercise table stacks to per-exercise blocks
+                   ≤480px (CSS-only, fits 412px, no horizontal scroll).
+                   #12-partial: Nippard reps RECOVERED — rep-range cells were
+                   Excel-date-coerced to serials in the original text-dump
+                   (e.g. 45816→"6-8"), decoded losslessly; GYM_SESSIONS ex rows
+                   are now 5-tuples [name,rpe,rest,sets,reps], sets progression
+                   "2→3" encoded per exercise; the old rep-count placeholder and
+                   corruption caveat are retired. STORE_KEY + schema version:1
+                   unchanged (rx_d + 4 sync fields additive nullable).
    v1.48 18/07/26 Phase 8 COMPLETE — body map + voice extraction + clinical print
                    additions (D025/D026 executed; FK rulings 18/07/26). #34: anatomical
                    body map — 53 hand-traced hit zones (30 front / 23 rear) over the
@@ -1282,6 +1319,235 @@ const WEEK_OVERRIDES={
  46:{0:{r:"Easy 30′"},1:{r:"20′ + strides"},2:{r:"Rest"},3:{r:"Travel / 20′ shakeout"},4:{r:"Rest + kit + carb-load"},5:{r:"RACE — UTA100 · 101 km · Sat 15 May"},6:{r:"—"},note:"Race week −70%"},
 };
 
+/* ── Phase 4 (v1.49, D043): RUN_RX registry ─────────────────────────────────
+   Generated 18/07/26 by Coach from RUNNING_PLAN.md + WEEK_TEMPLATES/OVERRIDES
+   + weekly xlsx (Phase 1 + Phase 2). REGENERATE AT EACH PHASE BUILD (Coach
+   step, dated) so this can never fork from RUNNING_PLAN. dur in hours; point
+   targets [x,x]; ranges literal from the plan; vert only where the plan
+   states it. Phases 12/13 have no day-level template app-wide → no RX. */
+const RX_TEMPLATES={
+ 1:[{t:"easy",dur:[0.50,0.67],km:null,vert:null,z:"Z2",pw:null,surf:"any",note:null},
+    {t:"easy",dur:[0.50,0.67],km:null,vert:null,z:"Z2",pw:null,surf:"any",note:"wk 3+ only"},
+    {t:"rest"},
+    {t:"easy",dur:[0.50,0.67],km:null,vert:null,z:"Z2",pw:null,surf:"any",note:null},
+    {t:"rest"},
+    {t:"longE",dur:[1.00,1.50],km:null,vert:null,z:"Z2",pw:null,surf:"any",note:"build duration wk-on-wk"},
+    {t:"rest"}],
+ 2:[{t:"easy",dur:[0.67,0.83],km:null,vert:null,z:"Z2",pw:null,surf:"road",note:null},
+    {t:"thr",dur:[1.00,1.25],km:null,vert:null,z:null,pw:"4×8′→3×12′ power-target, HR ceiling",surf:"road",note:"session incl. wu/cd"},
+    {t:"rest"},
+    {t:"easy",dur:[0.67,1.00],km:null,vert:null,z:"Z2",pw:null,surf:"road",note:null},
+    {t:"rest"},
+    {t:"longE",dur:null,km:[24,32],vert:null,z:null,pw:"MP-power segments per plan week",surf:"road",note:"progressive across phase"},
+    {t:"easy",dur:[0.67,1.00],km:null,vert:null,z:"Z2",pw:null,surf:"road",note:"optional"}],
+ 3:[{t:"easy",dur:[0.67,0.67],km:null,vert:null,z:"Z2",pw:null,surf:"road",note:null},
+    {t:"mp",dur:[0.75,1.00],km:null,vert:null,z:null,pw:"2×2 km @ MP power",surf:"road",note:null},
+    {t:"easy",dur:[0.50,0.50],km:null,vert:null,z:"Z2",pw:null,surf:"road",note:null},
+    {t:"rest"},{t:"rest"},
+    {t:"easy",dur:[0.42,0.42],km:null,vert:null,z:"Z1",pw:null,surf:"road",note:"+ strides"},
+    {t:"rest"}],
+ 4:[{t:"rest"},
+    {t:"easy",dur:[0.50,0.67],km:null,vert:null,z:"Z1",pw:null,surf:"any",note:"wk 2 of phase only"},
+    {t:"rest"},
+    {t:"easy",dur:[0.50,0.67],km:null,vert:null,z:"Z1",pw:null,surf:"any",note:"wk 2 of phase only"},
+    {t:"rest"},
+    {t:"easy",dur:[0.50,0.67],km:null,vert:null,z:"Z1",pw:null,surf:"any",note:"wk 2 of phase only"},
+    {t:"rest"}],
+ 5:[{t:"easy",dur:[0.67,1.00],km:null,vert:null,z:"Z2",pw:null,surf:"any",note:null},
+    {t:"easy",dur:[0.67,1.00],km:null,vert:null,z:"Z2",pw:null,surf:"any",note:null},
+    {t:"rest"},
+    {t:"easy",dur:[0.67,1.00],km:null,vert:null,z:"Z2",pw:null,surf:"any",note:null},
+    {t:"rest"},
+    {t:"longE",dur:[2.50,4.00],km:null,vert:null,z:"Z2",pw:null,surf:"trail",note:"steady vert · progressive across phase"},
+    {t:"rest"}],
+ 6:[{t:"easy",dur:[0.67,0.67],km:null,vert:null,z:"Z2",pw:null,surf:"any",note:null},
+    {t:"steady",dur:[1.00,1.00],km:null,vert:null,z:"Z2",pw:"AeT-power ceiling",surf:"any",note:null},
+    {t:"desc",dur:[1.00,1.50],km:null,vert:null,z:null,pw:null,surf:"trail",note:"⇄ ME carry ~6.5 kg, alternating weeks"},
+    {t:"easy",dur:[0.75,0.75],km:null,vert:null,z:"Z2",pw:null,surf:"any",note:null},
+    {t:"rest"},
+    {t:"longE",dur:[4.00,5.00],km:null,vert:null,z:"Z2",pw:null,surf:"trail",note:"race-sim protocol"},
+    {t:"b2b",dur:[1.50,2.00],km:null,vert:null,z:"Z2",pw:null,surf:"trail",note:"sim weeks only, else rest"}],
+ 7:[{t:"easy",dur:[0.67,0.67],km:null,vert:null,z:"Z2",pw:null,surf:"any",note:null},
+    {t:"touch",dur:[0.60,0.80],km:null,vert:null,z:null,pw:"4×3′ @ steady power",surf:"any",note:null},
+    {t:"easy",dur:[0.50,0.50],km:null,vert:null,z:"Z2",pw:null,surf:"trail",note:"+ short descents"},
+    {t:"rest"},{t:"rest"},
+    {t:"easy",dur:[0.42,0.42],km:null,vert:null,z:"Z1",pw:null,surf:"any",note:"+ strides"},
+    {t:"rest"}],
+ 8:[{t:"rest"},
+    {t:"easy",dur:[0.33,0.50],km:null,vert:null,z:"Z1",pw:null,surf:"any",note:"walk/easy · late weeks"},
+    {t:"rest"},
+    {t:"easy",dur:[0.50,0.67],km:null,vert:null,z:"Z1",pw:null,surf:"any",note:"wk 25"},
+    {t:"rest"}],
+ 9:[{t:"easy",dur:[0.67,0.83],km:null,vert:null,z:"Z2",pw:null,surf:"any",note:null},
+    {t:"easy",dur:[0.67,0.83],km:null,vert:null,z:"Z2",pw:null,surf:"any",note:null},
+    {t:"rest"},
+    {t:"easy",dur:[0.67,0.83],km:null,vert:null,z:"Z2",pw:null,surf:"any",note:null},
+    {t:"rest"},
+    {t:"longE",dur:[2.00,3.00],km:null,vert:null,z:"Z2",pw:null,surf:"trail",note:"hilly · progressive 2:00→3:00 per D041 F1"},
+    {t:"rest"}],
+ 10:[{t:"easy",dur:[0.75,1.00],km:null,vert:null,z:"Z2",pw:null,surf:"any",note:null},
+    {t:"steady",dur:[1.00,1.25],km:null,vert:null,z:"Z2",pw:"AeT-power target · final 6 wk: climb reps",surf:"any",note:null},
+    {t:"me",dur:[1.00,1.50],km:null,vert:null,z:null,pw:null,surf:"trail",note:"carry →13 kg ⇄ descent session, every 7–10 d"},
+    {t:"easy",dur:[0.75,1.00],km:null,vert:null,z:"Z2",pw:null,surf:"any",note:null},
+    {t:"rest"},
+    {t:"longE",dur:[4.50,6.00],km:null,vert:null,z:"Z2",pw:null,surf:"trail",note:"durability channels logged · progressive across phase"},
+    {t:"b2b",dur:[1.00,2.50],km:null,vert:null,z:"Z2",pw:null,surf:"trail",note:"easy 60′ / B2B 2:00–2:30 on big weekends"}],
+ 11:[{t:"easy",dur:[0.67,0.67],km:null,vert:null,z:"Z2",pw:null,surf:"any",note:"wk 44 only"},
+    {t:"touch",dur:[0.60,0.80],km:null,vert:null,z:null,pw:"4×3′ climbs",surf:"trail",note:null},
+    {t:"easy",dur:[0.50,0.58],km:null,vert:null,z:"Z2",pw:null,surf:"trail",note:"+ short descents"},
+    {t:"rest"},{t:"rest"},
+    {t:"longE",dur:[1.25,2.00],km:null,vert:null,z:"Z2",pw:null,surf:"trail",note:"2:00 wk 44 / 75′ wk 45"},
+    {t:"easy",dur:[0.67,0.67],km:null,vert:null,z:"Z2",pw:null,surf:"any",note:"wk 44 only"}],
+};
+const RX_OVERRIDES={
+ 3:{5:{t:"t_aet",dur:[1.25,1.25],km:null,vert:null,z:null,pw:"15′ wu + 60′ steady @ ~150 bpm probe",surf:"road",note:"AeT drift test — sets the zones"}},
+ 6:{1:{t:"t_tt",dur:[0.75,1.00],km:null,vert:null,z:null,pw:"30′ max sustainable — LTHR + rFTP",surf:"road",note:"one session, two anchors"}},
+ 7:{5:{t:"longE",dur:null,km:[32,32],vert:null,z:null,pw:"10–12 km continuous @ MP power",surf:"road",note:"pacing gate"}},
+ 9:{4:{t:"rest"},
+    5:{t:"easy",dur:[0.33,0.33],km:null,vert:null,z:"Z1",pw:null,surf:"road",note:"shakeout + strides"},
+    6:{t:"race",dur:null,km:[42.2,42.2],vert:null,z:null,pw:"MP power per race plan",surf:"road",note:"Sydney Marathon 2026 — never scored"}},
+ 17:{5:{t:"longE",dur:[4.00,4.00],km:null,vert:null,z:"Z2",pw:null,surf:"trail",note:"Sunday Legs at 1–2 RIR"}},
+ 18:{5:{t:"sim",dur:[4.00,4.00],km:null,vert:null,z:"Z2",pw:null,surf:"trail",note:"RACE-SIM #1 — full fuel/aid protocol"},
+     6:{t:"b2b",dur:[2.00,2.00],km:null,vert:null,z:"Z2",pw:null,surf:"trail",note:null}},
+ 19:{5:{t:"sim",dur:[4.50,5.00],km:null,vert:null,z:"Z2",pw:null,surf:"trail",note:"RACE-SIM #2 — full protocol + full mandatory kit"},
+     6:{t:"b2b",dur:[1.50,1.50],km:null,vert:null,z:"Z2",pw:null,surf:"trail",note:null}},
+ 20:{5:{t:"longE",dur:[3.00,3.00],km:null,vert:null,z:"Z2",pw:null,surf:"trail",note:"consolidate · descent focus"}},
+ 22:{3:{t:"rest"},4:{t:"easy",dur:[0.33,0.33],km:null,vert:null,z:"Z1",pw:null,surf:"any",note:"kit check + shakeout"},
+     5:{t:"race",dur:null,km:[102,102],vert:null,z:null,pw:"power caps per race plan",surf:"trail",note:"UTK 2026 · Kosci100 · Fri 27 Nov — never scored"}},
+ 31:{5:{t:"t_bm",dur:null,km:[30,30],vert:[1050,1150],z:null,pw:"prescribed effort · HR + power logged",surf:"trail",note:"BENCHMARK 30 km / 1,107 m"}},
+ 35:{5:{t:"sim",dur:[5.00,5.00],km:null,vert:null,z:"Z2",pw:null,surf:"trail",note:"RACE-SIM #1 — full protocol"}},
+ 38:{5:{t:"sim",dur:[5.50,5.50],km:null,vert:null,z:"Z2",pw:null,surf:"trail",note:"RACE-SIM #2"},
+     6:{t:"b2b",dur:[2.00,2.00],km:null,vert:null,z:"Z2",pw:null,surf:"trail",note:null}},
+ 41:{5:{t:"longE",dur:[6.00,6.00],km:null,vert:null,z:"Z2",pw:null,surf:"trail",note:"peak long"}},
+ 42:{5:{t:"sim",dur:[5.00,6.00],km:null,vert:null,z:"Z2",pw:null,surf:"trail",note:"RACE-SIM #3 — dress rehearsal, full protocol + kit"}},
+ 46:{0:{t:"easy",dur:[0.50,0.50],km:null,vert:null,z:"Z1",pw:null,surf:"any",note:null},
+     1:{t:"easy",dur:[0.33,0.33],km:null,vert:null,z:"Z1",pw:null,surf:"any",note:"+ strides"},
+     2:{t:"rest"},3:{t:"easy",dur:[0.33,0.33],km:null,vert:null,z:"Z1",pw:null,surf:"any",note:"travel / shakeout"},
+     4:{t:"rest"},
+     5:{t:"race",dur:null,km:[101,101],vert:null,z:null,pw:"power caps per race plan",surf:"trail",note:"UTA100 · Sat 15 May — never scored"},
+     6:{t:"rest"}},
+};
+/* resolveRX(w,i) — same merge logic as plannedDay: template + week override. */
+function resolveRX(w,i){ const ph=phaseOf(w);
+  const tpl=(RX_TEMPLATES[ph&&ph.id]||[])[i]||{t:"rest"};
+  const o=((RX_OVERRIDES[w]||{})[i])||null;
+  return o?Object.assign({},tpl,o):tpl; }
+/* RX type-class groups (§3 matcher, D023/D043) */
+const RX_CLASS = {
+  LONG:["longE","sim","b2b","t_bm"],
+  QUALITY:["thr","mp","touch","hill","desc","me","steady","t_aet","t_tt"],
+  EASY:["easy","rec"],
+  RACE:["race"],
+};
+function rxClassOf(t){ if(!t) return null;
+  for(const k in RX_CLASS){ if(RX_CLASS[k].includes(t)) return k; } return null; }
+/* runClassOf(r,rxT) → {cls, authoritative}. Authoritative from runs.json
+   run_type vocabulary (long/quality/race/test/easy) — a mismatch here ALWAYS
+   blocks the match, same-day included. Non-authoritative (live-sync rows,
+   activity-type strings, no run_type) degrades to duration-class inference
+   (h≥1.75→LONG; else non-restrictive/null) — a mismatch here blocks only
+   non-same-day candidates; same-day is never blocked. */
+function runClassOf(r,rxT){
+  const rt=r.run_type;
+  if(rt==="long") return {cls:"LONG",authoritative:true};
+  if(rt==="quality") return {cls:"QUALITY",authoritative:true};
+  if(rt==="race") return {cls:"RACE",authoritative:true};
+  if(rt==="test") return {cls:(rxT==="t_bm"?"LONG":"QUALITY"),authoritative:true};
+  if(rt==="easy") return {cls:"EASY",authoritative:true};
+  // live-sync / unlabelled: duration-class inference, non-authoritative
+  return {cls:(r.h!=null&&r.h>=1.75)?"LONG":null, authoritative:false};
+}
+/* matchRX(w) — pure function, computed at render. Returns Map keyed "i" (plan day
+   index 0-6) → matched run row (or null), plus an "unplanned" list of run rows on
+   the visible week's dates that didn't match any plan day. No stored match state
+   except the additive optional rx_d override field on the run row itself. */
+function matchRX(w){
+  const dates=[]; for(let i=0;i<7;i++) dates.push(dayISO(w,i));
+  const {R}=sessionMaps();
+  // gather candidate runs within the visible week ± spill from adjacent weeks (±2d window)
+  const win=new Set();
+  for(let i=0;i<7;i++){ const iso=dayISO(w,i);
+    const base=new Date(iso); for(let dd=-2;dd<=2;dd++){ const dt=new Date(base); dt.setDate(dt.getDate()+dd);
+      win.add(dt.getFullYear()+"-"+String(dt.getMonth()+1).padStart(2,"0")+"-"+String(dt.getDate()).padStart(2,"0")); } }
+  let cands=[]; win.forEach(iso=>{ (R[iso]||[]).forEach(r=>{ if(!r.quarantined) cands.push(r); }); });
+  const rxDay=i=>resolveRX(w,i);
+  const matched={}; const usedRunIds=new Set();
+  const rowKey=r=>r.id!=null?("id:"+r.id):("d:"+r.d);
+  // 1. manual overrides first (win over everything)
+  for(let i=0;i<7;i++){ const rx=rxDay(i); if(rx.t==="rest") continue;
+    const pinned=cands.find(r=>r.rx_d===dates[i] && !usedRunIds.has(rowKey(r)));
+    if(pinned){ matched[i]=pinned; usedRunIds.add(rowKey(pinned)); } }
+  // build scoreable day list (excluding already-pinned + rest)
+  const openDays=[]; for(let i=0;i<7;i++){ if(matched[i]!=null) continue; const rx=rxDay(i); if(rx.t==="rest") continue; openDays.push(i); }
+  // candidate pool minus force-unmatched (rx_d==="x") and used
+  let pool=cands.filter(r=>r.rx_d!=="x" && !usedRunIds.has(rowKey(r)));
+  // build (day,run,Δd) pairs respecting type binding + race same-day-only
+  const pairs=[];
+  openDays.forEach(i=>{ const rx=rxDay(i); const cls=rxClassOf(rx.t); const pdIso=dates[i]; const pd=new Date(pdIso);
+    pool.forEach(r=>{ const rd=new Date(r.d); const dd=Math.round((rd-pd)/86400000);
+      const win2=cls==="RACE" ? (dd===0) : (Math.abs(dd)<=2);
+      if(!win2) return;
+      const rc=runClassOf(r,rx.t);
+      if(rc.cls!==null && rc.cls!==cls){
+        if(rc.authoritative) return;             // authoritative mismatch: always blocks, same-day included
+        if(dd!==0) return;                        // inferred mismatch: blocks only non-same-day
+      }
+      pairs.push({i,r,dd:Math.abs(dd),dd0:dd}); }); });
+  // 4. nearest-first: sort by |Δd| asc, tie → Δd=0 first, then earlier plan day
+  pairs.sort((a,b)=> (a.dd-b.dd) || ((a.dd0===0?0:1)-(b.dd0===0?0:1)) || (a.i-b.i));
+  const dayTaken=new Set(Object.keys(matched).map(Number));
+  pairs.forEach(p=>{ if(dayTaken.has(p.i)) return; const k=rowKey(p.r); if(usedRunIds.has(k)) return;
+    matched[p.i]=p.r; usedRunIds.add(k); dayTaken.add(p.i); });
+  const unplanned=cands.filter(r=>!usedRunIds.has(rowKey(r)));
+  return {matched, unplanned};
+}
+
+/* §4 scorer (D043). INTENSITY_SCORED=false until post-W6 TT + AeT re-probe
+   confirmation — one const flip, no rebuild. While false, intensity renders
+   as a ⚑ flag line only, never a score. */
+const INTENSITY_SCORED = false;
+function fieldDev(lo,hi,actual){
+  if(actual==null) return null;
+  return actual<lo ? (lo-actual)/lo : actual>hi ? (actual-hi)/hi : 0;
+}
+function fieldScore(dev){
+  if(dev==null) return null;
+  return dev<=0.20 ? 100 : dev>=0.50 ? 0 : Math.round(100*(0.50-dev)/0.30);
+}
+/* scoreRun(rx,run) → {score, channels:[{k,label,dev,score,lo,hi,actual}], coverage:"n/m", flags:[]}
+   or null when the RX is a race (never scored) or rest. */
+function scoreRun(rx,run){
+  if(!rx||rx.t==="rest"||rx.t==="race") return null;
+  const channels=[]; const flags=[];
+  // primary volume field = whichever RX prescribes (dur or km); both → mean of the two
+  const volChans=[];
+  if(rx.dur){ const dev=fieldDev(rx.dur[0],rx.dur[1],run.h); if(dev!=null) volChans.push({k:"dur",label:"Duration",dev,score:fieldScore(dev),lo:rx.dur[0],hi:rx.dur[1],actual:run.h}); }
+  if(rx.km){ const dev=fieldDev(rx.km[0],rx.km[1],run.km); if(dev!=null) volChans.push({k:"km",label:"Distance",dev,score:fieldScore(dev),lo:rx.km[0],hi:rx.km[1],actual:run.km}); }
+  let primaryScore=null;
+  if(volChans.length){ primaryScore=Math.round(volChans.reduce((s,c)=>s+c.score,0)/volChans.length);
+    channels.push({k:"vol",label:volChans.map(c=>c.label).join(" + "),dev:volChans[0].dev,score:primaryScore,
+      lo:volChans[0].lo,hi:volChans[0].hi,actual:volChans[0].actual}); }
+  // vert
+  if(rx.vert){ const dev=fieldDev(rx.vert[0],rx.vert[1],run.gain); if(dev!=null) channels.push({k:"vert",label:"Vert",dev,score:fieldScore(dev),lo:rx.vert[0],hi:rx.vert[1],actual:run.gain}); }
+  // intensity — flag-only while INTENSITY_SCORED is false
+  if(rx.pw || rx.z){
+    let breach=false;
+    if(rx.pw && run.np!=null){ /* power-primary; no numeric cap parsed from pw string at v1 — presence-only flag suppressed */ }
+    if(rx.z && run.avg_hr!=null){
+      const ZCEIL={Z1:142,Z2:152,Z3:173,Z4:999};
+      const ceil=ZCEIL[rx.z]; if(ceil && run.avg_hr>ceil+3) breach=true;
+    }
+    if(breach) flags.push(`intensity — avg HR ${run.avg_hr} bpm vs ${rx.z} ceiling`);
+    if(INTENSITY_SCORED){ /* promotion path: add an "intensity" channel here, one const flip */ }
+  }
+  const weights={vol:0.6,vert:0.2,intensity:0.2};
+  const avail=channels.filter(c=>c.score!=null);
+  const total=avail.length? avail.reduce((s,c)=>s+(weights[c.k]||0),0) : 0;
+  const score = avail.length ? Math.round(avail.reduce((s,c)=>s+c.score*(weights[c.k]||0),0)/(total||1)) : null;
+  const m = (rx.vert?1:0) + (INTENSITY_SCORED?1:0) + 1; // denominator: vol always counts as 1 channel
+  return {score, channels, coverage:`${avail.length}/${m}`, flags};
+}
+
 /* Reference anchors — real values only (stale flagged). No invented baselines. */
 const ANCHORS = [
   {k:"LTHR", v:"174 bpm", n:"stale · pre-UTA100 2026 · refresh wk ~6"},
@@ -1425,24 +1691,31 @@ function typeFor(str){ if(!str||str==="—") return null; const t=str.toLowerCas
   return "easy"; }
 
 /* ── GYM_SESSIONS (v1.5) — from Andre's Nippard sheet (Foundation wk-1 canonical
-   list). Names, working-set RPE and rest extracted; the sheet's rep-range cells
-   were corrupted in the text-dump conversion, so reps read "per sheet" — never
-   guessed. wk 1 of a block = intro; wk 2+ last set to failure. On-ramp rule
-   (this cycle): 1–2 RIR everywhere for ~2–3 wks. ── */
+   list). Names, working-set RPE and rest extracted. wk 1 of a block = intro;
+   wk 2+ last set to failure. On-ramp rule (this cycle): 1–2 RIR everywhere for
+   ~2–3 wks. Reps: see the Phase 4 note directly below (recovered 18/07/26). ── */
+/* Phase 4 (v1.49, #12-partial, FK-F a): reps recovered 18/07/26 from the folder
+   xlsx. Corruption class identified and reversed — rep-range cells were Excel-
+   date-coerced to serials in the original text-dump conversion (e.g. 45816 =
+   8 Jun = "6-8"); unambiguous for all cells present. Foundation Block wk 1 vs
+   wk 2+ cross-checked: sets progress per-exercise ("2→3"), reps constant.
+   ex rows are 5-tuples [name, rpe, rest, sets, reps]. Prescription-only — the
+   MacroFactor lifts-log firewall is untouched. */
 const GYM_SESSIONS = {
  "Upper":{name:"Upper (Strength Focus)", watch:"SHOULDER WATCH — incline + overhead pressing is the flagged niggle's test bench; keep last sets shy until proven.",
-  ex:[["45° Incline Barbell Press","6-7→7-8","3–5′"],["Cable Crossover Ladder","7-8→8-9","1–2′"],["Wide-Grip Pull-Up","6-7→7-8","2–3′"],["High-Cable Lateral Raise","7-8→8-9","1–2′"],["Pendlay Deficit Row","7-8→8-9","2–3′"],["Overhead Cable Triceps Ext.","7-8→8-9","1–2′"],["Bayesian Cable Curl","7-8→8-9","1–2′"]]},
+  ex:[["45° Incline Barbell Press","6-7→7-8","3–5′","2→3","6-8"],["Cable Crossover Ladder","7-8→8-9","1–2′","2","8-10"],["Wide-Grip Pull-Up","6-7→7-8","2–3′","2→3","8-10"],["High-Cable Lateral Raise","7-8→8-9","1–2′","2","8-10"],["Pendlay Deficit Row","7-8→8-9","2–3′","2","6-8"],["Overhead Cable Triceps Ext.","7-8→8-9","1–2′","2","8-10"],["Bayesian Cable Curl","7-8→8-9","1–2′","2","8-10"]]},
  "Lower":{name:"Lower (Strength Focus)", watch:"KNEE + RIGHT-SIDE WATCH — lateral-knee flag (UTA100) and the right-side cluster live here; progress right-leg eccentric load deliberately. Legs-loaded day: 48 h rule applies.",
-  ex:[["Lying Leg Curl","7-8→8-9","1–2′"],["Smith Machine Squat","6-7→7-8","3–5′"],["Barbell RDL","6-7→7-8","2–3′"],["Leg Extension (slow ecc.)","7-8→8-9","1–2′"],["Standing Calf Raise","7-8→8-9","1–2′"],["Cable Crunch","7-8→8-9","1–2′"]]},
+  ex:[["Lying Leg Curl","7-8→8-9","1–2′","2","8-10"],["Smith Machine Squat","6-7→7-8","3–5′","2→3","6-8"],["Barbell RDL","6-7→7-8","2–3′","2→3","6-8"],["Leg Extension (slow ecc.)","7-8→8-9","1–2′","2","8-10"],["Standing Calf Raise","7-8→8-9","1–2′","2","6-8"],["Cable Crunch","7-8→8-9","1–2′","2","8-10"]]},
  "Pull":{name:"Pull (Hypertrophy Focus)", watch:null,
-  ex:[["Neutral-Grip Lat Pulldown","6-7→7-8","2–3′"],["Chest-Supported Machine Row","6-7→7-8","2–3′"],["Neutral-Grip Seated Cable Row","7-8→8-9","2–3′"],["1-Arm 45° Cable Rear-Delt Flye","7-8→8-9","1–2′"],["Machine Shrug","7-8→8-9","1–2′"],["EZ-Bar Cable Curl","7-8→8-9","1–2′"],["Machine Preacher Curl","→8-9","1–2′"]]},
+  ex:[["Neutral-Grip Lat Pulldown","6-7→7-8","2–3′","2","8-10"],["Chest-Supported Machine Row","6-7→7-8","2–3′","2→3","8-10"],["Neutral-Grip Seated Cable Row","7-8→8-9","2–3′","2","10-12"],["1-Arm 45° Cable Rear-Delt Flye","7-8→8-9","1–2′","2","10-12"],["Machine Shrug","7-8→8-9","1–2′","2","10-12"],["EZ-Bar Cable Curl","7-8→8-9","1–2′","2","10-12"],["Machine Preacher Curl","→8-9","1–2′","1","12-15"]]},
  "Push":{name:"Push (Hypertrophy Focus)", watch:"Shoulder watch applies to pressing here too.",
-  ex:[["Barbell Bench Press","6-7→7-8","3–5′"],["Machine Shoulder Press","6-7→7-8","2–3′"],["Bottom-Half DB Flye","7-8→8-9","1–2′"],["High-Cable Lateral Raise","7-8→8-9","1–2′"],["Overhead Cable Triceps Ext.","7-8→8-9","1–2′"],["Cable Triceps Kickback","→8-9","1–2′"],["Roman Chair Leg Raise","7-8→8-9","1–2′"]]},
+  ex:[["Barbell Bench Press","6-7→7-8","3–5′","2→3","8-10"],["Machine Shoulder Press","6-7→7-8","2–3′","2","8-10"],["Bottom-Half DB Flye","7-8→8-9","1–2′","2","10-12"],["High-Cable Lateral Raise","7-8→8-9","1–2′","2","10-12"],["Overhead Cable Triceps Ext.","7-8→8-9","1–2′","2","10-12"],["Cable Triceps Kickback","→8-9","1–2′","1","12-15"],["Roman Chair Leg Raise","7-8→8-9","1–2′","2","10-20"]]},
  "Legs":{name:"Legs (Hypertrophy Focus)", watch:"KNEE + RIGHT-SIDE WATCH · hard/loaded-leg rules apply (never before long/quality runs; 1–2 RIR when the week's long run >3 h).",
-  ex:[["Leg Press","6-7→7-8","2–3′"],["Seated Leg Curl","7-8→8-9","1–2′"],["DB Bulgarian Split Squat","6-7→7-8","2–3′"],["Leg Extension (slow ecc.)","7-8→8-9","1–2′"],["Machine Hip Adduction","7-8→8-9","1–2′"],["Machine Hip Abduction","7-8→8-9","1–2′"],["Standing Calf Raise","7-8→8-9","1–2′"]]},
+  ex:[["Leg Press","6-7→7-8","2–3′","2→3","8-10"],["Seated Leg Curl","7-8→8-9","1–2′","2","10-12"],["DB Bulgarian Split Squat","6-7→7-8","2–3′","2","8-10"],["Leg Extension (slow ecc.)","7-8→8-9","1–2′","2","10-12"],["Machine Hip Adduction","7-8→8-9","1–2′","2","10-12"],["Machine Hip Abduction","7-8→8-9","1–2′","2","10-12"],["Standing Calf Raise","7-8→8-9","1–2′","2","10-12"]]},
  "Full":{name:"Light full-body / re-entry", watch:"Recovery-phase only — RPE 7–8, nothing to failure.", ex:[]},
  "Gym":{name:"Gym (see plan note)", watch:null, ex:[]},
 };
+
 
 /* ── BOARD (v1.5) — charter personas. Seed notes coach-authored 04/07/26 from
    the record on file. ── */
@@ -2552,7 +2825,7 @@ function weekStrip(w){
     if(cat==="rest"&&!runDone){ runChip=`<div class="lens-chip lens-rest" title="Rest">·</div>`; }
     else if(cat==="rest"&&runDone){ runChip=`<div class="lens-chip" title="unplanned run — ${esc(run.type||"")}${run.km!=null?` ${fmt(run.km)} km`:""}${run.multi?` · ${run.n} runs`:""}" style="background:transparent;color:${C.teal};border:1px solid ${C.teal}">✓ unplanned${run.km!=null?` <span style="opacity:.75">${fmt(run.km)}k</span>`:""}${runMulti}</div>`; }
     else { const tid=typeFor(p.r);
-      runChip=`<div class="lens-chip" ${tid?`data-act="runtype" data-v="${tid}" style="cursor:pointer;`:`style="`}background:${st.solid?st.bg:"transparent"};color:${st.solid?st.fg:st.bg};border:1px ${st.solid?"solid":"dashed"} ${st.bg}" title="${esc(p.r)}${runDone&&run.km!=null?` — done: ${fmt(run.km)} km`:""}${runDone&&run.multi?` (${run.n} runs)`:""}${tid?" · tap for session definition":""}">
+      runChip=`<div class="lens-chip" ${tid?`data-act="runday" data-v="${w}-${i}" style="cursor:pointer;`:`style="`}background:${st.solid?st.bg:"transparent"};color:${st.solid?st.fg:st.bg};border:1px ${st.solid?"solid":"dashed"} ${st.bg}" title="${esc(p.r)}${runDone&&run.km!=null?` — done: ${fmt(run.km)} km`:""}${runDone&&run.multi?` (${run.n} runs)`:""}${tid?" · tap for run detail":""}">
            ${runDone?"✓ ":""}${st.lab}${runDone&&run.km!=null?` <span style="opacity:.75">${fmt(run.km)}k</span>`:""}${runMulti}</div>`; }
     const gLab=classifyGym(p.g);
     const gymChip = gLab
@@ -2569,8 +2842,94 @@ function weekStrip(w){
       <div class="lens-dh">${d}<span style="color:var(--c-dim);font-size:8px"> ${fmtDshort(iso)}</span>${dot}</div>
       ${runChip}${gymChip}</div>`; }).join("");
   return `<div class="lens-grid">${cells}</div>
+    ${runDayCard(w)}
     ${gymDayCard(w)}
-    <div class="note" style="margin-top:8px">✓ = imported session on that date (runs ← runs.json · gym ← MacroFactor dump). Solid = key run (long/quality/race) · dashed = easy/planned · dot = leg-load flag. Tap a run chip for its taxonomy entry · tap a gym chip for the session prescription.</div>`;
+    <div class="note" style="margin-top:8px">✓ = imported session on that date (runs ← runs.json · gym ← MacroFactor dump). Solid = key run (long/quality/race) · dashed = easy/planned · dot = leg-load flag. Tap a run chip for RX + logged detail · tap a gym chip for the session prescription.</div>`;
+}
+
+/* ── run day detail (Phase 4, v1.49, §6) — RX + logged detail for a tapped run chip.
+   Mirrors gymDayCard's pattern (App.runDay={w,i}, teal border, both cards can be
+   open at once). Pre-log: prescribed-field table. Post-log: plan-vs-actual + dots
+   + score badge + coverage + intensity flag + re-link control + unplanned list. */
+function fmtHM(h){ if(h==null) return "—";
+  if(h<1) return Math.round(h*60)+"′";
+  const hh=Math.floor(h), mm=Math.round((h-hh)*60);
+  return hh+":"+String(mm).padStart(2,"0"); }
+function fmtRangeHM(r){ if(!r) return null; return r[0]===r[1]? fmtHM(r[0]) : fmtHM(r[0])+"–"+fmtHM(r[1]); }
+function fmtRangeKm(r){ if(!r) return null; return r[0]===r[1]? fmt(r[0],1)+" km" : Math.round(r[0])+"–"+Math.round(r[1])+" km"; }
+function fmtRangeVert(r){ if(!r) return null; return r[0]===r[1]? Math.round(r[0])+" m" : Math.round(r[0])+"–"+Math.round(r[1])+" m"; }
+function runDayCard(w){
+  const rd=App.runDay; if(!rd||rd.w!==w) return "";
+  const rx=resolveRX(w,rd.i), iso=dayISO(w,rd.i);
+  const {matched,unplanned}=matchRX(w);
+  const run=matched[rd.i]||null;
+  const rname=(TYPE_BY_ID[rx.t]||{}).name || (rx.t==="rest"?"Rest":rx.t);
+  const dayUnplanned=unplanned.filter(r=>r.d===iso);
+  const dotColor=v=>v==null?C.dim:(v>=85?C.teal:v>=60?C.amber:C.rose);
+  let body;
+  if(rx.t==="rest"){
+    body=`<div class="note">Rest day per plan.${dayUnplanned.length?` Unplanned: ${dayUnplanned.map(r=>`${esc(r.type||"run")}${r.km!=null?` · ${fmt(r.km)} km`:""}`).join(", ")}`:""}</div>`;
+  } else {
+    const rows=[];
+    if(rx.dur) rows.push(["Duration",fmtRangeHM(rx.dur)]);
+    if(rx.km) rows.push(["Distance",fmtRangeKm(rx.km)]);
+    if(rx.vert) rows.push(["Vert",fmtRangeVert(rx.vert)]);
+    if(rx.z||rx.pw) rows.push(["Intensity",[rx.z,rx.pw].filter(Boolean).join(" · ")]);
+    rows.push(["Surface",rx.surf==="any"?"any":rx.surf]);
+    const ph=phaseOf(w);
+    const rxTable=`<table style="margin-top:8px"><tbody>${rows.map(([k,v])=>
+      `<tr><td style="font-size:11px;color:var(--c-dim)">${k}</td><td style="font-family:var(--mono);font-size:12px;color:var(--c-chalk);text-align:right">${esc(v)}</td></tr>`).join("")}
+      </tbody></table>`;
+    if(!run){
+      // pre-log OR skipped-planned (§3: a scoreable RX day ≥2 days past with no match)
+      const today=new Date(), planD=new Date(iso), pastBy=Math.round((today-planD)/86400000);
+      const skipped = pastBy>=2 && rx.t!=="race";
+      body=`${rxTable}
+        ${rx.note?`<div class="note" style="margin-top:6px">${esc(rx.note)}</div>`:""}
+        <div class="note" style="margin-top:6px">${esc(ph.name)} · wk ${w}</div>
+        ${skipped?`<div class="note" style="color:${C.rose};margin-top:6px">not executed</div>`:""}
+        ${dayUnplanned.length?`<div class="note" style="margin-top:6px">unplanned — ${dayUnplanned.map(r=>`${fmt(r.km||0)} km · ${fmtHM(r.h||0)}`).join(", ")}</div>`:""}
+        <div style="margin-top:8px"><span data-act="runtype" data-v="${rx.t}" style="color:${C.teal};font-size:11px;cursor:pointer">full definition →</span></div>`;
+    } else {
+      const sc=(rx.t==="race")?null:scoreRun(rx,run);
+      const chanRows=(sc?sc.channels:[]).map(c=>{
+        const actStr = c.k==="vert"?(c.actual!=null?Math.round(c.actual)+" m":"—")
+          : c.k==="vol" ? (run.h!=null&&rx.dur?fmtHM(run.h):(run.km!=null&&rx.km?fmt(run.km,1)+" km":"—"))
+          : "—";
+        const rxStr = c.k==="vert"?fmtRangeVert(rx.vert):(c.k==="vol"?(rx.dur?fmtRangeHM(rx.dur):fmtRangeKm(rx.km)):"—");
+        return `<tr><td style="font-size:11px;color:var(--c-dim)">${esc(c.label)}</td>
+          <td style="font-family:var(--mono);font-size:11px;color:var(--c-mist);text-align:center">${esc(rxStr)}</td>
+          <td style="font-family:var(--mono);font-size:11px;color:var(--c-chalk);text-align:center">${esc(actStr)}</td>
+          <td style="text-align:right"><i class="lens-dot" style="background:${dotColor(c.score)};display:inline-block;width:8px;height:8px;border-radius:50%"></i></td></tr>`; }).join("");
+      const scoreBadge = (rx.t==="race") ? `<span class="note">races never scored</span>`
+        : sc ? `<span style="font-family:var(--mono);font-size:13px;color:${dotColor(sc.score)}">${sc.score==null?"—":sc.score}</span> <span class="note">scored on ${sc.coverage} channels</span>`
+        : `<span class="note">—</span>`;
+      const flagLine = sc&&sc.flags.length ? `<div class="note" style="color:${C.rose};margin-top:6px">⚑ ${sc.flags.map(esc).join(" · ")}</div>` : "";
+      // re-link control: plan days within ±2d of the run's date, plus unlink
+      const runD=new Date(run.d); const opts=[];
+      for(let dd=-2;dd<=2;dd++){ const dt=new Date(runD); dt.setDate(dt.getDate()+dd);
+        const wIso=dt.getFullYear()+"-"+String(dt.getMonth()+1).padStart(2,"0")+"-"+String(dt.getDate()).padStart(2,"0");
+        opts.push(`<option value="${wIso}"${wIso===iso?" selected":""}>${wIso}${wIso===iso?" (current)":""}</option>`); }
+      const relinkSel=`rxlink_${w}_${rd.i}`;
+      body=`${rxTable}
+        <div style="margin-top:8px"><div class="eyebrow" style="font-size:10px">plan vs actual</div>
+        <table style="margin-top:4px"><tbody>${chanRows||`<tr><td class="note">no scoreable channels logged</td></tr>`}</tbody></table></div>
+        <div style="margin-top:8px">${scoreBadge}</div>
+        ${flagLine}
+        <div style="margin-top:8px;display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+          <select id="${relinkSel}" style="font-size:11px">${opts.join("")}<option value="x">unlink (unplanned)</option></select>
+          <button class="btn" data-act="rxRelink" data-v="${w}-${rd.i}" data-sel="${relinkSel}" data-runid="${run.id!=null?esc(String(run.id)):""}" data-rund="${run.d}">re-link</button>
+        </div>
+        ${dayUnplanned.length?`<div class="note" style="margin-top:6px">unplanned — ${dayUnplanned.map(r=>`${fmt(r.km||0)} km · ${fmtHM(r.h||0)}`).join(", ")}</div>`:""}
+        <div style="margin-top:8px"><span data-act="runtype" data-v="${rx.t}" style="color:${C.teal};font-size:11px;cursor:pointer">full definition →</span></div>`;
+    }
+  }
+  return `<div class="card" style="margin-top:10px;border-color:${C.teal}">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+      <div class="eyebrow" style="color:${C.teal}">${esc(rname)} · ${DAYS[rd.i]} ${fmtDshort(iso)}</div>
+      <button class="btn" data-act="runclose">close ✕</button></div>
+    ${body}
+  </div>`;
 }
 
 /* ── gym day detail (v1.5) — Nippard prescription for a tapped lens chip ── */
@@ -2580,18 +2939,19 @@ function gymDayCard(w){
   const {G}=sessionMaps(); const doneList=G[iso]||[]; const done=doneList[0]||null;
   const key=classifyGym(p.g)||classifyGym(done&&done.name)||"Gym";
   const S=GYM_SESSIONS[key]||GYM_SESSIONS["Gym"];
-  const rows=S.ex.length? S.ex.map(e=>`<tr><td style="font-size:12px;color:var(--c-chalk)">${esc(e[0])}</td>
-      <td style="font-family:var(--mono);font-size:11px;color:var(--c-mist);text-align:center">2 × <span style="color:var(--c-dim)">per sheet</span></td>
-      <td style="font-family:var(--mono);font-size:11px;color:var(--c-mist);text-align:center">RPE ${esc(e[1])}</td>
-      <td style="font-family:var(--mono);font-size:11px;color:var(--c-dim);text-align:right">${esc(e[2])}</td></tr>`).join("")
+  const rows=S.ex.length? S.ex.map(e=>{ const [name,rpe,rest,sets,reps]=e;
+      return `<tr><td class="gt-name">${esc(name)}</td>
+      <td class="gt-sr" style="text-align:center">${esc(sets)} × ${esc(reps)}</td>
+      <td class="gt-rpe" style="text-align:center">RPE ${esc(rpe)}</td>
+      <td class="gt-rest" style="text-align:right;color:var(--c-dim)">${esc(rest)}</td></tr>`; }).join("")
     : `<tr><td class="note">No fixed exercise list — see the plan note for this day.</td></tr>`;
   return `<div class="card" style="margin-top:10px;border-color:${C.amber}">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
       <div><div class="eyebrow" style="color:${C.amber}">${esc(S.name)} · ${DAYS[gd.i]} ${fmtDshort(iso)} ${done?"· ✓ done":""}</div>
-        <div class="note" style="margin-top:4px">plan says: ${esc(p.g||done&&done.name||"—")} · wk 1 of a block = intro, wk 2+ last set to failure · reps per the Nippard sheet (rep cells corrupted in the text-dump conversion — read them there)</div></div>
+        <div class="note" style="margin-top:4px">plan says: ${esc(p.g||done&&done.name||"—")} · wk 1 of a block = intro sets, wk 2+ full sets with last set to failure · reps restored from the Nippard sheet (18/07/26 re-extraction)</div></div>
       <button class="btn" data-act="gymclose">close ✕</button></div>
     ${S.watch?`<div class="note" style="color:${C.rose};margin-top:8px">⚑ ${esc(S.watch)}</div>`:""}
-    <table style="margin-top:10px"><tbody>${rows}</tbody></table>
+    <table class="gym-tbl" style="margin-top:10px"><tbody>${rows}</tbody></table>
     <div class="note" style="margin-top:8px">On-ramp (this cycle): 1–2 RIR everywhere for ~2–3 wks — tissue lags strength after the layoff. Log per-set loads in MacroFactor, not here.</div>
   </div>`;
 }
@@ -2823,7 +3183,7 @@ const App = {
   tab: "overview", unit: "km", clinical: false, selMarker: "ferritin", evEdit: null, nigPick: null, nigDraft: null,
   theme: "dark",  // "dark" (G8 default) | "light"; persisted via Store.pref, applied in render()
   week: null, selSeg: "tr", selWeek: null,
-  selType: null, gymDay: null, boardOpen: false, demo: false, _real: null,
+  selType: null, gymDay: null, runDay: null, boardOpen: false, demo: false, _real: null,
   ovRange: {past:12, future:8},  // weeks back / forward from today shown in overview
   fffViz: {ctl:true, atl:true, tsb:true, proj:true}, // which FFF series are visible; proj = projection overlay
   chartCtl: {},        // #41 (v1.39): per-chart {from,to,per} time-axis control state; hydrated from Store.pref("chartCtl") at boot, saved on change
@@ -3933,10 +4293,21 @@ const App = {
         //   a prior runs.json import's run_type (long/quality/race/test) is
         //   preserved by the field-preserving upsert. Race/test weighting in
         //   derivePace therefore relies on the runs.json rebuild, as designed.
+        // §5 (Phase 4, D043): additive volume-class channels — refresh-on-sync
+        // (NOT fill-only; not in RUN_FILL_ONLY), nullable, raw intervals.icu
+        // summary fields pass through the Worker unchanged. If a live payload
+        // uses different field names than expected, these stay null and ship
+        // anyway (no throw) — `??` fallbacks below cover the two most likely
+        // alternate keys observed in intervals.icu summary objects.
+        const gain  = (r.total_elevation_gain ?? r.icu_elevation_gain) != null ? Math.round(r.total_elevation_gain ?? r.icu_elevation_gain) : null;
+        const avg_hr= (r.average_heartrate ?? r.icu_average_hr)       != null ? Math.round(r.average_heartrate ?? r.icu_average_hr) : null;
+        const np    = (r.icu_weighted_avg_watts ?? r.weighted_average_watts) != null ? Math.round(r.icu_weighted_avg_watts ?? r.weighted_average_watts) : null;
+        const load  = (r.icu_training_load ?? r.training_load)        != null ? Math.round(r.icu_training_load ?? r.training_load) : null;
         upsertR(S.runs,{ d, id:(r.id!=null?String(r.id):null), type:"easy", km:dist_km,
           h: time_s?Math.round(time_s/36)/100:null,
           terrain, run_type:"easy", avg_pace,
-          quarantined:false });
+          quarantined:false,
+          gain, avg_hr, np, load });
         nr++;
       });
       // Ingest wellness → fff (CTL/ATL/TSB/rampRate + daily wellness channels).
@@ -4461,7 +4832,20 @@ const App = {
     inp.click();
   },
   view_changelog(){
-    const log=`v1.48  18/07/26  The body map + voice niggle entry (Phase 8 complete).
+    const log=`v1.49  18/07/26  RX + inline run detail cards + gym card fixes (Phase 4).
+                   Tap a run chip in the week strip and a card opens right there —
+                   the prescribed duration/distance/vert/intensity before you run,
+                   and after you log it: plan vs actual with grade dots, a session
+                   score, and a re-link control if the auto-match picked the wrong
+                   day. Scoring is duration/distance/vert only for now — intensity
+                   shows as a flag, not a grade, until the threshold test and AeT
+                   re-probe are both confirmed. The gym exercise card now fits your
+                   phone screen properly (stacks instead of squeezing sideways),
+                   and the exercise list finally shows real set × rep numbers
+                   instead of a placeholder — recovered from a data-corruption issue
+                   in the original Nippard sheet import.
+
+v1.48  18/07/26  The body map + voice niggle entry (Phase 8 complete).
                    The Health tab now opens with a tappable anatomical map — front and
                    rear, 53 zones. Tap where it hurts and the entry card opens
                    pre-filled; spots logged twice glow amber, three times red. Or just
@@ -4862,6 +5246,14 @@ v1.0–v1.4  02–04/07/26  Initial build; ported from React artifact.
         else if(this.demo && ["addWeek","addBody","addLab","addLift","addGirth","addProt","setTarget","tgtAdopt","import","importSess","importFFF","reset","taxAdd","addCheckin","addProtein","export"].includes(a)){ this.flash("Demo mode is read-only — toggle off at the bottom"); }
         else if(a==="gymday"){ const [w,i]=v.split("-").map(Number); this.gymDay=(this.gymDay&&this.gymDay.w===w&&this.gymDay.i===i)?null:{w,i}; this.render(); }
         else if(a==="gymclose"){ this.gymDay=null; this.render(); }
+        else if(a==="runday"){ const [w,i]=v.split("-").map(Number); this.runDay=(this.runDay&&this.runDay.w===w&&this.runDay.i===i)?null:{w,i}; this.render(); }
+        else if(a==="runclose"){ this.runDay=null; this.render(); }
+        else if(a==="rxRelink"){
+          const selEl=qs(el.dataset.sel); if(!selEl) return;
+          const newVal=selEl.value, runId=el.dataset.runid, runD=el.dataset.rund;
+          const row=(this.state.sessions.runs||[]).find(r=> runId? String(r.id)===runId : r.d===runD);
+          if(row){ row.rx_d=newVal; this.persist(); this.render(); this.flash(newVal==="x"?"Unlinked":"Re-linked"); }
+        }
         else if(a==="runtype"){ if(v){ this.selType=v; this.week=null; this.tab="sessions"; this.render(); const t=qs("type_"+v); if(t) t.scrollIntoView({behavior:"smooth",block:"center"}); } }
         else if(a==="board"){ this.boardOpen=!this.boardOpen; this.render(); }
         else if(a==="taxAdd") this.taxAdd();
