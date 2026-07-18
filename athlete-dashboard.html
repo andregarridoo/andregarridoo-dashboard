@@ -205,6 +205,27 @@
    CHANGELOG
    v1.0  02/07/26  first HTML build (ported from React artifact)
    (v1.0–v1.6 archived — full history in OPERATING_BRIEF.md CHANGELOG)
+   v1.50 18/07/26 RX gain + descent extension (Addendum A, D044).
+                   Every RX object gains additive desc:[lo,hi] (m) beside the
+                   existing vert:[lo,hi] (gain) — different namespace from the
+                   t:"desc" session type. Bands coach-authored from Uphill
+                   Athlete doctrine: race-day anchor (Foote) 50%→90–100%,
+                   ≤10%/wk progression, ME carry-weight-OR-vert-not-both +
+                   ≥3 easy days after, descent-biased desc-type sessions,
+                   road/taper flat caps as prescriptions. RX_TEMPLATES +
+                   RX_OVERRIDES replaced verbatim (resolveRX/RX_CLASS/matcher
+                   unchanged); NEW W45 override [200,400]; races stay null-null.
+                   Scorer: desc channel scaffolded behind DESCENT_SCORED=false,
+                   weight 0.2 in the existing renorm — pre-flip bit-identical
+                   to D043 (no supersession); promotion = one const flip on
+                   ~2 wk of descent actuals. importSessions maps gain_m→gain/
+                   descent_m→desc (closes the v1.49 import-path vert gap too);
+                   syncICU +desc (nullable, refresh-on-sync, ??-fallback over
+                   candidate live field names). runDayCard: Gain + Descent
+                   rows pre-log (band or "—"); post-log Gain scored, Descent
+                   shown value-vs-band with a dot only when DESCENT_SCORED.
+                   STORE_KEY + schema version:1 unchanged (run-row gain/desc
+                   additive nullable).
    v1.49 18/07/26 Phase 4 — RX + inline run detail cards + gym card fixes (D043).
                    #9: two-tier RUN_RX registry (RX_TEMPLATES/RX_OVERRIDES,
                    resolveRX mirrors plannedDay's merge) generated from
@@ -1326,107 +1347,109 @@ const WEEK_OVERRIDES={
    targets [x,x]; ranges literal from the plan; vert only where the plan
    states it. Phases 12/13 have no day-level template app-wide → no RX. */
 const RX_TEMPLATES={
- 1:[{t:"easy",dur:[0.50,0.67],km:null,vert:null,z:"Z2",pw:null,surf:"any",note:null},
-    {t:"easy",dur:[0.50,0.67],km:null,vert:null,z:"Z2",pw:null,surf:"any",note:"wk 3+ only"},
+ 1:[{t:"easy",dur:[0.50,0.67],km:null,vert:null,z:"Z2",pw:null,desc:null,surf:"any",note:null},
+    {t:"easy",dur:[0.50,0.67],km:null,vert:null,z:"Z2",pw:null,desc:null,surf:"any",note:"wk 3+ only"},
     {t:"rest"},
-    {t:"easy",dur:[0.50,0.67],km:null,vert:null,z:"Z2",pw:null,surf:"any",note:null},
+    {t:"easy",dur:[0.50,0.67],km:null,vert:null,z:"Z2",pw:null,desc:null,surf:"any",note:null},
     {t:"rest"},
-    {t:"longE",dur:[1.00,1.50],km:null,vert:null,z:"Z2",pw:null,surf:"any",note:"build duration wk-on-wk"},
+    {t:"longE",dur:[1.00,1.50],km:null,vert:null,z:"Z2",pw:null,desc:null,surf:"any",note:"build duration wk-on-wk"},
     {t:"rest"}],
- 2:[{t:"easy",dur:[0.67,0.83],km:null,vert:null,z:"Z2",pw:null,surf:"road",note:null},
-    {t:"thr",dur:[1.00,1.25],km:null,vert:null,z:null,pw:"4×8′→3×12′ power-target, HR ceiling",surf:"road",note:"session incl. wu/cd"},
+ 2:[{t:"easy",dur:[0.67,0.83],km:null,vert:[0,100],z:"Z2",pw:null,desc:[0,100],surf:"road",note:null},
+    {t:"thr",dur:[1.00,1.25],km:null,vert:[0,100],z:null,pw:"4×8′→3×12′ power-target, HR ceiling",desc:[0,100],surf:"road",note:"session incl. wu/cd"},
     {t:"rest"},
-    {t:"easy",dur:[0.67,1.00],km:null,vert:null,z:"Z2",pw:null,surf:"road",note:null},
+    {t:"easy",dur:[0.67,1.00],km:null,vert:[0,100],z:"Z2",pw:null,desc:[0,100],surf:"road",note:null},
     {t:"rest"},
-    {t:"longE",dur:null,km:[24,32],vert:null,z:null,pw:"MP-power segments per plan week",surf:"road",note:"progressive across phase"},
-    {t:"easy",dur:[0.67,1.00],km:null,vert:null,z:"Z2",pw:null,surf:"road",note:"optional"}],
- 3:[{t:"easy",dur:[0.67,0.67],km:null,vert:null,z:"Z2",pw:null,surf:"road",note:null},
-    {t:"mp",dur:[0.75,1.00],km:null,vert:null,z:null,pw:"2×2 km @ MP power",surf:"road",note:null},
-    {t:"easy",dur:[0.50,0.50],km:null,vert:null,z:"Z2",pw:null,surf:"road",note:null},
+    {t:"longE",dur:null,km:[24,32],vert:[0,150],z:null,pw:"MP-power segments per plan week",desc:[0,150],surf:"road",note:"progressive across phase"},
+    {t:"easy",dur:[0.67,1.00],km:null,vert:[0,100],z:"Z2",pw:null,desc:[0,100],surf:"road",note:"optional"}],
+ 3:[{t:"easy",dur:[0.67,0.67],km:null,vert:[0,100],z:"Z2",pw:null,desc:[0,100],surf:"road",note:null},
+    {t:"mp",dur:[0.75,1.00],km:null,vert:[0,100],z:null,pw:"2×2 km @ MP power",desc:[0,100],surf:"road",note:null},
+    {t:"easy",dur:[0.50,0.50],km:null,vert:[0,100],z:"Z2",pw:null,desc:[0,100],surf:"road",note:null},
     {t:"rest"},{t:"rest"},
-    {t:"easy",dur:[0.42,0.42],km:null,vert:null,z:"Z1",pw:null,surf:"road",note:"+ strides"},
+    {t:"easy",dur:[0.42,0.42],km:null,vert:[0,100],z:"Z1",pw:null,desc:[0,100],surf:"road",note:"+ strides"},
     {t:"rest"}],
  4:[{t:"rest"},
-    {t:"easy",dur:[0.50,0.67],km:null,vert:null,z:"Z1",pw:null,surf:"any",note:"wk 2 of phase only"},
+    {t:"easy",dur:[0.50,0.67],km:null,vert:null,z:"Z1",pw:null,desc:null,surf:"any",note:"wk 2 of phase only"},
     {t:"rest"},
-    {t:"easy",dur:[0.50,0.67],km:null,vert:null,z:"Z1",pw:null,surf:"any",note:"wk 2 of phase only"},
+    {t:"easy",dur:[0.50,0.67],km:null,vert:null,z:"Z1",pw:null,desc:null,surf:"any",note:"wk 2 of phase only"},
     {t:"rest"},
-    {t:"easy",dur:[0.50,0.67],km:null,vert:null,z:"Z1",pw:null,surf:"any",note:"wk 2 of phase only"},
+    {t:"easy",dur:[0.50,0.67],km:null,vert:null,z:"Z1",pw:null,desc:null,surf:"any",note:"wk 2 of phase only"},
     {t:"rest"}],
- 5:[{t:"easy",dur:[0.67,1.00],km:null,vert:null,z:"Z2",pw:null,surf:"any",note:null},
-    {t:"easy",dur:[0.67,1.00],km:null,vert:null,z:"Z2",pw:null,surf:"any",note:null},
+ 5:[{t:"easy",dur:[0.67,1.00],km:null,vert:[0,200],z:"Z2",pw:null,desc:[0,200],surf:"any",note:null},
+    {t:"easy",dur:[0.67,1.00],km:null,vert:[0,200],z:"Z2",pw:null,desc:[0,200],surf:"any",note:null},
     {t:"rest"},
-    {t:"easy",dur:[0.67,1.00],km:null,vert:null,z:"Z2",pw:null,surf:"any",note:null},
+    {t:"easy",dur:[0.67,1.00],km:null,vert:[0,200],z:"Z2",pw:null,desc:[0,200],surf:"any",note:null},
     {t:"rest"},
-    {t:"longE",dur:[2.50,4.00],km:null,vert:null,z:"Z2",pw:null,surf:"trail",note:"steady vert · progressive across phase"},
+    {t:"longE",dur:[2.50,4.00],km:null,vert:[400,900],z:"Z2",pw:null,desc:[400,900],surf:"trail",note:"steady vert · progressive across phase · ≈20–30 m/km · desc = gain · build ≤10%/wk (UA)"},
     {t:"rest"}],
- 6:[{t:"easy",dur:[0.67,0.67],km:null,vert:null,z:"Z2",pw:null,surf:"any",note:null},
-    {t:"steady",dur:[1.00,1.00],km:null,vert:null,z:"Z2",pw:"AeT-power ceiling",surf:"any",note:null},
-    {t:"desc",dur:[1.00,1.50],km:null,vert:null,z:null,pw:null,surf:"trail",note:"⇄ ME carry ~6.5 kg, alternating weeks"},
-    {t:"easy",dur:[0.75,0.75],km:null,vert:null,z:"Z2",pw:null,surf:"any",note:null},
+ 6:[{t:"easy",dur:[0.67,0.67],km:null,vert:[0,300],z:"Z2",pw:null,desc:[0,300],surf:"any",note:null},
+    {t:"steady",dur:[1.00,1.00],km:null,vert:[100,300],z:"Z2",pw:"AeT-power ceiling",desc:[100,300],surf:"any",note:null},
+    {t:"desc",dur:[1.00,1.50],km:null,vert:[300,500],z:null,pw:null,desc:[400,700],surf:"trail",note:"⇄ ME carry ~6.5 kg, alternating weeks · descent-biased — the dose is the down"},
+    {t:"easy",dur:[0.75,0.75],km:null,vert:[0,300],z:"Z2",pw:null,desc:[0,300],surf:"any",note:null},
     {t:"rest"},
-    {t:"longE",dur:[4.00,5.00],km:null,vert:null,z:"Z2",pw:null,surf:"trail",note:"race-sim protocol"},
-    {t:"b2b",dur:[1.50,2.00],km:null,vert:null,z:"Z2",pw:null,surf:"trail",note:"sim weeks only, else rest"}],
- 7:[{t:"easy",dur:[0.67,0.67],km:null,vert:null,z:"Z2",pw:null,surf:"any",note:null},
-    {t:"touch",dur:[0.60,0.80],km:null,vert:null,z:null,pw:"4×3′ @ steady power",surf:"any",note:null},
-    {t:"easy",dur:[0.50,0.50],km:null,vert:null,z:"Z2",pw:null,surf:"trail",note:"+ short descents"},
+    {t:"longE",dur:[4.00,5.00],km:null,vert:[900,1300],z:"Z2",pw:null,desc:[900,1300],surf:"trail",note:"race-sim protocol · UTK density 30–36 m/km"},
+    {t:"b2b",dur:[1.50,2.00],km:null,vert:[300,600],z:"Z2",pw:null,desc:[300,600],surf:"trail",note:"sim weeks only, else rest"}],
+ 7:[{t:"easy",dur:[0.67,0.67],km:null,vert:[0,200],z:"Z2",pw:null,desc:[0,200],surf:"any",note:null},
+    {t:"touch",dur:[0.60,0.80],km:null,vert:[100,250],z:null,pw:"4×3′ @ steady power",desc:[100,250],surf:"any",note:null},
+    {t:"easy",dur:[0.50,0.50],km:null,vert:[100,250],z:"Z2",pw:null,desc:[150,300],surf:"trail",note:"+ short descents"},
     {t:"rest"},{t:"rest"},
-    {t:"easy",dur:[0.42,0.42],km:null,vert:null,z:"Z1",pw:null,surf:"any",note:"+ strides"},
+    {t:"easy",dur:[0.42,0.42],km:null,vert:null,z:"Z1",pw:null,desc:null,surf:"any",note:"+ strides"},
     {t:"rest"}],
  8:[{t:"rest"},
-    {t:"easy",dur:[0.33,0.50],km:null,vert:null,z:"Z1",pw:null,surf:"any",note:"walk/easy · late weeks"},
+    {t:"easy",dur:[0.33,0.50],km:null,vert:null,z:"Z1",pw:null,desc:null,surf:"any",note:"walk/easy · late weeks"},
     {t:"rest"},
-    {t:"easy",dur:[0.50,0.67],km:null,vert:null,z:"Z1",pw:null,surf:"any",note:"wk 25"},
+    {t:"easy",dur:[0.50,0.67],km:null,vert:null,z:"Z1",pw:null,desc:null,surf:"any",note:"wk 25"},
     {t:"rest"}],
- 9:[{t:"easy",dur:[0.67,0.83],km:null,vert:null,z:"Z2",pw:null,surf:"any",note:null},
-    {t:"easy",dur:[0.67,0.83],km:null,vert:null,z:"Z2",pw:null,surf:"any",note:null},
+ 9:[{t:"easy",dur:[0.67,0.83],km:null,vert:[0,200],z:"Z2",pw:null,desc:[0,200],surf:"any",note:null},
+    {t:"easy",dur:[0.67,0.83],km:null,vert:[0,200],z:"Z2",pw:null,desc:[0,200],surf:"any",note:null},
     {t:"rest"},
-    {t:"easy",dur:[0.67,0.83],km:null,vert:null,z:"Z2",pw:null,surf:"any",note:null},
+    {t:"easy",dur:[0.67,0.83],km:null,vert:[0,200],z:"Z2",pw:null,desc:[0,200],surf:"any",note:null},
     {t:"rest"},
-    {t:"longE",dur:[2.00,3.00],km:null,vert:null,z:"Z2",pw:null,surf:"trail",note:"hilly · progressive 2:00→3:00 per D041 F1"},
+    {t:"longE",dur:[2.00,3.00],km:null,vert:[400,700],z:"Z2",pw:null,desc:[400,700],surf:"trail",note:"hilly · progressive 2:00→3:00 per D041 F1 · hilly ~25–30 m/km"},
     {t:"rest"}],
- 10:[{t:"easy",dur:[0.75,1.00],km:null,vert:null,z:"Z2",pw:null,surf:"any",note:null},
-    {t:"steady",dur:[1.00,1.25],km:null,vert:null,z:"Z2",pw:"AeT-power target · final 6 wk: climb reps",surf:"any",note:null},
-    {t:"me",dur:[1.00,1.50],km:null,vert:null,z:null,pw:null,surf:"trail",note:"carry →13 kg ⇄ descent session, every 7–10 d"},
-    {t:"easy",dur:[0.75,1.00],km:null,vert:null,z:"Z2",pw:null,surf:"any",note:null},
+ 10:[{t:"easy",dur:[0.75,1.00],km:null,vert:[0,300],z:"Z2",pw:null,desc:[0,300],surf:"any",note:null},
+    {t:"steady",dur:[1.00,1.25],km:null,vert:[300,600],z:"Z2",pw:"AeT-power target · final 6 wk: climb reps",desc:[300,600],surf:"any",note:"final 6 wk climb reps: top of band"},
+    {t:"me",dur:[1.00,1.50],km:null,vert:[400,800],z:null,pw:null,desc:[400,800],surf:"trail",note:"carry →13 kg ⇄ descent session, every 7–10 d · UA: progress weight OR vert, not both · ≥3 easy days after · carry the load down — the descent is part of the dose"},
+    {t:"easy",dur:[0.75,1.00],km:null,vert:[0,300],z:"Z2",pw:null,desc:[0,300],surf:"any",note:null},
     {t:"rest"},
-    {t:"longE",dur:[4.50,6.00],km:null,vert:null,z:"Z2",pw:null,surf:"trail",note:"durability channels logged · progressive across phase"},
-    {t:"b2b",dur:[1.00,2.50],km:null,vert:null,z:"Z2",pw:null,surf:"trail",note:"easy 60′ / B2B 2:00–2:30 on big weekends"}],
- 11:[{t:"easy",dur:[0.67,0.67],km:null,vert:null,z:"Z2",pw:null,surf:"any",note:"wk 44 only"},
-    {t:"touch",dur:[0.60,0.80],km:null,vert:null,z:null,pw:"4×3′ climbs",surf:"trail",note:null},
-    {t:"easy",dur:[0.50,0.58],km:null,vert:null,z:"Z2",pw:null,surf:"trail",note:"+ short descents"},
+    {t:"longE",dur:[4.50,6.00],km:null,vert:[1300,2000],z:"Z2",pw:null,desc:[1300,2000],surf:"trail",note:"durability channels logged · progressive across phase · 40–45 m/km → race density"},
+    {t:"b2b",dur:[1.00,2.50],km:null,vert:[600,1000],z:"Z2",pw:null,desc:[600,1000],surf:"trail",note:"easy 60′ / B2B 2:00–2:30 on big weekends"}],
+ 11:[{t:"easy",dur:[0.67,0.67],km:null,vert:[0,200],z:"Z2",pw:null,desc:[0,200],surf:"any",note:"wk 44 only"},
+    {t:"touch",dur:[0.60,0.80],km:null,vert:[150,350],z:null,pw:"4×3′ climbs",desc:[150,350],surf:"trail",note:null},
+    {t:"easy",dur:[0.50,0.58],km:null,vert:[100,250],z:"Z2",pw:null,desc:[150,300],surf:"trail",note:"+ short descents"},
     {t:"rest"},{t:"rest"},
-    {t:"longE",dur:[1.25,2.00],km:null,vert:null,z:"Z2",pw:null,surf:"trail",note:"2:00 wk 44 / 75′ wk 45"},
-    {t:"easy",dur:[0.67,0.67],km:null,vert:null,z:"Z2",pw:null,surf:"any",note:"wk 44 only"}],
+    {t:"longE",dur:[1.25,2.00],km:null,vert:[500,800],z:"Z2",pw:null,desc:[500,800],surf:"trail",note:"2:00 wk 44 / 75′ wk 45 · wk 45: see W45 override"},
+    {t:"easy",dur:[0.67,0.67],km:null,vert:[0,200],z:"Z2",pw:null,desc:[0,200],surf:"any",note:"wk 44 only"}],
 };
 const RX_OVERRIDES={
- 3:{5:{t:"t_aet",dur:[1.25,1.25],km:null,vert:null,z:null,pw:"15′ wu + 60′ steady @ ~150 bpm probe",surf:"road",note:"AeT drift test — sets the zones"}},
- 6:{1:{t:"t_tt",dur:[0.75,1.00],km:null,vert:null,z:null,pw:"30′ max sustainable — LTHR + rFTP",surf:"road",note:"one session, two anchors"}},
- 7:{5:{t:"longE",dur:null,km:[32,32],vert:null,z:null,pw:"10–12 km continuous @ MP power",surf:"road",note:"pacing gate"}},
+ 3:{5:{t:"t_aet",dur:[1.25,1.25],km:null,vert:[0,100],z:null,pw:"15′ wu + 60′ steady @ ~150 bpm probe",desc:[0,100],surf:"road",note:"AeT drift test — sets the zones"}},
+ 6:{1:{t:"t_tt",dur:[0.75,1.00],km:null,vert:[0,100],z:null,pw:"30′ max sustainable — LTHR + rFTP",desc:[0,100],surf:"road",note:"one session, two anchors"}},
+ 7:{5:{t:"longE",dur:null,km:[32,32],vert:[0,150],z:null,pw:"10–12 km continuous @ MP power",desc:[0,150],surf:"road",note:"pacing gate"}},
  9:{4:{t:"rest"},
-    5:{t:"easy",dur:[0.33,0.33],km:null,vert:null,z:"Z1",pw:null,surf:"road",note:"shakeout + strides"},
-    6:{t:"race",dur:null,km:[42.2,42.2],vert:null,z:null,pw:"MP power per race plan",surf:"road",note:"Sydney Marathon 2026 — never scored"}},
- 17:{5:{t:"longE",dur:[4.00,4.00],km:null,vert:null,z:"Z2",pw:null,surf:"trail",note:"Sunday Legs at 1–2 RIR"}},
- 18:{5:{t:"sim",dur:[4.00,4.00],km:null,vert:null,z:"Z2",pw:null,surf:"trail",note:"RACE-SIM #1 — full fuel/aid protocol"},
-     6:{t:"b2b",dur:[2.00,2.00],km:null,vert:null,z:"Z2",pw:null,surf:"trail",note:null}},
- 19:{5:{t:"sim",dur:[4.50,5.00],km:null,vert:null,z:"Z2",pw:null,surf:"trail",note:"RACE-SIM #2 — full protocol + full mandatory kit"},
-     6:{t:"b2b",dur:[1.50,1.50],km:null,vert:null,z:"Z2",pw:null,surf:"trail",note:null}},
- 20:{5:{t:"longE",dur:[3.00,3.00],km:null,vert:null,z:"Z2",pw:null,surf:"trail",note:"consolidate · descent focus"}},
- 22:{3:{t:"rest"},4:{t:"easy",dur:[0.33,0.33],km:null,vert:null,z:"Z1",pw:null,surf:"any",note:"kit check + shakeout"},
-     5:{t:"race",dur:null,km:[102,102],vert:null,z:null,pw:"power caps per race plan",surf:"trail",note:"UTK 2026 · Kosci100 · Fri 27 Nov — never scored"}},
- 31:{5:{t:"t_bm",dur:null,km:[30,30],vert:[1050,1150],z:null,pw:"prescribed effort · HR + power logged",surf:"trail",note:"BENCHMARK 30 km / 1,107 m"}},
- 35:{5:{t:"sim",dur:[5.00,5.00],km:null,vert:null,z:"Z2",pw:null,surf:"trail",note:"RACE-SIM #1 — full protocol"}},
- 38:{5:{t:"sim",dur:[5.50,5.50],km:null,vert:null,z:"Z2",pw:null,surf:"trail",note:"RACE-SIM #2"},
-     6:{t:"b2b",dur:[2.00,2.00],km:null,vert:null,z:"Z2",pw:null,surf:"trail",note:null}},
- 41:{5:{t:"longE",dur:[6.00,6.00],km:null,vert:null,z:"Z2",pw:null,surf:"trail",note:"peak long"}},
- 42:{5:{t:"sim",dur:[5.00,6.00],km:null,vert:null,z:"Z2",pw:null,surf:"trail",note:"RACE-SIM #3 — dress rehearsal, full protocol + kit"}},
- 46:{0:{t:"easy",dur:[0.50,0.50],km:null,vert:null,z:"Z1",pw:null,surf:"any",note:null},
-     1:{t:"easy",dur:[0.33,0.33],km:null,vert:null,z:"Z1",pw:null,surf:"any",note:"+ strides"},
-     2:{t:"rest"},3:{t:"easy",dur:[0.33,0.33],km:null,vert:null,z:"Z1",pw:null,surf:"any",note:"travel / shakeout"},
+    5:{t:"easy",dur:[0.33,0.33],km:null,vert:[0,100],z:"Z1",pw:null,desc:[0,100],surf:"road",note:"shakeout + strides"},
+    6:{t:"race",dur:null,km:[42.2,42.2],vert:null,z:null,pw:"MP power per race plan",desc:null,surf:"road",note:"Sydney Marathon 2026 — never scored"}},
+ 17:{5:{t:"longE",dur:[4.00,4.00],km:null,vert:[700,900],z:"Z2",pw:null,desc:[700,900],surf:"trail",note:"Sunday Legs at 1–2 RIR"}},
+ 18:{5:{t:"sim",dur:[4.00,4.00],km:null,vert:[900,1200],z:"Z2",pw:null,desc:[900,1200],surf:"trail",note:"RACE-SIM #1 — full fuel/aid protocol"},
+     6:{t:"b2b",dur:[2.00,2.00],km:null,vert:null,z:"Z2",pw:null,desc:null,surf:"trail",note:null}},
+ 19:{5:{t:"sim",dur:[4.50,5.00],km:null,vert:[1100,1400],z:"Z2",pw:null,desc:[1100,1400],surf:"trail",note:"RACE-SIM #2 — full protocol + full mandatory kit"},
+     6:{t:"b2b",dur:[1.50,1.50],km:null,vert:null,z:"Z2",pw:null,desc:null,surf:"trail",note:null}},
+ 20:{5:{t:"longE",dur:[3.00,3.00],km:null,vert:[600,900],z:"Z2",pw:null,desc:[700,1000],surf:"trail",note:"consolidate · descent focus"}},
+ 22:{3:{t:"rest"},4:{t:"easy",dur:[0.33,0.33],km:null,vert:[0,100],z:"Z1",pw:null,desc:[0,100],surf:"any",note:"kit check + shakeout"},
+     5:{t:"race",dur:null,km:[102,102],vert:null,z:null,pw:"power caps per race plan",desc:null,surf:"trail",note:"UTK 2026 · Kosci100 · Fri 27 Nov — never scored"}},
+ 31:{5:{t:"t_bm",dur:null,km:[30,30],vert:[1050,1150],z:null,pw:"prescribed effort · HR + power logged",desc:[1050,1150],surf:"trail",note:"BENCHMARK 30 km / 1,107 m"}},
+ 35:{5:{t:"sim",dur:[5.00,5.00],km:null,vert:[1500,1900],z:"Z2",pw:null,desc:[1500,1900],surf:"trail",note:"RACE-SIM #1 — full protocol"}},
+ 38:{5:{t:"sim",dur:[5.50,5.50],km:null,vert:[1700,2100],z:"Z2",pw:null,desc:[1700,2100],surf:"trail",note:"RACE-SIM #2"},
+     6:{t:"b2b",dur:[2.00,2.00],km:null,vert:null,z:"Z2",pw:null,desc:null,surf:"trail",note:null}},
+ 41:{5:{t:"longE",dur:[6.00,6.00],km:null,vert:[1800,2200],z:"Z2",pw:null,desc:[1800,2200],surf:"trail",note:"peak long"}},
+ 42:{5:{t:"sim",dur:[5.00,6.00],km:null,vert:[1800,2200],z:"Z2",pw:null,desc:[1800,2200],surf:"trail",note:"RACE-SIM #3 — dress rehearsal, full protocol + kit"}},
+ 45:{5:{vert:[200,400],desc:[200,400],note:"taper wk 45 long — 75′"}},
+ 46:{0:{t:"easy",dur:[0.50,0.50],km:null,vert:null,z:"Z1",pw:null,desc:null,surf:"any",note:null},
+     1:{t:"easy",dur:[0.33,0.33],km:null,vert:null,z:"Z1",pw:null,desc:null,surf:"any",note:"+ strides"},
+     2:{t:"rest"},3:{t:"easy",dur:[0.33,0.33],km:null,vert:null,z:"Z1",pw:null,desc:null,surf:"any",note:"travel / shakeout"},
      4:{t:"rest"},
-     5:{t:"race",dur:null,km:[101,101],vert:null,z:null,pw:"power caps per race plan",surf:"trail",note:"UTA100 · Sat 15 May — never scored"},
+     5:{t:"race",dur:null,km:[101,101],vert:null,z:null,pw:"power caps per race plan",desc:null,surf:"trail",note:"UTA100 · Sat 15 May — never scored"},
      6:{t:"rest"}},
 };
+
 /* resolveRX(w,i) — same merge logic as plannedDay: template + week override. */
 function resolveRX(w,i){ const ph=phaseOf(w);
   const tpl=(RX_TEMPLATES[ph&&ph.id]||[])[i]||{t:"rest"};
@@ -1506,6 +1529,11 @@ function matchRX(w){
    confirmation — one const flip, no rebuild. While false, intensity renders
    as a ⚑ flag line only, never a score. */
 const INTENSITY_SCORED = false;
+/* §A3 (D044, v1.50). DESCENT_SCORED=false — desc channel scaffolded, weight 0.2
+   inside the existing renorm, but inactive at ship. Promotion = one const flip
+   on ~2 wk of synced descent actuals. Pre-flip: renorm over active channels
+   reproduces vol 0.6 / vert 0.2 / intensity 0.2 exactly (bit-identical to D043). */
+const DESCENT_SCORED = false;
 function fieldDev(lo,hi,actual){
   if(actual==null) return null;
   return actual<lo ? (lo-actual)/lo : actual>hi ? (actual-hi)/hi : 0;
@@ -1529,6 +1557,8 @@ function scoreRun(rx,run){
       lo:volChans[0].lo,hi:volChans[0].hi,actual:volChans[0].actual}); }
   // vert
   if(rx.vert){ const dev=fieldDev(rx.vert[0],rx.vert[1],run.gain); if(dev!=null) channels.push({k:"vert",label:"Vert",dev,score:fieldScore(dev),lo:rx.vert[0],hi:rx.vert[1],actual:run.gain}); }
+  // descent — gated behind DESCENT_SCORED (§A3, D044); inactive at ship, weight 0.2 when live
+  if(rx.desc && DESCENT_SCORED){ const dev=fieldDev(rx.desc[0],rx.desc[1],run.desc); if(dev!=null) channels.push({k:"desc",label:"Descent",dev,score:fieldScore(dev),lo:rx.desc[0],hi:rx.desc[1],actual:run.desc}); }
   // intensity — flag-only while INTENSITY_SCORED is false
   if(rx.pw || rx.z){
     let breach=false;
@@ -1540,11 +1570,11 @@ function scoreRun(rx,run){
     if(breach) flags.push(`intensity — avg HR ${run.avg_hr} bpm vs ${rx.z} ceiling`);
     if(INTENSITY_SCORED){ /* promotion path: add an "intensity" channel here, one const flip */ }
   }
-  const weights={vol:0.6,vert:0.2,intensity:0.2};
+  const weights={vol:0.6,vert:0.2,intensity:0.2,desc:0.2};
   const avail=channels.filter(c=>c.score!=null);
   const total=avail.length? avail.reduce((s,c)=>s+(weights[c.k]||0),0) : 0;
   const score = avail.length ? Math.round(avail.reduce((s,c)=>s+c.score*(weights[c.k]||0),0)/(total||1)) : null;
-  const m = (rx.vert?1:0) + (INTENSITY_SCORED?1:0) + 1; // denominator: vol always counts as 1 channel
+  const m = (rx.vert?1:0) + (INTENSITY_SCORED?1:0) + (DESCENT_SCORED?1:0) + 1; // denominator: vol always counts as 1 channel; desc counts only when DESCENT_SCORED
   return {score, channels, coverage:`${avail.length}/${m}`, flags};
 }
 
@@ -2873,7 +2903,11 @@ function runDayCard(w){
     const rows=[];
     if(rx.dur) rows.push(["Duration",fmtRangeHM(rx.dur)]);
     if(rx.km) rows.push(["Distance",fmtRangeKm(rx.km)]);
-    if(rx.vert) rows.push(["Vert",fmtRangeVert(rx.vert)]);
+    // §A5 (D044, v1.50): Gain + Descent rows always render (band or "—" —
+    // §A1 schema note: null on both = "no target"). Renamed from "Vert" now
+    // that the field's semantics (gain) are explicit alongside desc.
+    rows.push(["Gain",fmtRangeVert(rx.vert)||"—"]);
+    rows.push(["Descent",fmtRangeVert(rx.desc)||"—"]);
     if(rx.z||rx.pw) rows.push(["Intensity",[rx.z,rx.pw].filter(Boolean).join(" · ")]);
     rows.push(["Surface",rx.surf==="any"?"any":rx.surf]);
     const ph=phaseOf(w);
@@ -2905,6 +2939,22 @@ function runDayCard(w){
         : sc ? `<span style="font-family:var(--mono);font-size:13px;color:${dotColor(sc.score)}">${sc.score==null?"—":sc.score}</span> <span class="note">scored on ${sc.coverage} channels</span>`
         : `<span class="note">—</span>`;
       const flagLine = sc&&sc.flags.length ? `<div class="note" style="color:${C.rose};margin-top:6px">⚑ ${sc.flags.map(esc).join(" · ")}</div>` : "";
+      // §A5 (D044, v1.50): Descent row — always shown when the RX carries a
+      // desc band, independent of scoring. Dot appears ONLY when DESCENT_SCORED;
+      // else value-vs-band display, no dot, no score contribution (scaffold, §A3).
+      let descRow="";
+      if(rx.desc){
+        const descActStr = run.desc!=null ? Math.round(run.desc)+" m" : "—";
+        const descRxStr = fmtRangeVert(rx.desc);
+        const descDotCell = DESCENT_SCORED
+          ? (()=>{ const dev=fieldDev(rx.desc[0],rx.desc[1],run.desc); const dsc=dev!=null?fieldScore(dev):null;
+              return `<td style="text-align:right"><i class="lens-dot" style="background:${dotColor(dsc)};display:inline-block;width:8px;height:8px;border-radius:50%"></i></td>`; })()
+          : `<td></td>`;
+        descRow=`<tr><td style="font-size:11px;color:var(--c-dim)">Descent</td>
+          <td style="font-family:var(--mono);font-size:11px;color:var(--c-mist);text-align:center">${esc(descRxStr)}</td>
+          <td style="font-family:var(--mono);font-size:11px;color:var(--c-chalk);text-align:center">${esc(descActStr)}</td>
+          ${descDotCell}</tr>`;
+      }
       // re-link control: plan days within ±2d of the run's date, plus unlink
       const runD=new Date(run.d); const opts=[];
       for(let dd=-2;dd<=2;dd++){ const dt=new Date(runD); dt.setDate(dt.getDate()+dd);
@@ -2913,7 +2963,7 @@ function runDayCard(w){
       const relinkSel=`rxlink_${w}_${rd.i}`;
       body=`${rxTable}
         <div style="margin-top:8px"><div class="eyebrow" style="font-size:10px">plan vs actual</div>
-        <table style="margin-top:4px"><tbody>${chanRows||`<tr><td class="note">no scoreable channels logged</td></tr>`}</tbody></table></div>
+        <table style="margin-top:4px"><tbody>${chanRows||`<tr><td class="note">no scoreable channels logged</td></tr>`}${descRow}</tbody></table></div>
         <div style="margin-top:8px">${scoreBadge}</div>
         ${flagLine}
         <div style="margin-top:8px;display:flex;gap:6px;align-items:center;flex-wrap:wrap">
@@ -4155,7 +4205,11 @@ const App = {
           terrain: r.terrain||null,
           run_type: r.run_type||r.type||null,
           avg_pace: r.avg_pace||null,
-          gap_s_str: r.gap_pace||null  // "M:SS" string; parsePaceStr reads it at derive time
+          gap_s_str: r.gap_pace||null,  // "M:SS" string; parsePaceStr reads it at derive time
+          // §A4 (D044, v1.50): gain/desc from runs.json paste-import — closes the
+          // v1.49 import-path VERT gap (previously live-Sync-only).
+          gain: r.gain!=null?r.gain:(r.gain_m!=null?r.gain_m:null),
+          desc: r.desc!=null?r.desc:(r.descent_m!=null?r.descent_m:null)
         });
         if(isQ) skipped++; else nr++; });
       const rawGym = (p.sessions&&p.sessions.gym) || p.gym || [];
@@ -4303,11 +4357,16 @@ const App = {
         const avg_hr= (r.average_heartrate ?? r.icu_average_hr)       != null ? Math.round(r.average_heartrate ?? r.icu_average_hr) : null;
         const np    = (r.icu_weighted_avg_watts ?? r.weighted_average_watts) != null ? Math.round(r.icu_weighted_avg_watts ?? r.weighted_average_watts) : null;
         const load  = (r.icu_training_load ?? r.training_load)        != null ? Math.round(r.icu_training_load ?? r.training_load) : null;
+        // §A4 (D044, v1.50): additive nullable descent channel, same refresh-on-sync
+        // class as gain (volume-class, NOT RUN_FILL_ONLY). `??` fallbacks cover the
+        // most likely alternate intervals.icu field names — executor verifies
+        // against a real Sync payload; stays null and ships anyway if none match.
+        const desc  = (r.total_descent ?? r.icu_descent ?? r.descent) != null ? Math.round(r.total_descent ?? r.icu_descent ?? r.descent) : null;
         upsertR(S.runs,{ d, id:(r.id!=null?String(r.id):null), type:"easy", km:dist_km,
           h: time_s?Math.round(time_s/36)/100:null,
           terrain, run_type:"easy", avg_pace,
           quarantined:false,
-          gain, avg_hr, np, load });
+          gain, avg_hr, np, load, desc });
         nr++;
       });
       // Ingest wellness → fff (CTL/ATL/TSB/rampRate + daily wellness channels).
@@ -4832,7 +4891,15 @@ const App = {
     inp.click();
   },
   view_changelog(){
-    const log=`v1.49  18/07/26  RX + inline run detail cards + gym card fixes (Phase 4).
+    const log=`v1.50  18/07/26  RX bands now cover climb AND descent.
+                   Every prescribed run now shows a Descent target alongside Gain —
+                   bands built from Uphill Athlete's descent-dosing guidance, scaled
+                   off the same race-day anchors as the climb targets. It's on the
+                   run card as a plan-vs-actual line already; it doesn't feed your
+                   session score yet (that switches on once ~2 weeks of real descent
+                   data has synced), so for now it's a reference number, not a grade.
+
+v1.49  18/07/26  RX + inline run detail cards + gym card fixes (Phase 4).
                    Tap a run chip in the week strip and a card opens right there —
                    the prescribed duration/distance/vert/intensity before you run,
                    and after you log it: plan vs actual with grade dots, a session
