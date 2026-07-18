@@ -205,6 +205,33 @@
    CHANGELOG
    v1.0  02/07/26  first HTML build (ported from React artifact)
    (v1.0–v1.6 archived — full history in OPERATING_BRIEF.md CHANGELOG)
+   v1.51 18/07/26 Strength tab rebuild — regions + Nippard program view (D045).
+                   #11: MUSCLE_REGIONS (MF's 22-group taxonomy, verbatim) +
+                   EX_REGION_MAP (49 MF exercise names → regions [+ KEY_LIFTS
+                   link]) drive per-region cards (weekly hard-set count /
+                   toggle to volume-kg, chartSVG bar, region chip picker over
+                   only regions with data) — dose authority stays MacroFactor's
+                   own Muscle Groups sheets, fractional credit never
+                   re-implemented. Unmapped imported exercise names render in
+                   a visible bucket (dates seen + total sets), never silently
+                   dropped. Hand-rolled TSV parser (parseStrengthTSV, zero
+                   deps): multi-sheet dump or single-sheet paste, Excel-serial
+                   + DD/MM/YYYY date decode, empty cell → absent not zero,
+                   fractional set credits preserved, replace-by-date per
+                   sheet-kind, unrecognised sheets skipped + reported.
+                   KEY_LIFTS auto-feed: mapped kl names gain an additive
+                   src:"mf" e1RM point on import (manual Data-tab points
+                   untouched); variant families (DB-Bulgarian ⇄ Smith-FFE)
+                   take the max per date. #12-complete/#R6: full Nippard
+                   12-wk program (Foundation 1-5 + Ramping 6-12, 5 sessions/
+                   wk, 408 exercise rows, 52 exercises — coincides
+                   numerically with runs.json's 408, UNRELATED) embedded
+                   verbatim; block→week→session nav on the existing .gym-tbl
+                   pattern; region chips via NIPPARD_TO_MF alias bridge; ⓘ
+                   expands substitutions/notes. Prescription-only — never
+                   reads or writes s.strength or s.sessions.gym. Additive
+                   nullable s.strength={reg,ex,imported}. STORE_KEY + schema
+                   version:1 unchanged.
    v1.50 18/07/26 RX gain + descent extension (Addendum A, D044).
                    Every RX object gains additive desc:[lo,hi] (m) beside the
                    existing vert:[lo,hi] (gain) — different namespace from the
@@ -1122,6 +1149,8 @@ const CARD_INFO = {
   focus_notes:{what:"Dated, per-type period focus notes.",src:"Coach/Andre entries per block.",why:"The \"why this block\" memory — intent survives even when the calendar is remade."},
   lifts:{what:"Estimated 1RM trend for the five ultra-relevant lifts.",src:"MacroFactor logged sets (key-lift points entered on the Data tab).",why:"Strength is the durability floor — these five map to descent braking, climbing drive and trunk integrity."},
   block_context:{what:"Where the current gym block sits in the season's alternating lead structure.",src:"PLAN/PHASES lead markers.",why:"Running and hypertrophy alternate the lead — this card says which one is allowed to win this block."},
+  str_import:{what:"MacroFactor Granular Export round-trip — muscle-group and per-exercise daily matrices.",src:"MacroFactor's own fractional-credit aggregation (Muscle Groups sheets) and per-exercise Total Sets/1-RM/Best Set Volume matrices — imported verbatim, never re-derived.",why:"MacroFactor is the dose authority; re-implementing its fractional set credit would drift from what it actually counted."},
+  region_dose:{what:"Weekly hard-set count (or volume, kg) per muscle region against MacroFactor's own tallies.",src:"s.strength.reg, built from the Muscle Groups - Sets/Volume import sheets, replace-by-date.",why:"Weekly hard sets per region is the standard hypertrophy dose metric — the number that actually predicts growth, not just total time in the gym."},
   weight:{what:"Bodyweight trend — AM weigh-ins with a MacroFactor-style EWMA trend line (α=0.10/day). D/W/M zoom the range (3-month / 12-month / all-time); From/To overrides.",src:"Withings scale (weekly points; full history importable).",why:"The 73 kg @ 15% arc is a multi-year build — the EWMA trend is the signal, single readings are noise."},
   lean:{what:"BIA-estimated lean mass.",src:"Withings body-comp (trend-grade only, not clinical).",why:"The physique goal is lean-mass gain under racing interference — this is its (noisy) tracker; DEXA anchors it when convenient."},
   protein:{what:"The current protein target band.",src:"NUTRITION.md ruling (117–143 g/d; 136–146 in hypertrophy blocks).",why:"The single highest-leverage nutrition compliance number for concurrent training."},
@@ -1746,6 +1775,74 @@ const GYM_SESSIONS = {
  "Gym":{name:"Gym (see plan note)", watch:null, ex:[]},
 };
 
+/* ── Phase 5 (v1.51, D045): Strength tab rebuild registries ────────────────
+   §2 MUSCLE_REGIONS (MF's 22-group taxonomy, verbatim) · §3 EX_REGION_MAP
+   (49 MF exercise names → regions [+KEY_LIFTS link]; unmapped names land in
+   the visible "unmapped" bucket, never dropped) · Nippard 12-wk program
+   (Foundation 1-5 + Ramping 6-12, 5 sessions/wk, 408 exercise rows, 52
+   unique exercises — coincides numerically with runs.json's 408, UNRELATED)
+   embedded verbatim from DASHBOARD_PHASE5_BLUEPRINT.md §§2-6, wk-1 verified
+   34/34 against GYM_SESSIONS at blueprint time. Prescription-only — the
+   MacroFactor lifts-log firewall is intact; program view never reads/writes
+   s.strength or s.sessions.gym. NIPPARD_TO_MF is a display-only alias
+   bridge for region chips, not extended without a Coach ruling. */
+const MUSCLE_REGIONS=["Chest","Quads","Upper Back","Glutes","Lats","Hamstrings","Biceps","Triceps","Front Delts","Side Delts","Lower Back","Abs","Calves","Upper Traps","Rear Delts","Forearms","Obliques","Abductors","Adductors","Neck","Tibialis","Serratus"];
+const EX_REGION_MAP={
+"45° Incline Dumbbell Press":{r:["Chest","Front Delts","Triceps"]},
+"45° Leg Press":{r:["Quads","Glutes"]},
+"45° Leg Press Calf Raise":{r:["Calves"]},
+"Barbell Back Squat":{r:["Quads","Glutes"]},
+"Barbell Bench Press":{r:["Chest","Triceps","Front Delts"]},
+"Barbell Romanian Deadlift":{r:["Hamstrings","Glutes","Lower Back"],kl:"Barbell RDL"},
+"Barbell Walking Lunge":{r:["Quads","Glutes"]},
+"Cable EZ Bar Biceps Curl":{r:["Biceps"]},
+"Cable Rope Hammer Curl":{r:["Biceps","Forearms"]},
+"Cable Straight Bar Triceps Pushdown":{r:["Triceps"]},
+"Deficit Pendlay Row":{r:["Upper Back","Lats"]},
+"Dual Cable Bayesian Curl":{r:["Biceps"]},
+"Dumbbell Bulgarian Split Squat":{r:["Quads","Glutes"],kl:"Bulgarian split squat"},
+"Dumbbell Concentration Curl":{r:["Biceps"]},
+"Dumbbell Walking Lunge":{r:["Quads","Glutes"]},
+"EZ Bar Preacher Curl":{r:["Biceps"]},
+"EZ Bar Skull Crusher":{r:["Triceps"]},
+"Goblet Roman Chair Hip Hinge":{r:["Glutes","Hamstrings","Lower Back"]},
+"Hack Squat":{r:["Quads","Glutes"]},
+"High Pulley Cable V-Bar Overhead Triceps Extension":{r:["Triceps"]},
+"Horizontal Cable Fly":{r:["Chest"]},
+"Kettlebell Tib Raise":{r:["Tibialis"]},
+"Leg Extension":{r:["Quads"],kl:"Leg extension (slow ecc.)"},
+"Low-To-High Cable Fly":{r:["Chest","Front Delts"]},
+"Lying Hamstring Curl":{r:["Hamstrings"]},
+"Multi-Hip Machine Hip Abduction":{r:["Abductors","Glutes"]},
+"Multi-Hip Machine Hip Adduction":{r:["Adductors"]},
+"Neutral Close Grip Cable Lat Pulldown":{r:["Lats","Biceps"]},
+"Neutral Grip Cable Row":{r:["Upper Back","Lats"]},
+"Neutral Grip Cable Triceps Kickback":{r:["Triceps"]},
+"Neutral Grip Dumbbell Bench Press":{r:["Chest","Triceps"]},
+"Neutral Grip Pin-Loaded Machine Row":{r:["Upper Back","Lats"]},
+"Overhand Grip Cable Lat Pulldown":{r:["Lats","Upper Back"]},
+"Overhand Grip Machine-Assisted Pull-Up":{r:["Lats","Biceps"]},
+"Pause Cable Shrug-In":{r:["Upper Traps"]},
+"Pec Deck Fly":{r:["Chest"]},
+"Pin-Loaded Leg Press Calf Raise":{r:["Calves"]},
+"Pin-Loaded Machine Crunch (With Chest Pad)":{r:["Abs"]},
+"Seated Dumbbell Overhead Press":{r:["Front Delts","Side Delts","Triceps"]},
+"Seated Hamstring Curl":{r:["Hamstrings"]},
+"Seated Neutral Grip Dumbbell Overhead Press":{r:["Front Delts","Side Delts","Triceps"]},
+"Single Arm 45° Cable Rear Delt Fly":{r:["Rear Delts"]},
+"Single Arm Elbow-Out Dumbbell Row":{r:["Upper Back","Rear Delts"]},
+"Single Arm High Cable Lateral Raise":{r:["Side Delts"]},
+"Smith Machine Back Squat":{r:["Quads","Glutes"],kl:"Smith squat"},
+"Smith Machine Front Foot Elevated Split Squat":{r:["Quads","Glutes"],kl:"Bulgarian split squat"},
+"Smith Machine Pendlay Row":{r:["Upper Back","Lats"]},
+"Standing Dumbbell Shrug":{r:["Upper Traps"]},
+"Standing Machine Calf Raise":{r:["Calves"],kl:"Standing calf raise"}
+};
+const NIPPARD_EX=["1-Arm 45° Cable Rear Delt Flye","45° Hyperextension","45° Incline Barbell Press","45° Incline DB Press","Ab Wheel Rollout","Barbell Bench Press","Barbell RDL","Bayesian Cable Curl","Bottom-Half DB Flye","Bottom-Half Seated Cable Flye","Cable Crossover Ladder","Cable Crunch","Cable Paused Shrug-In","Cable Rope Hammer Curl","Cable Triceps Kickback","Chest-Supported Machine Row","Chest-Supported T-Bar Row","DB Bulgarian Split Squat","DB Concentration Curl","Dual-Handle Elbows-Out Cable Row","Dual-Handle Lat Pulldown","EZ-Bar Cable Curl","EZ-Bar Skull Crusher","Hack Squat","High-Cable Lateral Raise","Lean-Back Lat Pulldown","Leg Extension","Leg Press","Leg Press Calf Press","Lying Leg Curl","Machine Chest Press","Machine Crunch","Machine Hip Abduction","Machine Hip Adduction","Machine Preacher Curl","Machine Shoulder Press","Machine Shrug","Neutral-Grip Lat Pulldown","Neutral-Grip Seated Cable Row","Overhead Cable Triceps Extension (Bar)","Pec Deck","Pendlay Deficit Row","Roman Chair Leg Raise","Seated DB Shoulder Press","Seated Leg Curl","Smith Machine Row","Smith Machine Squat","Smith Machine Static Lunge w/ Elevated Front Foot","Standing Calf Raise","Triceps Pressdown (Bar)","Walking Lunge","Wide-Grip Pull-Up"];
+const NIPPARD_META={"0":{"s":["Rope Face Pull","Reverse Pec Deck"],"n":"Pause for 1-2 seconds in the squeeze of each rep. Contract the rear delts hard!"},"1":{"s":["Glute-Ham Raise","Cable Pull-Through"],"n":"Squeeze your glutes hard at the top of each rep. Slow controlled reps on the way down, followed by an explosive positive."},"2":{"s":["45° Incline DB Press","45° Incline Machine Press"],"n":"1 second pause at the bottom of each rep while maintaining tension on the pecs"},"3":{"s":["45° Incline Barbell Press","45° Incline Machine Press"],"n":"1 second pause at the bottom of each rep while maintaining tension on the pecs"},"4":{"s":["Swiss Ball Rollout","Long-Lever Plank"],"n":"Don't just bend at your hips, use your abs to lower yourself down under control and pull yourself back up. If you don't have the core strength to get all the way extended at the bottom, try to progressively increase the ROM week to week."},"5":{"s":["Machine Chest Press","DB Bench Press"],"n":"Set up a comfortable arch, quick pause on the chest and explode up on each rep."},"6":{"s":["DB RDL","Snatch-Grip RDL"],"n":"To keep tension on the hamstrings, stop about 75% of the way to full lockout on each rep (i.e. stay in the bottom 3/4 of the range of motion)."},"7":{"s":["Seated Super-Bayesian High Cable Curl","Incline DB Stretch Curl"],"n":"If you have a left-right bicep size imbalance, do these 1 arm at a time, starting with the weaker arm. Take the weaker arm to the listed RPE. Then match the reps with the other arm (stop once you've matched the reps, even if the RPE is lower). If you don't have a size imbalance, do these both arms at the same time."},"8":{"s":["Bottom-Half Seated Cable Flye","Low-to-High Cable Crossover"],"n":"All reps and sets are to be performed in the bottom half of the ROM. Focus on feeling a deep stretch in your pecs at the bottom of each rep."},"9":{"s":["Bottom-Half DB Flye","Low-to-High Cable Crossover"],"n":"All reps and sets are to be performed in the bottom half of the ROM. Focus on feeling a deep stretch in your pecs at the bottom of each rep."},"10":{"s":["Pec Deck","Bottom-Half DB Flye"],"n":"Do one set with low cable position, one set with medium-height cable position, and one height with a high cable position. If you only have one or two sets, choose the one or two cable positions you prefer."},"11":{"s":["Decline Weighted Crunch","Machine Crunch"],"n":"Round your lower back as you crunch. Maintain a mind-muscle connection with your 6-pack."},"12":{"s":["Machine Shrug","DB Shrug"],"n":"Shrug up and in. Think about shrugging \"up to your ears.\" 1-2 second pause in the squeeze (at the top) of each rep, then another 1-2 second pause in the stretch (at the bottom) of each rep."},"13":{"s":["DB Hammer Curl","Hammer Preacher Curl"],"n":"Squeeze the rope hard as you curl the weight up. Smooth, controlled reps."},"14":{"s":["DB Triceps Kickback","Bench Dip"],"n":"There are two ways you can do this: upright or bent over. Choose the one that feels more comfortable for you. The main thing is that when you're in the full squeeze, your shoulder should be positioned back behind your torso."},"15":{"s":["Chest-Supported T-Bar Row","Incline Chest-Supported DB Row"],"n":"Flare elbows out at roughly 45° and squeeze your shoulder blades together hard at the top of each rep."},"16":{"s":["Chest-Supported Machine Row","Incline Chest-Supported DB Row"],"n":"Flare elbows out at roughly 45° and squeeze your shoulder blades together hard at the top of each rep."},"17":{"s":["DB Step-Up","Goblet Squat"],"n":"Lower all the way down until your front thigh is parallel to the ground. Drive through your front heel on the way up."},"18":{"s":["Concentration Cable Curl","DB Preacher Curl"],"n":"Smooth, controlled reps. Mind-muscle connection with the biceps."},"19":{"s":["Arm-Out Single-Arm DB Row","Meadows Row"],"n":"Flare your elbows out ~45°. Smooth, controlled reps."},"20":{"s":["Wide-Grip Lat Pulldown","Wide-Grip Pull-Up"],"n":"Lean back by ~15° and drive your elbows down as you squeeze your shoulder blades together. This should feel like a mix of lats and mid-traps."},"21":{"s":["EZ-Bar Curl","DB Curl"],"n":"Set up the cable at the lowest position. Maintain constant tension on the biceps. Slow, controlled reps!"},"22":{"s":["DB Skull Crusher","Katana Triceps Extension"],"n":"Optionally pause for 0.5-1 second in the stretched aspect of each rep"},"23":{"s":["Leg Press","DB Walking Lunge"],"n":"Use a controlled negative (don't free fall) and then explode on the positive."},"24":{"s":["High-Cable Cuffed Lateral Raise","Lean-In DB Lateral Raise"],"n":"Focus on squeezing your lateral delt to move the weight."},"25":{"s":["Lean-Back Machine Pulldown","Pull-Up"],"n":"Initiate the pulldown with a straight up posture. As you pull the bar down, lean back by about 15-30° to get the mid-back more involved. Softly touch the bar to your chest on every rep and, even though you're leaning back, still control the weight!"},"26":{"s":["Reverse Nordic","Sissy Squat"],"n":"Set the seat back as far as it will go while still feeling comfortable. Grab the handles as hard as you can to pull your butt down into the seat. Use a 2-3 second negative. Feel your quads pulling apart on the negative."},"27":{"s":["Smith Machine Static Lunge","DB Walking Lunge"],"n":"Feet lower on the platform for more quad focus. Get as deep as you can without excessive back rounding. Control the negative and do a slight pause at the bottom of each rep."},"28":{"s":["Seated Calf Raise","Standing Calf Raise"],"n":"1-2 second pause at the bottom of each rep. Instead of just going up onto your toes, think about rolling your ankle back and forth on the balls of your feet."},"29":{"s":["Seated Leg Curl","Nordic Ham Curl"],"n":"Set the machine so that you get the biggest stretch possible at the bottom. Prevent your butt from popping up as you curl."},"30":{"s":["Barbell Bench Press","DB Bench Press"],"n":"1 second pause at the bottom of each rep while maintaining tension on the pecs"},"31":{"s":["Decline Weighted Crunch","Cable Crunch"],"n":"Round your lower back as you crunch. Maintain a mind-muscle connection with your 6-pack."},"32":{"s":["Cable Hip Abduction","Lateral Band Walk"],"n":"If possible, use pads to increase the range of motion on the machine. Lean forward and grab onto the machine rails to stretch the glutes further."},"33":{"s":["Cable Hip Adduction","Copenhagen Hip Adduction"],"n":"Mind-muscle connection with your inner thighs. These are great for adding thigh mass from the front! Push them hard!"},"34":{"s":["EZ-Bar Preacher Curl","DB Preacher Curl"],"n":"Smooth, controlled reps. Mind-muscle connection with the biceps."},"35":{"s":["Cable Shoulder Press","Seated DB Shoulder Press"],"n":"Ensure that your elbows break at least 90°. Mind-muscle connection with your delts. Smooth, controlled reps."},"36":{"s":["Cable Paused Shrug-In","DB Shrug"],"n":"Brief pause at the top and bottom of ROM. Think about pulling your shoulders up to your ears!"},"37":{"s":["Neutral-Grip Pull-Up","Dual-Handle Lat Pulldown"],"n":"Do these pulldowns with the handle more out in front of you, more like a cross between pullover and a pulldown. Focus on feeling your lats working more than the weight you're using."},"38":{"s":["Helms Row","Meadows Row"],"n":"Focus on squeezing your shoulder blades together, driving your elbows down and back."},"39":{"s":["Overhead Cable Triceps Extension (Rope)","DB Skull Crusher"],"n":"Optionally pause for 0.5-1 second in the stretched aspect of each rep"},"40":{"s":["Cable Crossover Ladder","Bottom-Half DB Flye"],"n":"Focus on bringing your elbows together - not your hands"},"41":{"s":["Smith Machine Row","Single-Arm DB Row"],"n":"Stand on a bumper plate. Focus on getting a big stretch and touch your stomach/chest on each rep!"},"42":{"s":["Hanging Leg Raise","Modified Candlestick"],"n":"Allow your lower back to round as you curl your legs up. 10-20 reps is a broad range on purpose: just go until you hit the listed RPE with controlled form."},"43":{"s":["Cable Shoulder Press","Machine Shoulder Press"],"n":"Ensure that your elbows break at least 90°. Mind-muscle connection with your delts. Smooth, controlled reps."},"44":{"s":["Lying Leg Curl","Nordic Ham Curl"],"n":"Lean forward over the machine to get a maximum stretch in your hamstrings."},"45":{"s":["Pendlay Deficit Row","Single-Arm DB Row"],"n":"Focus on squeezing your shoulder blades together, keeping your elbows at a ~45° angle"},"46":{"s":["DB Bulgarian Split Squat","High-Bar Back Squat"],"n":"Once you are under the bar, set up your feet as you would a normal squat and then bring them forward ~3-6 inches. This will cause you to lean back into the bar slightly, allowing for a more upright squat, while also placing more tension on the quads. If your heels are raising at the bottom, you may need to bring your feet more forward. If your feet feel like they are slipping or your lower back is rounding at the bottom, try bringing your feet back a bit."},"47":{"s":["DB Bulgarian Split Squat","High-Bar Back Squat"],"n":"Elevate your front foot on a small box. Minimize contribution from your back leg."},"48":{"s":["Seated Calf Raise","Leg Press Calf Press"],"n":"1-2 second pause at the bottom of each rep. Instead of just going up onto your toes, think about rolling your ankle back and forth on the balls of your feet."},"49":{"s":["Triceps Pressdown (Rope)","DB Triceps Kickback"],"n":"Focus on squeezing your triceps to move the weight"},"50":{"s":["Smith Machine Static Lunge","DB Static Lunge"],"n":"Take medium strides. Minimize contribution from the back leg"},"51":{"s":["Wide-Grip Lat Pulldown","Dual-Handle Lat Pulldown"],"n":"1.5x shoulder width overhand grip. Slow 2-3 second negative. Feel your lats pulling apart on the way down."}};
+const NIPPARD_WEEKS={"1":{"b":"F","d":[{"k":"Upper","ex":[[2,"N/A","2-3","2","6-8","6-7","7-8","3-5 min"],[10,"N/A","1-2","2","8-10","7-8","8-9","1-2 min"],[51,"N/A","1-2","2","8-10","6-7","7-8","2-3 min"],[24,"N/A","1-2","2","8-10","7-8","8-9","1-2 min"],[41,"N/A","1-2","2","6-8","7-8","8-9","2-3 min"],[39,"N/A","1","2","8-10","7-8","8-9","1-2 min"],[7,"N/A","1","2","8-10","7-8","8-9","1-2 min"]]},{"k":"Lower","ex":[[29,"N/A","2","2","8-10","7-8","8-9","1-2 min"],[46,"N/A","2-4","2","6-8","6-7","7-8","3-5 min"],[6,"N/A","2-4","2","6-8","6-7","7-8","2-3 min"],[26,"N/A","1-2","2","8-10","7-8","8-9","1-2 min"],[48,"N/A","1-2","2","6-8","7-8","8-9","1-2 min"],[11,"N/A","1","2","8-10","7-8","8-9","1-2 min"]]},null,{"k":"Pull","ex":[[37,"N/A","2-3","2","8-10","6-7","7-8","2-3 min"],[15,"N/A","2-3","2","8-10","6-7","7-8","2-3 min"],[38,"N/A","1-2","2","10-12","7-8","8-9","2-3 min"],[0,"N/A","1-2","2","10-12","7-8","8-9","1-2 min"],[36,"N/A","2-3","2","10-12","7-8","8-9","1-2 min"],[21,"N/A","1","2","10-12","7-8","8-9","1-2 min"],[34,"N/A","1","1","12-15","N/A","8-9","1-2 min"]]},{"k":"Push","ex":[[5,"N/A","2-4","2","8-10","6-7","7-8","3-5 min"],[35,"N/A","2-3","2","8-10","6-7","7-8","2-3 min"],[8,"N/A","1-2","2","10-12","7-8","8-9","1-2 min"],[24,"N/A","1","2","10-12","7-8","8-9","1-2 min"],[39,"N/A","1","2","10-12","7-8","8-9","1-2 min"],[14,"N/A","1","1","12-15","N/A","8-9","1-2 min"],[42,"N/A","1-2","2","10-20","7-8","8-9","1-2 min"]]},{"k":"Legs","ex":[[27,"N/A","2-4","2","8-10","6-7","7-8","2-3 min"],[44,"N/A","1-2","2","10-12","7-8","8-9","1-2 min"],[17,"N/A","2-3","2","8-10","6-7","7-8","2-3 min"],[26,"N/A","1-2","2","10-12","7-8","8-9","1-2 min"],[33,"N/A","1-2","2","10-12","7-8","8-9","1-2 min"],[32,"N/A","1-2","2","10-12","7-8","8-9","1-2 min"],[48,"N/A","1-2","2","10-12","7-8","8-9","1-2 min"]]},null]},"2":{"b":"F","d":[{"k":"Upper","ex":[[2,"Failure","2-3","3","6-8","8-9","10","3-5 min"],[10,"Failure","1-2","2","8-10","8-9","10","1-2 min"],[51,"Failure","1-2","3","8-10","8-9","10","2-3 min"],[24,"Failure","1-2","2","8-10","8-9","10","1-2 min"],[41,"Failure + LLPs (Extend set)","1-2","2","6-8","8-9","10","2-3 min"],[39,"Failure","1","2","8-10","8-9","10","1-2 min"],[7,"Failure","1","2","8-10","8-9","10","1-2 min"]]},{"k":"Lower","ex":[[29,"Failure + LLPs (Extend set)","2","2","8-10","8-9","10","1-2 min"],[46,"Failure","2-4","3","6-8","8-9","10","3-5 min"],[6,"Failure","2-4","3","6-8","8-9","10","2-3 min"],[26,"Failure","1-2","2","8-10","8-9","10","1-2 min"],[48,"Static Stretch (30s)","1-2","2","6-8","8-9","10","1-2 min"],[11,"Failure","1","2","8-10","8-9","10","1-2 min"]]},null,{"k":"Pull","ex":[[37,"Failure","2-3","2","8-10","8-9","10","2-3 min"],[15,"Failure","2-3","3","8-10","8-9","10","2-3 min"],[38,"Failure + LLPs (Extend set)","1-2","2","10-12","8-9","10","2-3 min"],[0,"Myo-reps","1-2","2","10-12","8-9","10","1-2 min"],[36,"Failure","2-3","2","10-12","8-9","10","1-2 min"],[21,"Failure","1","2","10-12","8-9","10","1-2 min"],[34,"Myo-reps","1","1","12-15","N/A","10","1-2 min"]]},{"k":"Push","ex":[[5,"Failure","2-4","3","8-10","8-9","10","3-5 min"],[35,"Failure","2-3","2","8-10","8-9","10","2-3 min"],[8,"Failure","1-2","2","10-12","8-9","10","1-2 min"],[24,"Myo-reps","1","2","10-12","8-9","10","1-2 min"],[39,"Failure","1","2","10-12","8-9","10","1-2 min"],[14,"Myo-reps","1","1","12-15","N/A","10","1-2 min"],[42,"Failure","1-2","2","10-20","8-9","10","1-2 min"]]},{"k":"Legs","ex":[[27,"Failure","2-4","3","8-10","8-9","10","2-3 min"],[44,"Failure + LLPs (Extend set)","1-2","2","10-12","8-9","10","1-2 min"],[17,"Failure","2-3","2","8-10","8-9","10","2-3 min"],[26,"Myo-reps","1-2","2","10-12","8-9","10","1-2 min"],[33,"Failure","1-2","2","10-12","8-9","10","1-2 min"],[32,"Failure","1-2","2","10-12","8-9","10","1-2 min"],[48,"Static Stretch (30s)","1-2","2","10-12","8-9","10","1-2 min"]]},null]},"3":{"b":"F","d":[{"k":"Upper","ex":[[2,"Failure","2-3","3","6-8","8-9","10","3-5 min"],[10,"Failure","1-2","2","8-10","8-9","10","1-2 min"],[51,"Failure","1-2","3","8-10","8-9","10","2-3 min"],[24,"Failure","1-2","2","8-10","8-9","10","1-2 min"],[41,"Failure + LLPs (Extend set)","1-2","2","6-8","8-9","10","2-3 min"],[39,"Failure","1","2","8-10","8-9","10","1-2 min"],[7,"Failure","1","2","8-10","8-9","10","1-2 min"]]},{"k":"Lower","ex":[[29,"Failure + LLPs (Extend set)","2","2","8-10","8-9","10","1-2 min"],[46,"Failure","2-4","3","6-8","8-9","10","3-5 min"],[6,"Failure","2-4","3","6-8","8-9","10","2-3 min"],[26,"Failure","1-2","2","8-10","8-9","10","1-2 min"],[48,"Static Stretch (30s)","1-2","2","6-8","8-9","10","1-2 min"],[11,"Failure","1","2","8-10","8-9","10","1-2 min"]]},null,{"k":"Pull","ex":[[37,"Failure","2-3","2","8-10","8-9","10","2-3 min"],[15,"Failure","2-3","3","8-10","8-9","10","2-3 min"],[38,"Failure + LLPs (Extend set)","1-2","2","10-12","8-9","10","2-3 min"],[0,"Myo-reps","1-2","2","10-12","8-9","10","1-2 min"],[36,"Failure","2-3","2","10-12","8-9","10","1-2 min"],[21,"Failure","1","2","10-12","8-9","10","1-2 min"],[34,"Myo-reps","1","1","12-15","N/A","10","1-2 min"]]},{"k":"Push","ex":[[5,"Failure","2-4","3","8-10","8-9","10","3-5 min"],[35,"Failure","2-3","2","8-10","8-9","10","2-3 min"],[8,"Failure","1-2","2","10-12","8-9","10","1-2 min"],[24,"Myo-reps","1","2","10-12","8-9","10","1-2 min"],[39,"Failure","1","2","10-12","8-9","10","1-2 min"],[14,"Myo-reps","1","1","12-15","N/A","10","1-2 min"],[42,"Failure","1-2","2","10-20","8-9","10","1-2 min"]]},{"k":"Legs","ex":[[27,"Failure","2-4","3","8-10","8-9","10","2-3 min"],[44,"Failure + LLPs (Extend set)","1-2","2","10-12","8-9","10","1-2 min"],[17,"Failure","2-3","2","8-10","8-9","10","2-3 min"],[26,"Myo-reps","1-2","2","10-12","8-9","10","1-2 min"],[33,"Failure","1-2","2","10-12","8-9","10","1-2 min"],[32,"Failure","1-2","2","10-12","8-9","10","1-2 min"],[48,"Static Stretch (30s)","1-2","2","10-12","8-9","10","1-2 min"]]},null]},"4":{"b":"F","d":[{"k":"Upper","ex":[[2,"Failure","2-3","3","6-8","8-9","10","3-5 min"],[10,"Failure","1-2","2","8-10","8-9","10","1-2 min"],[51,"Failure","1-2","3","8-10","8-9","10","2-3 min"],[24,"Failure","1-2","2","8-10","8-9","10","1-2 min"],[41,"Failure + LLPs (Extend set)","1-2","2","6-8","8-9","10","2-3 min"],[39,"Failure","1","2","8-10","8-9","10","1-2 min"],[7,"Failure","1","2","8-10","8-9","10","1-2 min"]]},{"k":"Lower","ex":[[29,"Failure + LLPs (Extend set)","2","2","8-10","8-9","10","1-2 min"],[46,"Failure","2-4","3","6-8","8-9","10","3-5 min"],[6,"Failure","2-4","3","6-8","8-9","10","2-3 min"],[26,"Failure","1-2","2","8-10","8-9","10","1-2 min"],[48,"Static Stretch (30s)","1-2","2","6-8","8-9","10","1-2 min"],[11,"Failure","1","2","8-10","8-9","10","1-2 min"]]},null,{"k":"Pull","ex":[[37,"Failure","2-3","2","8-10","8-9","10","2-3 min"],[15,"Failure","2-3","3","8-10","8-9","10","2-3 min"],[38,"Failure + LLPs (Extend set)","1-2","2","10-12","8-9","10","2-3 min"],[0,"Myo-reps","1-2","2","10-12","8-9","10","1-2 min"],[36,"Failure","2-3","2","10-12","8-9","10","1-2 min"],[21,"Failure","1","2","10-12","8-9","10","1-2 min"],[34,"Myo-reps","1","1","12-15","N/A","10","1-2 min"]]},{"k":"Push","ex":[[5,"Failure","2-4","3","8-10","8-9","10","3-5 min"],[35,"Failure","2-3","2","8-10","8-9","10","2-3 min"],[8,"Failure","1-2","2","10-12","8-9","10","1-2 min"],[24,"Myo-reps","1","2","10-12","8-9","10","1-2 min"],[39,"Failure","1","2","10-12","8-9","10","1-2 min"],[14,"Myo-reps","1","1","12-15","N/A","10","1-2 min"],[42,"Failure","1-2","2","10-20","8-9","10","1-2 min"]]},{"k":"Legs","ex":[[27,"Failure","2-4","3","8-10","8-9","10","2-3 min"],[44,"Failure + LLPs (Extend set)","1-2","2","10-12","8-9","10","1-2 min"],[17,"Failure","2-3","2","8-10","8-9","10","2-3 min"],[26,"Myo-reps","1-2","2","10-12","8-9","10","1-2 min"],[33,"Failure","1-2","2","10-12","8-9","10","1-2 min"],[32,"Failure","1-2","2","10-12","8-9","10","1-2 min"],[48,"Static Stretch (30s)","1-2","2","10-12","8-9","10","1-2 min"]]},null]},"5":{"b":"F","d":[{"k":"Upper","ex":[[2,"Failure","2-3","3","6-8","8-9","10","3-5 min"],[10,"Failure","1-2","2","8-10","8-9","10","1-2 min"],[51,"Failure","1-2","3","8-10","8-9","10","2-3 min"],[24,"Failure","1-2","2","8-10","8-9","10","1-2 min"],[41,"Failure + LLPs (Extend set)","1-2","2","6-8","8-9","10","2-3 min"],[39,"Failure","1","2","8-10","8-9","10","1-2 min"],[7,"Failure","1","2","8-10","8-9","10","1-2 min"]]},{"k":"Lower","ex":[[29,"Failure + LLPs (Extend set)","2","2","8-10","8-9","10","1-2 min"],[46,"Failure","2-4","3","6-8","8-9","10","3-5 min"],[6,"Failure","2-4","3","6-8","8-9","10","2-3 min"],[26,"Failure","1-2","2","8-10","8-9","10","1-2 min"],[48,"Static Stretch (30s)","1-2","2","6-8","8-9","10","1-2 min"],[11,"Failure","1","2","8-10","8-9","10","1-2 min"]]},null,{"k":"Pull","ex":[[37,"Failure","2-3","2","8-10","8-9","10","2-3 min"],[15,"Failure","2-3","3","8-10","8-9","10","2-3 min"],[38,"Failure + LLPs (Extend set)","1-2","2","10-12","8-9","10","2-3 min"],[0,"Myo-reps","1-2","2","10-12","8-9","10","1-2 min"],[36,"Failure","2-3","2","10-12","8-9","10","1-2 min"],[21,"Failure","1","2","10-12","8-9","10","1-2 min"],[34,"Myo-reps","1","1","12-15","N/A","10","1-2 min"]]},{"k":"Push","ex":[[5,"Failure","2-4","3","8-10","8-9","10","3-5 min"],[35,"Failure","2-3","2","8-10","8-9","10","2-3 min"],[8,"Failure","1-2","2","10-12","8-9","10","1-2 min"],[24,"Myo-reps","1","2","10-12","8-9","10","1-2 min"],[39,"Failure","1","2","10-12","8-9","10","1-2 min"],[14,"Myo-reps","1","1","12-15","N/A","10","1-2 min"],[42,"Failure","1-2","2","10-20","8-9","10","1-2 min"]]},{"k":"Legs","ex":[[27,"Failure","2-4","3","8-10","8-9","10","2-3 min"],[44,"Failure + LLPs (Extend set)","1-2","2","10-12","8-9","10","1-2 min"],[17,"Failure","2-3","2","8-10","8-9","10","2-3 min"],[26,"Myo-reps","1-2","2","10-12","8-9","10","1-2 min"],[33,"Failure","1-2","2","10-12","8-9","10","1-2 min"],[32,"Failure","1-2","2","10-12","8-9","10","1-2 min"],[48,"Static Stretch (30s)","1-2","2","10-12","8-9","10","1-2 min"]]},null]},"6":{"b":"R","d":[{"k":"Upper","ex":[[3,"N/A","2-3","2","8-10","6-7","7-8","3-5 min"],[40,"N/A","1-2","2","10-12","7-8","8-9","1-2 min"],[20,"N/A","1-2","2","10-12","6-7","7-8","2-3 min"],[24,"N/A","1-2","2","10-12","7-8","8-9","1-2 min"],[45,"N/A","1-2","2","8-10","7-8","8-9","2-3 min"],[39,"N/A","1","2","10-12","7-8","8-9","1-2 min"],[7,"N/A","1","2","10-12","7-8","8-9","1-2 min"]]},{"k":"Lower","ex":[[29,"N/A","2","2","10-12","7-8","8-9","1-2 min"],[47,"N/A","2-4","2","8-10","6-7","7-8","3-5 min"],[1,"N/A","2-4","2","8-10","6-7","7-8","2-3 min"],[26,"N/A","1-2","2","10-12","7-8","8-9","1-2 min"],[28,"N/A","1-2","2","8-10","7-8","8-9","1-2 min"],[31,"N/A","1","2","10-12","7-8","8-9","1-2 min"]]},null,{"k":"Pull","ex":[[25,"N/A","2-3","2","10-12","6-7","7-8","2-3 min"],[16,"N/A","2-3","2","10-12","6-7","7-8","2-3 min"],[19,"N/A","1-2","2","12-15","7-8","8-9","2-3 min"],[0,"N/A","1-2","2","12-15","7-8","8-9","1-2 min"],[12,"N/A","2-3","2","12-15","7-8","8-9","1-2 min"],[13,"N/A","1","2","12-15","7-8","8-9","1-2 min"],[18,"N/A","1","1","15-20","N/A","8-9","1-2 min"]]},{"k":"Push","ex":[[30,"N/A","2-4","2","10-12","6-7","7-8","3-5 min"],[43,"N/A","2-3","2","10-12","6-7","7-8","2-3 min"],[9,"N/A","1-2","2","12-15","7-8","8-9","1-2 min"],[24,"N/A","1","2","12-15","7-8","8-9","1-2 min"],[22,"N/A","1","2","12-15","7-8","8-9","1-2 min"],[49,"N/A","1","1","15-20","N/A","8-9","1-2 min"],[4,"N/A","1-2","2","12-15","7-8","8-9","1-2 min"]]},{"k":"Legs","ex":[[23,"N/A","2-4","2","10-12","6-7","7-8","2-3 min"],[44,"N/A","1-2","2","12-15","7-8","8-9","1-2 min"],[50,"N/A","2-3","2","10-12","6-7","7-8","2-3 min"],[26,"N/A","1-2","2","12-15","7-8","8-9","1-2 min"],[33,"N/A","1-2","2","12-15","7-8","8-9","1-2 min"],[32,"N/A","1-2","2","12-15","7-8","8-9","1-2 min"],[48,"N/A","1-2","2","12-15","7-8","8-9","1-2 min"]]},null]},"7":{"b":"R","d":[{"k":"Upper","ex":[[3,"Failure","2-3","3","8-10","8-9","10","3-5 min"],[40,"Failure","1-2","3","10-12","8-9","10","1-2 min"],[20,"Failure","1-2","3","10-12","8-9","10","2-3 min"],[24,"Failure","1-2","2","10-12","8-9","10","1-2 min"],[45,"Failure + LLPs (Extend set)","1-2","3","8-10","8-9","10","2-3 min"],[39,"Failure","1","2","10-12","8-9","10","1-2 min"],[7,"Failure","1","2","10-12","8-9","10","1-2 min"]]},{"k":"Lower","ex":[[29,"Failure + LLPs (Extend set)","2","2","10-12","8-9","10","1-2 min"],[47,"Failure","2-4","3","8-10","8-9","10","3-5 min"],[1,"Failure","2-4","3","8-10","8-9","10","2-3 min"],[26,"Failure","1-2","3","10-12","8-9","10","1-2 min"],[28,"Static Stretch (30s)","1-2","3","8-10","8-9","10","1-2 min"],[31,"Failure","1","2","10-12","8-9","10","1-2 min"]]},null,{"k":"Pull","ex":[[25,"Failure","2-3","3","10-12","8-9","10","2-3 min"],[16,"Failure","2-3","3","10-12","8-9","10","2-3 min"],[19,"Failure + LLPs (Extend set)","1-2","2","12-15","8-9","10","2-3 min"],[0,"Myo-reps","1-2","3","12-15","8-9","10","1-2 min"],[12,"Failure","2-3","2","12-15","8-9","10","1-2 min"],[13,"Failure","1","3","12-15","8-9","10","1-2 min"],[18,"Myo-reps","1","2","15-20","8-9","10","1-2 min"]]},{"k":"Push","ex":[[30,"Failure","2-4","3","10-12","8-9","10","3-5 min"],[43,"Failure","2-3","3","10-12","8-9","10","2-3 min"],[9,"Failure","1-2","2","12-15","8-9","10","1-2 min"],[24,"Myo-reps","1","2","12-15","8-9","10","1-2 min"],[22,"Failure","1","3","12-15","8-9","10","1-2 min"],[49,"Myo-reps","1","2","15-20","8-9","10","1-2 min"],[4,"Failure","1-2","2","12-15","8-9","10","1-2 min"]]},{"k":"Legs","ex":[[23,"Failure","2-4","3","10-12","8-9","10","2-3 min"],[44,"Failure + LLPs (Extend set)","1-2","3","12-15","8-9","10","1-2 min"],[50,"Failure","2-3","2","10-12","8-9","10","2-3 min"],[26,"Myo-reps","1-2","2","12-15","8-9","10","1-2 min"],[33,"Failure","1-2","2","12-15","8-9","10","1-2 min"],[32,"Failure","1-2","2","12-15","8-9","10","1-2 min"],[48,"Static Stretch (30s)","1-2","2","12-15","8-9","10","1-2 min"]]},null]},"8":{"b":"R","d":[{"k":"Upper","ex":[[3,"Failure","2-3","3","8-10","8-9","10","3-5 min"],[40,"Failure","1-2","3","10-12","8-9","10","1-2 min"],[20,"Failure","1-2","3","10-12","8-9","10","2-3 min"],[24,"Failure","1-2","2","10-12","8-9","10","1-2 min"],[45,"Failure + LLPs (Extend set)","1-2","3","8-10","8-9","10","2-3 min"],[39,"Failure","1","2","10-12","8-9","10","1-2 min"],[7,"Failure","1","2","10-12","8-9","10","1-2 min"]]},{"k":"Lower","ex":[[29,"Failure + LLPs (Extend set)","2","2","10-12","8-9","10","1-2 min"],[47,"Failure","2-4","3","8-10","8-9","10","3-5 min"],[1,"Failure","2-4","3","8-10","8-9","10","2-3 min"],[26,"Failure","1-2","3","10-12","8-9","10","1-2 min"],[28,"Static Stretch (30s)","1-2","3","8-10","8-9","10","1-2 min"],[31,"Failure","1","2","10-12","8-9","10","1-2 min"]]},null,{"k":"Pull","ex":[[25,"Failure","2-3","3","10-12","8-9","10","2-3 min"],[16,"Failure","2-3","3","10-12","8-9","10","2-3 min"],[19,"Failure + LLPs (Extend set)","1-2","2","12-15","8-9","10","2-3 min"],[0,"Myo-reps","1-2","3","12-15","8-9","10","1-2 min"],[12,"Failure","2-3","2","12-15","8-9","10","1-2 min"],[13,"Failure","1","3","12-15","8-9","10","1-2 min"],[18,"Myo-reps","1","2","15-20","8-9","10","1-2 min"]]},{"k":"Push","ex":[[30,"Failure","2-4","3","10-12","8-9","10","3-5 min"],[43,"Failure","2-3","3","10-12","8-9","10","2-3 min"],[9,"Failure","1-2","2","12-15","8-9","10","1-2 min"],[24,"Myo-reps","1","2","12-15","8-9","10","1-2 min"],[22,"Failure","1","3","12-15","8-9","10","1-2 min"],[49,"Myo-reps","1","2","15-20","8-9","10","1-2 min"],[4,"Failure","1-2","2","12-15","8-9","10","1-2 min"]]},{"k":"Legs","ex":[[23,"Failure","2-4","3","10-12","8-9","10","2-3 min"],[44,"Failure + LLPs (Extend set)","1-2","3","12-15","8-9","10","1-2 min"],[50,"Failure","2-3","2","10-12","8-9","10","2-3 min"],[26,"Myo-reps","1-2","2","12-15","8-9","10","1-2 min"],[33,"Failure","1-2","2","12-15","8-9","10","1-2 min"],[32,"Failure","1-2","2","12-15","8-9","10","1-2 min"],[48,"Static Stretch (30s)","1-2","2","12-15","8-9","10","1-2 min"]]},null]},"9":{"b":"R","d":[{"k":"Upper","ex":[[3,"Failure","2-3","3","8-10","8-9","10","3-5 min"],[40,"Failure","1-2","3","10-12","8-9","10","1-2 min"],[20,"Failure","1-2","3","10-12","8-9","10","2-3 min"],[24,"Failure","1-2","2","10-12","8-9","10","1-2 min"],[45,"Failure + LLPs (Extend set)","1-2","3","8-10","8-9","10","2-3 min"],[39,"Failure","1","3","10-12","8-9","10","1-2 min"],[7,"Failure","1","3","10-12","8-9","10","1-2 min"]]},{"k":"Lower","ex":[[29,"Failure + LLPs (Extend set)","2","3","10-12","8-9","10","1-2 min"],[47,"Failure","2-4","3","8-10","8-9","10","3-5 min"],[1,"Failure","2-4","3","8-10","8-9","10","2-3 min"],[26,"Failure","1-2","3","10-12","8-9","10","1-2 min"],[28,"Static Stretch (30s)","1-2","3","8-10","8-9","10","1-2 min"],[31,"Failure","1","3","10-12","8-9","10","1-2 min"]]},null,{"k":"Pull","ex":[[25,"Failure","2-3","3","10-12","8-9","10","2-3 min"],[16,"Failure","2-3","3","10-12","8-9","10","2-3 min"],[19,"Failure + LLPs (Extend set)","1-2","3","12-15","8-9","10","2-3 min"],[0,"Myo-reps","1-2","3","12-15","8-9","10","1-2 min"],[12,"Failure","2-3","3","12-15","8-9","10","1-2 min"],[13,"Failure","1","3","12-15","8-9","10","1-2 min"],[18,"Myo-reps","1","2","15-20","8-9","10","1-2 min"]]},{"k":"Push","ex":[[30,"Failure","2-4","3","10-12","8-9","10","3-5 min"],[43,"Failure","2-3","3","10-12","8-9","10","2-3 min"],[9,"Failure","1-2","3","12-15","8-9","10","1-2 min"],[24,"Myo-reps","1","3","12-15","8-9","10","1-2 min"],[22,"Failure","1","3","12-15","8-9","10","1-2 min"],[49,"Myo-reps","1","2","15-20","8-9","10","1-2 min"],[4,"Failure","1-2","3","12-15","8-9","10","1-2 min"]]},{"k":"Legs","ex":[[23,"Failure","2-4","3","10-12","8-9","10","2-3 min"],[44,"Failure + LLPs (Extend set)","1-2","3","12-15","8-9","10","1-2 min"],[50,"Failure","2-3","2","10-12","8-9","10","2-3 min"],[26,"Myo-reps","1-2","3","12-15","8-9","10","1-2 min"],[33,"Failure","1-2","3","12-15","8-9","10","1-2 min"],[32,"Failure","1-2","3","12-15","8-9","10","1-2 min"],[48,"Static Stretch (30s)","1-2","3","12-15","8-9","10","1-2 min"]]},null]},"10":{"b":"R","d":[{"k":"Upper","ex":[[3,"Failure","2-3","3","8-10","8-9","10","3-5 min"],[40,"Failure","1-2","3","10-12","8-9","10","1-2 min"],[20,"Failure","1-2","3","10-12","8-9","10","2-3 min"],[24,"Failure","1-2","2","10-12","8-9","10","1-2 min"],[45,"Failure + LLPs (Extend set)","1-2","3","8-10","8-9","10","2-3 min"],[39,"Failure","1","3","10-12","8-9","10","1-2 min"],[7,"Failure","1","3","10-12","8-9","10","1-2 min"]]},{"k":"Lower","ex":[[29,"Failure + LLPs (Extend set)","2","3","10-12","8-9","10","1-2 min"],[47,"Failure","2-4","3","8-10","8-9","10","3-5 min"],[1,"Failure","2-4","3","8-10","8-9","10","2-3 min"],[26,"Failure","1-2","3","10-12","8-9","10","1-2 min"],[28,"Static Stretch (30s)","1-2","3","8-10","8-9","10","1-2 min"],[31,"Failure","1","3","10-12","8-9","10","1-2 min"]]},null,{"k":"Pull","ex":[[25,"Failure","2-3","3","10-12","8-9","10","2-3 min"],[16,"Failure","2-3","3","10-12","8-9","10","2-3 min"],[19,"Failure + LLPs (Extend set)","1-2","3","12-15","8-9","10","2-3 min"],[0,"Myo-reps","1-2","3","12-15","8-9","10","1-2 min"],[12,"Failure","2-3","3","12-15","8-9","10","1-2 min"],[13,"Failure","1","3","12-15","8-9","10","1-2 min"],[18,"Myo-reps","1","2","15-20","8-9","10","1-2 min"]]},{"k":"Push","ex":[[30,"Failure","2-4","3","10-12","8-9","10","3-5 min"],[43,"Failure","2-3","3","10-12","8-9","10","2-3 min"],[9,"Failure","1-2","3","12-15","8-9","10","1-2 min"],[24,"Myo-reps","1","3","12-15","8-9","10","1-2 min"],[22,"Failure","1","3","12-15","8-9","10","1-2 min"],[49,"Myo-reps","1","2","15-20","8-9","10","1-2 min"],[4,"Failure","1-2","3","12-15","8-9","10","1-2 min"]]},{"k":"Legs","ex":[[23,"Failure","2-4","3","10-12","8-9","10","2-3 min"],[44,"Failure + LLPs (Extend set)","1-2","3","12-15","8-9","10","1-2 min"],[50,"Failure","2-3","2","10-12","8-9","10","2-3 min"],[26,"Myo-reps","1-2","3","12-15","8-9","10","1-2 min"],[33,"Failure","1-2","3","12-15","8-9","10","1-2 min"],[32,"Failure","1-2","3","12-15","8-9","10","1-2 min"],[48,"Static Stretch (30s)","1-2","3","12-15","8-9","10","1-2 min"]]},null]},"11":{"b":"R","d":[{"k":"Upper","ex":[[3,"Failure","2-3","4","8-10","8-9","10","3-5 min"],[40,"Failure","1-2","3","10-12","8-9","10","1-2 min"],[20,"Failure","1-2","3","10-12","8-9","10","2-3 min"],[24,"Failure","1-2","3","10-12","8-9","10","1-2 min"],[45,"Failure + LLPs (Extend set)","1-2","3","8-10","8-9","10","2-3 min"],[39,"Failure","1","3","10-12","8-9","10","1-2 min"],[7,"Failure","1","3","10-12","8-9","10","1-2 min"]]},{"k":"Lower","ex":[[29,"Failure + LLPs (Extend set)","2","3","10-12","8-9","10","1-2 min"],[47,"Failure","2-4","3","8-10","8-9","10","3-5 min"],[1,"Failure","2-4","4","8-10","8-9","10","2-3 min"],[26,"Failure","1-2","3","10-12","8-9","10","1-2 min"],[28,"Static Stretch (30s)","1-2","4","8-10","8-9","10","1-2 min"],[31,"Failure","1","3","10-12","8-9","10","1-2 min"]]},null,{"k":"Pull","ex":[[25,"Failure","2-3","3","10-12","8-9","10","2-3 min"],[16,"Failure","2-3","4","10-12","8-9","10","2-3 min"],[19,"Failure + LLPs (Extend set)","1-2","3","12-15","8-9","10","2-3 min"],[0,"Myo-reps","1-2","3","12-15","8-9","10","1-2 min"],[12,"Failure","2-3","3","12-15","8-9","10","1-2 min"],[13,"Failure","1","3","12-15","8-9","10","1-2 min"],[18,"Myo-reps","1","3","15-20","8-9","10","1-2 min"]]},{"k":"Push","ex":[[30,"Failure","2-4","4","10-12","8-9","10","3-5 min"],[43,"Failure","2-3","3","10-12","8-9","10","2-3 min"],[9,"Failure","1-2","3","12-15","8-9","10","1-2 min"],[24,"Myo-reps","1","3","12-15","8-9","10","1-2 min"],[22,"Failure","1","3","12-15","8-9","10","1-2 min"],[49,"Myo-reps","1","3","15-20","8-9","10","1-2 min"],[4,"Failure","1-2","3","12-15","8-9","10","1-2 min"]]},{"k":"Legs","ex":[[23,"Failure","2-4","4","10-12","8-9","10","2-3 min"],[44,"Failure + LLPs (Extend set)","1-2","4","12-15","8-9","10","1-2 min"],[50,"Failure","2-3","2","10-12","8-9","10","2-3 min"],[26,"Myo-reps","1-2","3","12-15","8-9","10","1-2 min"],[33,"Failure","1-2","3","12-15","8-9","10","1-2 min"],[32,"Failure","1-2","3","12-15","8-9","10","1-2 min"],[48,"Static Stretch (30s)","1-2","3","12-15","8-9","10","1-2 min"]]},null]},"12":{"b":"R","d":[{"k":"Upper","ex":[[3,"Failure","2-3","4","8-10","8-9","10","3-5 min"],[40,"Failure","1-2","3","10-12","8-9","10","1-2 min"],[20,"Failure","1-2","3","10-12","8-9","10","2-3 min"],[24,"Failure","1-2","3","10-12","8-9","10","1-2 min"],[45,"Failure + LLPs (Extend set)","1-2","3","8-10","8-9","10","2-3 min"],[39,"Failure","1","3","10-12","8-9","10","1-2 min"],[7,"Failure","1","3","10-12","8-9","10","1-2 min"]]},{"k":"Lower","ex":[[29,"Failure + LLPs (Extend set)","2","3","10-12","8-9","10","1-2 min"],[47,"Failure","2-4","3","8-10","8-9","10","3-5 min"],[1,"Failure","2-4","4","8-10","8-9","10","2-3 min"],[26,"Failure","1-2","3","10-12","8-9","10","1-2 min"],[28,"Static Stretch (30s)","1-2","4","8-10","8-9","10","1-2 min"],[31,"Failure","1","3","10-12","8-9","10","1-2 min"]]},null,{"k":"Pull","ex":[[25,"Failure","2-3","3","10-12","8-9","10","2-3 min"],[16,"Failure","2-3","4","10-12","8-9","10","2-3 min"],[19,"Failure + LLPs (Extend set)","1-2","3","12-15","8-9","10","2-3 min"],[0,"Myo-reps","1-2","3","12-15","8-9","10","1-2 min"],[12,"Failure","2-3","3","12-15","8-9","10","1-2 min"],[13,"Failure","1","3","12-15","8-9","10","1-2 min"],[18,"Myo-reps","1","3","15-20","8-9","10","1-2 min"]]},{"k":"Push","ex":[[30,"Failure","2-4","4","10-12","8-9","10","3-5 min"],[43,"Failure","2-3","3","10-12","8-9","10","2-3 min"],[9,"Failure","1-2","3","12-15","8-9","10","1-2 min"],[24,"Myo-reps","1","3","12-15","8-9","10","1-2 min"],[22,"Failure","1","3","12-15","8-9","10","1-2 min"],[49,"Myo-reps","1","3","15-20","8-9","10","1-2 min"],[4,"Failure","1-2","3","12-15","8-9","10","1-2 min"]]},{"k":"Legs","ex":[[23,"Failure","2-4","4","10-12","8-9","10","2-3 min"],[44,"Failure + LLPs (Extend set)","1-2","4","12-15","8-9","10","1-2 min"],[50,"Failure","2-3","2","10-12","8-9","10","2-3 min"],[26,"Myo-reps","1-2","3","12-15","8-9","10","1-2 min"],[33,"Failure","1-2","3","12-15","8-9","10","1-2 min"],[32,"Failure","1-2","3","12-15","8-9","10","1-2 min"],[48,"Static Stretch (30s)","1-2","3","12-15","8-9","10","1-2 min"]]},null]}};
+const NIPPARD_TO_MF={"45° Incline Barbell Press":"45° Incline Dumbbell Press","Smith Machine Squat":"Smith Machine Back Squat","Barbell RDL":"Barbell Romanian Deadlift","Leg Extension":"Leg Extension","Lying Leg Curl":"Lying Hamstring Curl","Seated Leg Curl":"Seated Hamstring Curl","Standing Calf Raise":"Standing Machine Calf Raise","DB Bulgarian Split Squat":"Dumbbell Bulgarian Split Squat","Pendlay Deficit Row":"Deficit Pendlay Row","Overhead Cable Triceps Extension (Bar)":"High Pulley Cable V-Bar Overhead Triceps Extension","Bayesian Cable Curl":"Dual Cable Bayesian Curl","EZ-Bar Cable Curl":"Cable EZ Bar Biceps Curl","Machine Preacher Curl":"EZ Bar Preacher Curl","Neutral-Grip Lat Pulldown":"Neutral Close Grip Cable Lat Pulldown","Neutral-Grip Seated Cable Row":"Neutral Grip Cable Row","1-Arm 45° Cable Rear Delt Flye":"Single Arm 45° Cable Rear Delt Fly","High-Cable Lateral Raise":"Single Arm High Cable Lateral Raise","Machine Shrug":"Pause Cable Shrug-In","Cable Triceps Kickback":"Neutral Grip Cable Triceps Kickback","Leg Press":"45° Leg Press","Machine Hip Adduction":"Multi-Hip Machine Hip Adduction","Machine Hip Abduction":"Multi-Hip Machine Hip Abduction","Pec Deck":"Pec Deck Fly"};
+
 
 /* ── BOARD (v1.5) — charter personas. Seed notes coach-authored 04/07/26 from
    the record on file. ── */
@@ -1810,6 +1907,7 @@ const EMPTY = {
   boardNotes:[...BOARD_SEED],                       // board member notes (attributed, dated)
   checkins:[],                                      // weekly mind check-in {d, sleep, stress, mot} 1–5
   fff:[],                                           // Fitness/Fatigue/Form — import-only from intervals.icu Wellness CSV or Sync
+  strength:{reg:{}, ex:{}, imported:null},          // Phase 5 (v1.51, D045): MacroFactor granular-export import-only, additive nullable — reg[ISOdate][Region]={sets,vol}, ex[ISOdate][ExName]={sets,e1rm,bsv}
 };
 const norm = s => {
   s.protocol=s.protocol||[]; s.segmental=s.segmental||[];
@@ -1819,6 +1917,8 @@ const norm = s => {
   if(!("target" in s)||s.target==null) s.target={kg:73,bf:15};
   s.sessions=s.sessions||{}; s.sessions.runs=s.sessions.runs||[]; s.sessions.gym=s.sessions.gym||[];
   s.fff=s.fff||[];
+  s.strength = s.strength || {reg:{}, ex:{}, imported:null};
+  s.strength.reg = s.strength.reg || {}; s.strength.ex = s.strength.ex || {};
   if(!s.taxNotes||!s.taxNotes.length) s.taxNotes=[...TAX_SEED];
   if(!s.boardNotes||!s.boardNotes.length) s.boardNotes=[...BOARD_SEED];
   s.checkins=s.checkins||[];
@@ -3006,6 +3106,110 @@ function gymDayCard(w){
   </div>`;
 }
 
+/* ── Phase 5 (v1.51, D045) §5: per-region progress + unmapped bucket ────── */
+function regionsWithData(){
+  const R=App.state.strength.reg; const set=new Set();
+  Object.values(R).forEach(dayObj=>Object.keys(dayObj).forEach(reg=>set.add(reg)));
+  return MUSCLE_REGIONS.filter(r=>set.has(r));
+}
+function regionWeeklyRows(region){
+  const R=App.state.strength.reg;
+  return Object.keys(R).sort().map(iso=>({
+    d: iso,
+    sets: (R[iso][region]&&R[iso][region].sets!=null) ? R[iso][region].sets : null,
+    vol:  (R[iso][region]&&R[iso][region].vol!=null)  ? R[iso][region].vol  : null,
+  }));
+}
+/* regionCard(region) — weekly hard-set count (primary) or volume(kg) toggle, chartSVG
+   bar via timeCtl-style W bucketing (applyCtl). No-throw with no data or an
+   unrecognised region name. */
+function regionCard(region){
+  if(!region) return `<div class="card"><div class="eyebrow">Per-region dose</div><div class="empty" style="margin-top:8px">◦ No region data yet — import the MacroFactor Granular Export above.</div></div>`;
+  const rows=regionWeeklyRows(region);
+  const ctl=App.chartCtl.strReg || (App.chartCtl.strReg={from:null,to:null,per:"W"});
+  const {cats,sets,vol}=applyCtl(rows,"d",ctl,{sets:"sum",vol:"sum"});
+  const metric = App.strMetric==="vol" ? vol : sets;
+  const nonNull=(metric||[]).filter(v=>v!=null);
+  const curWeek = nonNull.length ? nonNull[nonNull.length-1] : null;
+  const last4 = nonNull.slice(-4);
+  const mean4 = last4.length ? +(last4.reduce((s,v)=>s+v,0)/last4.length).toFixed(1) : null;
+  const series=[{name:App.strMetric==="vol"?"Volume (kg)":"Hard sets", color:C.teal, data:metric, type:"bar"}];
+  return `<div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+      <div class="eyebrow">${esc(region)} — weekly ${App.strMetric==="vol"?"volume":"hard-set count"}</div>
+      <div style="display:flex;gap:6px">
+        <button class="pill ${App.strMetric!=="vol"?"on":""}" data-act="strMetric" data-v="sets">sets</button>
+        <button class="pill ${App.strMetric==="vol"?"on":""}" data-act="strMetric" data-v="vol">kg</button>
+      </div>
+    </div>
+    ${cats.length ? `<div style="margin-top:10px">${chartSVG({cats,series,h:180,yUnit:App.strMetric==="vol"?"kg":""})}</div>
+      <div class="note" style="margin-top:6px">this week ${curWeek!=null?fmt(curWeek):"—"} · 4-wk mean ${mean4!=null?fmt(mean4):"—"}</div>`
+    : `<div class="empty" style="margin-top:8px">◦ No data yet for ${esc(region)}.</div>`}
+  </div>`;
+}
+/* unmappedBucket() — any imported exercise name absent from EX_REGION_MAP renders
+   here, visibly, with dates seen + total sets. Never a silent drop (§5). */
+function unmappedBucket(){
+  const E=App.state.strength.ex; const seen={};
+  Object.keys(E).sort().forEach(iso=>{
+    Object.keys(E[iso]).forEach(name=>{
+      if(EX_REGION_MAP[name]) return;
+      seen[name]=seen[name]||{dates:[], sets:0};
+      seen[name].dates.push(iso);
+      if(E[iso][name].sets!=null) seen[name].sets+=E[iso][name].sets;
+    });
+  });
+  const names=Object.keys(seen);
+  if(!names.length) return "";
+  const rows=names.map(n=>`<tr><td class="gt-name">${esc(n)}</td><td class="note" style="text-align:right">${seen[n].dates.length} date${seen[n].dates.length===1?"":"s"} · ${fmt(seen[n].sets)} sets</td></tr>`).join("");
+  return `<div class="card" style="border-color:${C.amber}">
+    <div class="eyebrow" style="color:${C.amber}">Unmapped exercises (${names.length})</div>
+    <div class="note" style="margin-top:4px">Imported names not yet in EX_REGION_MAP — data is kept, never dropped. Fix is a registry addition (Coach session), not a silent drop.</div>
+    <table style="margin-top:8px"><tbody>${rows}</tbody></table>
+  </div>`;
+}
+
+/* ── Phase 5 (v1.51, D045) §6: Nippard 12-wk program view — reference only,
+   block→week→session nav on the existing .gym-tbl responsive pattern. Firewall:
+   never reads or writes s.strength or s.sessions.gym. No-throw across all 12×5. */
+function nippardProgramCard(){
+  const nav = App.npNav || (App.npNav={b:"F", w:1, k:"Upper"});
+  const blockWeeks = Object.keys(NIPPARD_WEEKS).map(Number).filter(w=>NIPPARD_WEEKS[String(w)].b===nav.b).sort((a,b)=>a-b);
+  if(!blockWeeks.includes(nav.w)) nav.w = blockWeeks[0];
+  const wk = NIPPARD_WEEKS[String(nav.w)];
+  const sessKeys = wk.d.filter(Boolean).map(d=>d.k);
+  if(!sessKeys.includes(nav.k)) nav.k = sessKeys[0];
+  const day = wk.d.find(d=>d && d.k===nav.k);
+  const blockPills = ["F","R"].map(b=>`<button class="pill ${nav.b===b?"on":""}" data-act="npNav" data-k="b" data-v="${b}">${b==="F"?"Foundation":"Ramping"}</button>`).join("");
+  const weekPills = blockWeeks.map(w=>`<button class="pill ${nav.w===w?"on":""}" data-act="npNav" data-k="w" data-v="${w}">wk ${w}</button>`).join("");
+  const sessPills = sessKeys.map(k=>`<button class="pill ${nav.k===k?"on":""}" data-act="npNav" data-k="k" data-v="${k}">${k}</button>`).join("");
+  const rows = day ? day.ex.map(row=>{
+    const [exIdx,tech,wu,sets,reps,eRpe,lRpe,rest]=row;
+    const name=NIPPARD_EX[exIdx];
+    const mfName = NIPPARD_TO_MF[name]||name;
+    const reg = EX_REGION_MAP[mfName];
+    const chips = reg ? reg.r.map(r=>`<span class="note" style="border:1px solid var(--c-contour);border-radius:10px;padding:1px 6px;margin-right:3px;display:inline-block">${esc(r)}</span>`).join("") : "";
+    const meta = NIPPARD_META[String(exIdx)];
+    const infoOpen = App.npInfo===exIdx;
+    return `<tr><td class="gt-name">${esc(name)}${tech!=="N/A"?` <span class="note" style="color:${C.amber}">· ${esc(tech)}</span>`:""}
+        <span data-act="npInfo" data-v="${exIdx}" style="cursor:pointer;color:var(--c-teal);font-size:10px;margin-left:4px">ⓘ</span>
+        ${chips?`<div style="margin-top:2px">${chips}</div>`:""}
+        ${(infoOpen&&meta)?`<div class="note" style="margin-top:4px">${esc(meta.n)}${meta.s&&meta.s.length?` · subs: ${meta.s.map(esc).join(", ")}`:""}</div>`:""}
+        </td>
+      <td class="gt-sr" style="text-align:center">${esc(wu)} wu + ${esc(sets)} × ${esc(reps)}</td>
+      <td class="gt-rpe" style="text-align:center">RPE ${esc(eRpe)}→${esc(lRpe)}</td>
+      <td class="gt-rest" style="text-align:right;color:var(--c-dim)">${esc(rest)}</td></tr>`; }).join("")
+    : `<tr><td class="note">Rest day.</td></tr>`;
+  return `<div class="card">
+    <div class="eyebrow">Nippard 12-wk program — reference only, never logs</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">${blockPills}</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">${weekPills}</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">${sessPills}</div>
+    <table class="gym-tbl" style="margin-top:10px"><tbody>${rows}</tbody></table>
+    <div class="note" style="margin-top:8px">Prescription-only — this card never reads or writes your logged sets. Log actuals in MacroFactor; use GYM_SESSIONS week-strip cards for the wk-1-canonical prescription.</div>
+  </div>`;
+}
+
 /* ── trend card ── */
 /* #R9 (v1.40, D040): MacroFactor-style gap-aware EWMA trend over date-sorted weigh-ins.
    alpha = per-day smoothing (0.10 ≈ a ~10-day time constant). Trend seeds at the first
@@ -3024,6 +3228,74 @@ function bwEWMA(pts, alpha){
   return out;
 }
 const BW_EWMA_ALPHA = 0.10;   // D040 (v1.40): bodyweight EWMA per-day smoothing constant
+
+/* §4 (Phase 5, v1.51, D045): MacroFactor Granular Export TSV parser. Hand-rolled,
+   zero deps. Accepts either the multi-sheet dump (blocks separated by a
+   "## Sheet: <name>" marker line) or a single pasted sheet (kind guessed from
+   header content). Recognised sheets: Muscle Groups - Sets/Volume, Exercises -
+   Total Sets/1-RM/Best Set Volume. Others land in .skipped, never silently
+   dropped. Excel serial dates (epoch 1899-12-30) and DD/MM/YYYY both accepted.
+   Empty cell → absent (never 0); fractional set credits (MF's own aggregation)
+   preserved as-is. Pure — no state mutation, harness-exported. */
+function excelSerialToISO(serial){
+  const ms = Math.round((serial - 25569) * 86400000); // 25569 = days between 1899-12-30 and 1970-01-01
+  const d = new Date(ms);
+  return d.getUTCFullYear()+"-"+String(d.getUTCMonth()+1).padStart(2,"0")+"-"+String(d.getUTCDate()).padStart(2,"0");
+}
+function parseDateCell(cell){
+  const s=(cell||"").trim(); if(!s) return null;
+  if(/^\d{4,6}(\.\d+)?$/.test(s)){ const n=+s; if(n>20000&&n<80000) return excelSerialToISO(n); }
+  const dm = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if(dm) return dm[3]+"-"+dm[2].padStart(2,"0")+"-"+dm[1].padStart(2,"0");
+  if(/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  return null;
+}
+function strSheetKind(nameHint, headerCells){
+  const n=(nameHint||"").toLowerCase();
+  if(n.includes("muscle groups") && n.includes("sets")) return "regSets";
+  if(n.includes("muscle groups") && n.includes("volume")) return "regVol";
+  if(n.includes("exercises") && n.includes("total sets")) return "exSets";
+  if(n.includes("exercises") && (n.includes("1-rm")||n.includes("1rm"))) return "exE1rm";
+  if(n.includes("exercises") && n.includes("best set volume")) return "exBsv";
+  if(nameHint) return null; // named-but-unrecognised sheet marker → skipped
+  // no marker — guess from header column names against the known region list
+  const cols=(headerCells||[]).slice(1).map(c=>c.replace(/\s*\([^)]*\)\s*$/,""));
+  if(cols.length && cols.every(c=>MUSCLE_REGIONS.includes(c))) return "regSets"; // ambiguous sets/vol default
+  if(cols.length) return "exSets"; // ambiguous default for a bare exercise-name header
+  return null;
+}
+function parseStrengthTSV(text){
+  const out={regSets:{}, regVol:{}, exSets:{}, exE1rm:{}, exBsv:{}, skipped:[]};
+  if(!text) return out;
+  const markerRe=/^##\s*Sheet:\s*(.+)$/i;
+  const lines=text.split(/\r?\n/);
+  let blocks=[]; let cur=null;
+  lines.forEach(line=>{
+    const m=line.match(markerRe);
+    if(m){ cur={name:m[1].trim(), rows:[]}; blocks.push(cur); }
+    else { if(!cur){ cur={name:null, rows:[]}; blocks.push(cur); } cur.rows.push(line); }
+  });
+  blocks.forEach(b=>{
+    const rows=b.rows.map(r=>r.split("\t")).filter(r=>r.length>1 || (r.length===1&&r[0].trim()!==""));
+    if(!rows.length) return;
+    const header=rows[0];
+    const kind=strSheetKind(b.name, header);
+    if(!kind){ out.skipped.push(b.name||"(unnamed sheet)"); return; }
+    const cols=header.slice(1).map(c=>c.replace(/\s*\([^)]*\)\s*$/,"").trim());
+    const target = out[kind];
+    rows.slice(1).forEach(r=>{
+      const iso=parseDateCell(r[0]); if(!iso) return;
+      target[iso]=target[iso]||{};
+      cols.forEach((name,ci)=>{
+        const raw=(r[ci+1]||"").trim(); if(raw==="") return; // empty → absent, never 0
+        const v=parseFloat(raw); if(isNaN(v)) return;
+        target[iso][name]=v; // fractional set credits preserved as-is
+      });
+    });
+  });
+  return out;
+}
+
 
 function trendCard(title,unit,series,goodUp,target,invite){
   const last = series.length ? series[series.length-1].v : null;
@@ -3244,6 +3516,10 @@ const App = {
   tgtView: null,      // target-explorer what-if {kg,bf} — null = show the adopted state.target
   _photoMem: null,    // in-memory photo fallback when storage is blocked
   lastSync: null,     // transient sync diagnostics {at, detailDiag, coverage} — not persisted
+  strRegion: null,     // Phase 5 (v1.51): selected region chip on the Strength tab; null = first region with data
+  strMetric: "sets",   // Phase 5: region card metric toggle — "sets" (primary) | "vol"
+  npNav: null,         // Phase 5 (#R6): Nippard program nav {b,w,k} — block/week/session; null = closed
+  npInfo: null,        // Phase 5: exIdx of the currently-expanded ⓘ note/subs panel on the program card
   _t: null, _resetArm: false,
   persist(){ if(this.demo) return; clearTimeout(this._t); this._t=setTimeout(()=>Store.save(this.state),400); },
   flash(m){ const el=qs("flash"); if(el){ el.textContent="✓ "+m; setTimeout(()=>{ if(el) el.textContent=""; },2500); } },
@@ -3654,13 +3930,31 @@ const App = {
     const series=KEY_LIFTS.map((l,i)=>({name:l,color:LIFT_COLORS[i],
       data:dates.map(d=>{ const e=this.state.lifts.find(x=>x.lift===l&&x.d===d); return e?e.e1rm:null; })}))
       .filter(s=>s.data.some(v=>v!=null));
+    const mfCount = this.state.lifts.filter(l=>l.src==="mf").length;
+    // §5 (Phase 5, v1.51): region picker — chip row over only the regions with imported data
+    const regs = regionsWithData();
+    if(!this.strRegion || !regs.includes(this.strRegion)) this.strRegion = regs[0]||null;
+    const chips = regs.map(r=>`<button class="pill ${this.strRegion===r?"on":""}" data-act="strRegion" data-v="${esc(r)}">${esc(r)}</button>`).join("");
     return `
     <div class="card"><div class="eyebrow" style="color:var(--c-amber)">The five ultra-relevant lifts — est. 1RM trend ${this.infoBtn("lifts")}</div>${this.infoPanel("lifts")}
       ${this.timeCtl("lifts",{periods:["FromTo"]})}
-      ${series.length ? `<div style="margin-top:10px">${chartSVG({cats:dates.map(fmtDshort),yUnit:"kg",h:230,series})}</div>`
+      ${series.length ? `<div style="margin-top:10px">${chartSVG({cats:dates.map(fmtDshort),yUnit:"kg",h:230,series})}</div>
+        ${mfCount?`<div class="note" style="margin-top:4px">● manual entry · ○ MacroFactor auto-feed — ${mfCount} imported point${mfCount===1?"":"s"} in this series (variant families take the max e1RM per date, §3)</div>`:""}`
       : `<div class="empty">◦ Populates from the monthly MacroFactor Granular Export (or quick-add in Data). Gate: progression in hypertrophy blocks, retention everywhere else. Prior numbers are stale by design — rebuild toward.</div>`}</div>
     <div class="card"><div class="eyebrow">Block context ${this.infoBtn("block_context")}</div>${this.infoPanel("block_context")}
-      <div style="font-size:12.5px;color:var(--c-mist);line-height:1.75;margin-top:8px">Hypertrophy leads W1–3, W12–17, W26–31 (amber bands on the plan). Failure protocol from Nippard wk 2; the standing rule — any week the long run exceeds 3 h, Sunday Legs holds 1–2 RIR. ME layer (weighted carries 6.5 → 13 kg) lives only in the UTK- and UTA-specific blocks and counts as a hard leg day.</div></div>`;
+      <div style="font-size:12.5px;color:var(--c-mist);line-height:1.75;margin-top:8px">Hypertrophy leads W1–3, W12–17, W26–31 (amber bands on the plan). Failure protocol from Nippard wk 2; the standing rule — any week the long run exceeds 3 h, Sunday Legs holds 1–2 RIR. ME layer (weighted carries 6.5 → 13 kg) lives only in the UTK- and UTA-specific blocks and counts as a hard leg day.</div></div>
+    <div class="card"><div class="eyebrow">MacroFactor Granular Export — import ${this.infoBtn("str_import")}</div>${this.infoPanel("str_import")}
+      <div class="note" style="margin-top:4px">On-device: open the export in Google Sheets, select-all → copy each sheet in turn, paste below — or paste the whole multi-sheet dump with "## Sheet: &lt;name&gt;" markers. Recognised: Muscle Groups - Sets/Volume · Exercises - Total Sets/1-RM/Best Set Volume. Import-only, replace-by-date within each sheet kind — MacroFactor stays the source of truth.</div>
+      <textarea id="str_io" rows="4" style="width:100%;margin-top:8px" placeholder="Paste sheet(s) here…"></textarea>
+      <button class="btn solid" style="margin-top:8px" data-act="strImport">Import</button>
+      ${this.state.strength.imported?`<div class="note" style="margin-top:4px">last import: ${esc(this.state.strength.imported)}</div>`:""}</div>
+    <div class="card">
+      <div class="eyebrow">Per-region dose ${this.infoBtn("region_dose")}</div>${this.infoPanel("region_dose")}
+      ${chips?`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">${chips}</div>`:`<div class="note" style="margin-top:6px">No region data yet.</div>`}
+    </div>
+    ${regionCard(this.strRegion)}
+    ${unmappedBucket()}
+    ${nippardProgramCard()}`;
   },
 
   view_body(){
@@ -4250,6 +4544,44 @@ const App = {
       this.persist(); this.render();
       this.flash(`FFF: merged ${n} wellness row${n===1?"":"s"}`);
     }catch(e){ this.flash("FFF import failed — paste a JSON array [{date,ctl,atl,tsb,rampRate}]"); }
+  },
+
+  /* §4 (Phase 5, v1.51, D045): MacroFactor granular-export import. Parses via the
+     pure parseStrengthTSV() below, then merges replace-by-date PER SHEET-KIND into
+     s.strength — a fresh regSets import for a date overwrites that date's sets
+     count but never touches an existing vol/e1rm/bsv value from a different sheet.
+     KEY_LIFTS auto-feed (§5, FK-B6a): for each mapped `kl` name in EX_REGION_MAP,
+     an imported e1rm becomes an additive point in the existing key-lift series,
+     flagged src:"mf" (manual Data-tab entries have no src and are never touched).
+     Import-only — MacroFactor stays the source of truth; nothing writes back. */
+  importStrength(){
+    try{
+      const text = qs("str_io").value;
+      const parsed = parseStrengthTSV(text);
+      const R=this.state.strength.reg, E=this.state.strength.ex;
+      let nDates=new Set();
+      Object.keys(parsed.regSets).forEach(iso=>{ R[iso]=R[iso]||{}; nDates.add(iso);
+        Object.keys(parsed.regSets[iso]).forEach(reg=>{ R[iso][reg]=R[iso][reg]||{}; R[iso][reg].sets=parsed.regSets[iso][reg]; }); });
+      Object.keys(parsed.regVol).forEach(iso=>{ R[iso]=R[iso]||{}; nDates.add(iso);
+        Object.keys(parsed.regVol[iso]).forEach(reg=>{ R[iso][reg]=R[iso][reg]||{}; R[iso][reg].vol=parsed.regVol[iso][reg]; }); });
+      Object.keys(parsed.exSets).forEach(iso=>{ E[iso]=E[iso]||{}; nDates.add(iso);
+        Object.keys(parsed.exSets[iso]).forEach(ex=>{ E[iso][ex]=E[iso][ex]||{}; E[iso][ex].sets=parsed.exSets[iso][ex]; }); });
+      Object.keys(parsed.exE1rm).forEach(iso=>{ E[iso]=E[iso]||{}; nDates.add(iso);
+        Object.keys(parsed.exE1rm[iso]).forEach(ex=>{ E[iso][ex]=E[iso][ex]||{}; E[iso][ex].e1rm=parsed.exE1rm[iso][ex];
+          // KEY_LIFTS auto-feed: mapped kl name gains an additive src:"mf" point for this date
+          const reg=EX_REGION_MAP[ex]; if(reg&&reg.kl){
+            const i=this.state.lifts.findIndex(l=>l.lift===reg.kl&&l.d===iso&&l.src==="mf");
+            const pt={d:iso, lift:reg.kl, e1rm:parsed.exE1rm[iso][ex], src:"mf"};
+            if(i>=0) this.state.lifts[i]=pt; else this.state.lifts.push(pt);
+          } }); });
+      Object.keys(parsed.exBsv).forEach(iso=>{ E[iso]=E[iso]||{}; nDates.add(iso);
+        Object.keys(parsed.exBsv[iso]).forEach(ex=>{ E[iso][ex]=E[iso][ex]||{}; E[iso][ex].bsv=parsed.exBsv[iso][ex]; }); });
+      this.state.lifts.sort((a,b)=>a.d.localeCompare(b.d));
+      if(!nDates.size && !parsed.skipped.length){ this.flash("Nothing recognised — paste the MacroFactor Granular Export sheets"); return; }
+      this.state.strength.imported = new Date().toISOString().slice(0,10);
+      this.persist(); this.render();
+      this.flash(`Strength: merged ${nDates.size} date${nDates.size===1?"":"s"}${parsed.skipped.length?` · ${parsed.skipped.length} sheet${parsed.skipped.length===1?"":"s"} skipped (unrecognised)`:""}`);
+    }catch(e){ this.flash("Strength import failed — check the pasted sheets"); }
   },
 
   async syncICU(){
@@ -4891,7 +5223,17 @@ const App = {
     inp.click();
   },
   view_changelog(){
-    const log=`v1.50  18/07/26  RX bands now cover climb AND descent.
+    const log=`v1.51  18/07/26  The Strength tab, properly rebuilt.
+                   Import your monthly MacroFactor Granular Export and see weekly
+                   hard-set counts per muscle region — the metric that actually
+                   predicts growth, not just time in the gym. Any exercise MacroFactor
+                   doesn't recognise yet still shows up in an "unmapped" list, never
+                   silently dropped. Your five key lifts now also auto-update from the
+                   import (flagged separately from your manual entries). And the full
+                   12-week Nippard program is browsable here — block, week, session —
+                   as a reference only; it never touches what you've actually logged.
+
+v1.50  18/07/26  RX bands now cover climb AND descent.
                    Every prescribed run now shows a Descent target alongside Gain —
                    bands built from Uphill Athlete's descent-dosing guidance, scaled
                    off the same race-day anchors as the climb targets. It's on the
@@ -5310,7 +5652,14 @@ v1.0–v1.4  02–04/07/26  Initial build; ported from React artifact.
         else if(a==="evLinks"){ this.evEdit=(this.evEdit===v?null:v); this.render(); }
         else if(this.demo && a==="evLinksSave"){ this.flash("Demo mode is read-only — toggle off at the bottom"); }
         else if(a==="evLinksSave") this.setEvLinks(v);
-        else if(this.demo && ["addWeek","addBody","addLab","addLift","addGirth","addProt","setTarget","tgtAdopt","import","importSess","importFFF","reset","taxAdd","addCheckin","addProtein","export"].includes(a)){ this.flash("Demo mode is read-only — toggle off at the bottom"); }
+        else if(this.demo && ["addWeek","addBody","addLab","addLift","addGirth","addProt","setTarget","tgtAdopt","import","importSess","importFFF","reset","taxAdd","addCheckin","addProtein","export","strImport"].includes(a)){ this.flash("Demo mode is read-only — toggle off at the bottom"); }
+        else if(a==="strImport") this.importStrength();
+        else if(a==="strRegion"){ this.strRegion=v; this.render(); }
+        else if(a==="strMetric"){ if(v==="sets"||v==="vol"){ this.strMetric=v; this.render(); } }
+        else if(a==="npNav"){ const k=el.dataset.k; if(!this.npNav) this.npNav={b:"F",w:1,k:"Upper"};
+          if(k==="b") this.npNav.b=v; else if(k==="w") this.npNav.w=+v; else if(k==="k") this.npNav.k=v;
+          this.render(); }
+        else if(a==="npInfo"){ const i=+v; this.npInfo=(this.npInfo===i?null:i); this.render(); }
         else if(a==="gymday"){ const [w,i]=v.split("-").map(Number); this.gymDay=(this.gymDay&&this.gymDay.w===w&&this.gymDay.i===i)?null:{w,i}; this.render(); }
         else if(a==="gymclose"){ this.gymDay=null; this.render(); }
         else if(a==="runday"){ const [w,i]=v.split("-").map(Number); this.runDay=(this.runDay&&this.runDay.w===w&&this.runDay.i===i)?null:{w,i}; this.render(); }
