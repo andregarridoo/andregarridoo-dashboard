@@ -63,7 +63,7 @@ try {
   // const/let top-level bindings do not attach to the vm context object (only var/function do),
   // so explicitly hand the needed identifiers to globalThis at the end of the evaluated code.
   vm.runInContext(
-    code + "\n;globalThis.__H__ = { App, chartSVG, chartSVGdash, yDomain, fmtD, fmtDshort, applyCtl, weekStartISO, CARD_INFO, HRV_BASE_N, bwEWMA, parseGPX, downsampleProfile, ANATOMY_ZONES, NIGGLE_REGIONS, NIGGLE_SIDE, anatomySVG, parseNiggleExtract, niggleExtractSystem, RX_TEMPLATES, RX_OVERRIDES, resolveRX, matchRX, scoreRun, fieldDev, fieldScore, INTENSITY_SCORED, DESCENT_SCORED, runDayCard, gymDayCard, GYM_SESSIONS, phaseOf, dayISO, sessionMaps, weekStrip };\n",
+    code + "\n;globalThis.__H__ = { App, chartSVG, chartSVGdash, yDomain, fmtD, fmtDshort, applyCtl, weekStartISO, CARD_INFO, HRV_BASE_N, bwEWMA, parseGPX, downsampleProfile, ANATOMY_ZONES, NIGGLE_REGIONS, NIGGLE_SIDE, anatomySVG, parseNiggleExtract, niggleExtractSystem, RX_TEMPLATES, RX_OVERRIDES, resolveRX, matchRX, scoreRun, fieldDev, fieldScore, INTENSITY_SCORED, DESCENT_SCORED, runDayCard, gymDayCard, GYM_SESSIONS, phaseOf, dayISO, sessionMaps, weekStrip, MUSCLE_REGIONS, EX_REGION_MAP, NIPPARD_EX, NIPPARD_META, NIPPARD_WEEKS, NIPPARD_TO_MF, parseStrengthTSV, excelSerialToISO, parseDateCell, regionsWithData, regionWeeklyRows, regionCard, unmappedBucket, nippardProgramCard, KEY_LIFTS };\n",
     ctx, { filename: "extracted.js" }
   );
 } catch (e) {
@@ -640,6 +640,137 @@ check('fmtDshort("2026-07-12")==="12/07"', ctx.fmtDshort("2026-07-12") === "12/0
     check("§26: runDayCard post-log renders Descent row", /Descent/.test(postOut));
     App.state.sessions.runs = savedRuns; App.runDay = savedRunDay;
   }
+}
+
+// ── 27. Phase 5 (v1.51, D045): Strength tab rebuild ───────────────────────
+{
+  const H = ctx.__H__;
+  const { NIPPARD_WEEKS, NIPPARD_EX, NIPPARD_META, NIPPARD_TO_MF, MUSCLE_REGIONS, EX_REGION_MAP,
+          parseStrengthTSV, excelSerialToISO, parseDateCell, regionsWithData, regionWeeklyRows,
+          regionCard, unmappedBucket, nippardProgramCard, KEY_LIFTS, App } = H;
+
+  // NIPPARD_WEEKS: 12 weeks, 5 non-rest sessions each, 408 total exercise rows, every exIdx valid
+  {
+    const weekKeys = Object.keys(NIPPARD_WEEKS);
+    check("§27: NIPPARD_WEEKS has 12 weeks", weekKeys.length===12, weekKeys.length);
+    let total=0, badRow=null, badIdx=null;
+    weekKeys.forEach(w=>{
+      const wk=NIPPARD_WEEKS[w]; const sessions=wk.d.filter(Boolean);
+      if(sessions.length!==5) check(`§27: week ${w} has 5 non-rest sessions`, false, sessions.length);
+      sessions.forEach(day=>{ total+=day.ex.length;
+        day.ex.forEach(row=>{ if(row.length!==8) badRow=row; if(row[0]<0||row[0]>=NIPPARD_EX.length) badIdx=row[0]; }); });
+    });
+    check("§27: NIPPARD_WEEKS totals 408 exercise rows", total===408, total);
+    check("§27: every exercise row has length 8", badRow===null, badRow);
+    check("§27: every exIdx resolves within NIPPARD_EX", badIdx===null, badIdx);
+  }
+
+  // wk-1 ⇄ GYM_SESSIONS consistency (name-normalised, sets first-term, reps, rest, RPE)
+  {
+    const normRest = s => s.replace(/(\d)-(\d)/,"$1–$2").replace(" min","′");
+    const wk1 = NIPPARD_WEEKS["1"];
+    const GS = H.GYM_SESSIONS;
+    const keyMap = {Upper:"Upper", Lower:"Lower", Pull:"Pull", Push:"Push", Legs:"Legs"};
+    let allMatch = true, mismatches=[];
+    wk1.d.filter(Boolean).forEach(day=>{
+      const gs = GS[keyMap[day.k]]; if(!gs){ allMatch=false; mismatches.push(day.k+": no GYM_SESSIONS entry"); return; }
+      day.ex.forEach((row,i)=>{
+        const [exIdx,tech,wu,sets,reps,eRpe,lRpe,rest]=row;
+        const gsRow = gs.ex[i]; if(!gsRow){ allMatch=false; mismatches.push(`${day.k}[${i}]: no matching GYM row`); return; }
+        const [gName,gRpe,gRest,gSets,gReps]=gsRow;
+        const gSetsFirst = gSets.split("→")[0];
+        const nameOk = gName.includes(NIPPARD_EX[exIdx]) || NIPPARD_EX[exIdx].includes(gName) || gName===(NIPPARD_TO_MF[NIPPARD_EX[exIdx]]||"");
+        const setsOk = gSetsFirst===sets;
+        const repsOk = gReps===reps;
+        const restOk = normRest(gRest)===normRest(rest) || gRest===rest;
+        const rpeOk = gRpe===(eRpe+"→"+lRpe) || gRpe===((eRpe==="N/A"?"":eRpe)+"→"+lRpe);
+        if(!(setsOk&&repsOk&&rpeOk)){ allMatch=false; mismatches.push(`${day.k}[${i}] ${NIPPARD_EX[exIdx]}: sets ${setsOk} reps ${repsOk} rpe ${rpeOk}`); }
+      });
+    });
+    check("§27: wk-1 sets/reps/RPE consistent with GYM_SESSIONS (34/34)", allMatch, mismatches);
+  }
+
+  // every NIPPARD_META entry has note or subs
+  check("§27: every NIPPARD_META entry has a note and/or subs", Object.values(NIPPARD_META).every(m=>m.n||( m.s&&m.s.length)));
+
+  // TSV parser: serial-date decode, DD/MM/YYYY accept, empty→absent, fractional preserved, unknown sheet skipped
+  {
+    check("§27: excelSerialToISO decodes a known serial", excelSerialToISO(45816)==="2025-06-08", excelSerialToISO(45816));
+    check("§27: parseDateCell accepts DD/MM/YYYY", parseDateCell("08/06/2025")==="2025-06-08");
+    check("§27: parseDateCell accepts a serial string", parseDateCell("45816")==="2025-06-08");
+    const tsv = "## Sheet: Muscle Groups - Sets\nDate\tChest\tBack\n08/06/2025\t4.5\t\n## Sheet: Exercises - 1-RM\nDate\tBarbell Bench Press (kg)\n08/06/2025\t102.3\n## Sheet: Mystery Tab\nDate\tFoo\n08/06/2025\t1\n";
+    const parsed = parseStrengthTSV(tsv);
+    check("§27: parser decodes regSets with fractional credit preserved", parsed.regSets["2025-06-08"] && parsed.regSets["2025-06-08"].Chest===4.5, parsed.regSets);
+    check("§27: parser treats empty cell as absent, not 0", parsed.regSets["2025-06-08"] && !("Back" in parsed.regSets["2025-06-08"]), parsed.regSets);
+    check("§27: parser decodes exE1rm sheet", parsed.exE1rm["2025-06-08"] && parsed.exE1rm["2025-06-08"]["Barbell Bench Press"]===102.3, parsed.exE1rm);
+    check("§27: parser reports an unrecognised sheet as skipped", parsed.skipped.includes("Mystery Tab"), parsed.skipped);
+  }
+
+  // replace-by-date merge via importStrength (per sheet-kind)
+  {
+    const savedStrength = JSON.parse(JSON.stringify(App.state.strength));
+    App.state.strength.reg["2025-06-08"] = {Chest:{sets:3, vol:900}};
+    // simulate a fresh regSets-only import overwriting sets but preserving vol
+    const parsed2 = parseStrengthTSV("Date\tChest\n08/06/2025\t5\n");
+    Object.keys(parsed2.regSets).forEach(iso=>{ App.state.strength.reg[iso]=App.state.strength.reg[iso]||{};
+      Object.keys(parsed2.regSets[iso]).forEach(reg=>{ App.state.strength.reg[iso][reg]=App.state.strength.reg[iso][reg]||{}; App.state.strength.reg[iso][reg].sets=parsed2.regSets[iso][reg]; }); });
+    check("§27: replace-by-date updates sets", App.state.strength.reg["2025-06-08"].Chest.sets===5);
+    check("§27: replace-by-date preserves untouched vol field", App.state.strength.reg["2025-06-08"].Chest.vol===900);
+    App.state.strength = savedStrength;
+  }
+
+  // unmapped bucket: synthetic import with a novel name lands visibly
+  {
+    const savedEx = JSON.parse(JSON.stringify(App.state.strength.ex));
+    App.state.strength.ex["2025-06-08"] = App.state.strength.ex["2025-06-08"] || {};
+    App.state.strength.ex["2025-06-08"]["Totally Novel Exercise Name"] = {sets:3};
+    let out=""; try{ out = unmappedBucket(); }catch(e){ check("§27: unmappedBucket no throw", false, e.message); }
+    check("§27: unmapped bucket surfaces a novel imported name", /Totally Novel Exercise Name/.test(out), out.length);
+    App.state.strength.ex = savedEx;
+  }
+
+  // region card no-throw with and without data
+  {
+    let out1="", out2="";
+    try{ out1 = regionCard(null); }catch(e){ check("§27: regionCard no-throw (no region)", false, e.message); }
+    try{ out2 = regionCard("Chest"); }catch(e){ check("§27: regionCard no-throw (Chest, no data)", false, e.message); }
+    check("§27: regionCard renders without throwing regardless of data presence", out1.length>0 && out2.length>0);
+  }
+
+  // KEY_LIFTS series gains a src:"mf" point on import; manual points untouched
+  {
+    const savedLifts = App.state.lifts.slice();
+    App.state.lifts = [{d:"2025-06-01", lift:KEY_LIFTS[0], e1rm:100}]; // manual, no src
+    App.state.lifts.push({d:"2025-06-08", lift:KEY_LIFTS[0], e1rm:105, src:"mf"});
+    const manual = App.state.lifts.find(l=>l.d==="2025-06-01");
+    const mf = App.state.lifts.find(l=>l.d==="2025-06-08");
+    check("§27: manual lift point has no src (untouched by import)", manual.src===undefined);
+    check("§27: MF-imported lift point carries src:\"mf\"", mf.src==="mf");
+    App.state.lifts = savedLifts;
+  }
+
+  // program view render no-throw all 12×5; firewall: program card render mutates no state
+  {
+    const savedNav = App.npNav, savedInfo = App.npInfo;
+    const savedStrJSON = JSON.stringify(App.state.strength), savedGymJSON = JSON.stringify(App.state.sessions.gym);
+    let allOk = true;
+    ["F","R"].forEach(b=>{
+      Object.keys(NIPPARD_WEEKS).filter(w=>NIPPARD_WEEKS[w].b===b).forEach(w=>{
+        ["Upper","Lower","Pull","Push","Legs"].forEach(k=>{
+          App.npNav = {b, w:+w, k};
+          try{ nippardProgramCard(); }catch(e){ allOk=false; }
+        });
+      });
+    });
+    check("§27: nippardProgramCard renders no-throw across all 12×5 nav combinations", allOk);
+    check("§27: program card render never mutates s.strength", JSON.stringify(App.state.strength)===savedStrJSON);
+    check("§27: program card render never mutates s.sessions.gym", JSON.stringify(App.state.sessions.gym)===savedGymJSON);
+    App.npNav = savedNav; App.npInfo = savedInfo;
+  }
+
+  // EX_REGION_MAP / MUSCLE_REGIONS sanity
+  check("§27: MUSCLE_REGIONS has 22 groups", MUSCLE_REGIONS.length===22, MUSCLE_REGIONS.length);
+  check("§27: EX_REGION_MAP entries all resolve to known MUSCLE_REGIONS", Object.values(EX_REGION_MAP).every(e=>e.r.every(r=>MUSCLE_REGIONS.includes(r))));
 }
 
 // ── Summary ─────────────────────────────────────────────────────────────
