@@ -63,7 +63,7 @@ try {
   // const/let top-level bindings do not attach to the vm context object (only var/function do),
   // so explicitly hand the needed identifiers to globalThis at the end of the evaluated code.
   vm.runInContext(
-    code + "\n;globalThis.__H__ = { App, chartSVG, chartSVGdash, yDomain, fmtD, fmtDshort, applyCtl, weekStartISO, CARD_INFO, HRV_BASE_N, bwEWMA, parseGPX, downsampleProfile, ANATOMY_ZONES, NIGGLE_REGIONS, NIGGLE_SIDE, anatomySVG, parseNiggleExtract, niggleExtractSystem, RX_TEMPLATES, RX_OVERRIDES, resolveRX, matchRX, scoreRun, fieldDev, fieldScore, INTENSITY_SCORED, runDayCard, gymDayCard, GYM_SESSIONS, phaseOf, dayISO, sessionMaps, weekStrip };\n",
+    code + "\n;globalThis.__H__ = { App, chartSVG, chartSVGdash, yDomain, fmtD, fmtDshort, applyCtl, weekStartISO, CARD_INFO, HRV_BASE_N, bwEWMA, parseGPX, downsampleProfile, ANATOMY_ZONES, NIGGLE_REGIONS, NIGGLE_SIDE, anatomySVG, parseNiggleExtract, niggleExtractSystem, RX_TEMPLATES, RX_OVERRIDES, resolveRX, matchRX, scoreRun, fieldDev, fieldScore, INTENSITY_SCORED, DESCENT_SCORED, runDayCard, gymDayCard, GYM_SESSIONS, phaseOf, dayISO, sessionMaps, weekStrip };\n",
     ctx, { filename: "extracted.js" }
   );
 } catch (e) {
@@ -552,6 +552,94 @@ check('fmtDshort("2026-07-12")==="12/07"', ctx.fmtDshort("2026-07-12") === "12/0
 
   // 9. INTENSITY_SCORED gate
   check("INTENSITY_SCORED === false", INTENSITY_SCORED === false);
+}
+
+// ── 26. Addendum A (v1.50, D044): RX gain+descent extension ──────────────
+{
+  const H = ctx.__H__;
+  const { RX_TEMPLATES, RX_OVERRIDES, resolveRX, scoreRun, fieldScore, fieldDev, DESCENT_SCORED, App } = H;
+
+  // desc field present on every non-rest RX object (null allowed)
+  {
+    const allTpl = Object.values(RX_TEMPLATES).flat();
+    const nonRest = allTpl.filter(r=>r.t!=="rest");
+    check("§26: every non-rest RX_TEMPLATES object carries a desc key (null allowed)",
+      nonRest.every(r=>Object.prototype.hasOwnProperty.call(r,"desc")),
+      nonRest.filter(r=>!Object.prototype.hasOwnProperty.call(r,"desc")));
+    const allOv = Object.values(RX_OVERRIDES).flatMap(w=>Object.values(w));
+    const nonRestOv = allOv.filter(r=>r.t!=="rest" && r.desc===undefined ? false : true);
+    // override rows may be partial merges (e.g. W45 patches only vert/desc/note) — only
+    // full-shape override rows (those carrying a t) are checked for the desc key.
+    const fullOv = allOv.filter(r=>r.t && r.t!=="rest");
+    check("§26: every non-rest, full-shape RX_OVERRIDES object carries a desc key (null allowed)",
+      fullOv.every(r=>Object.prototype.hasOwnProperty.call(r,"desc")),
+      fullOv.filter(r=>!Object.prototype.hasOwnProperty.call(r,"desc")));
+  }
+
+  // ratified spot-values
+  check("§26: W20 override vert=[600,900] desc=[700,1000]",
+    RX_OVERRIDES[20][5].vert[0]===600 && RX_OVERRIDES[20][5].vert[1]===900 &&
+    RX_OVERRIDES[20][5].desc[0]===700 && RX_OVERRIDES[20][5].desc[1]===1000,
+    RX_OVERRIDES[20][5]);
+  check("§26: W31 benchmark desc=[1050,1150]",
+    RX_OVERRIDES[31][5].desc[0]===1050 && RX_OVERRIDES[31][5].desc[1]===1150, RX_OVERRIDES[31][5]);
+  check("§26: W45 taper override vert=[200,400] desc=[200,400]",
+    RX_OVERRIDES[45][5].vert[0]===200 && RX_OVERRIDES[45][5].vert[1]===400 &&
+    RX_OVERRIDES[45][5].desc[0]===200 && RX_OVERRIDES[45][5].desc[1]===400, RX_OVERRIDES[45][5]);
+  check("§26: Ph10 ME template vert=[400,800] desc=[400,800]",
+    RX_TEMPLATES[10][2].vert[0]===400 && RX_TEMPLATES[10][2].vert[1]===800 &&
+    RX_TEMPLATES[10][2].desc[0]===400 && RX_TEMPLATES[10][2].desc[1]===800, RX_TEMPLATES[10][2]);
+  check("§26: races carry null-null (vert/desc)",
+    RX_OVERRIDES[9][6].vert===null && RX_OVERRIDES[9][6].desc===null &&
+    RX_OVERRIDES[22][5].vert===null && RX_OVERRIDES[22][5].desc===null &&
+    RX_OVERRIDES[46][5].vert===null && RX_OVERRIDES[46][5].desc===null,
+    {sydney:RX_OVERRIDES[9][6], utk:RX_OVERRIDES[22][5], uta:RX_OVERRIDES[46][5]});
+
+  // DESCENT_SCORED gate
+  check("§26: DESCENT_SCORED === false", DESCENT_SCORED === false);
+
+  // pre-flip scorer output bit-identical to the D043 formula on a desc-carrying RX
+  {
+    const rx = RX_TEMPLATES[10][5]; // longE, vert:[1300,2000], desc:[1300,2000]
+    const run = {h:5.0, km:null, gain:1600, desc:1550, avg_hr:null};
+    const sc = scoreRun(rx, run);
+    // manual D043-formula replica: vol(dur) 0.6 + vert 0.2, renormalised over 2 active channels
+    const devDur = fieldDev(rx.dur[0],rx.dur[1],run.h), scoreDur = fieldScore(devDur);
+    const devVert = fieldDev(rx.vert[0],rx.vert[1],run.gain), scoreVert = fieldScore(devVert);
+    const expect = Math.round((scoreDur*0.6 + scoreVert*0.2)/(0.6+0.2));
+    check("§26: pre-flip scorer bit-identical to D043 formula on a desc-carrying RX",
+      sc.score === expect, {got:sc.score, expect});
+    check("§26: pre-flip coverage denominator excludes desc (DESCENT_SCORED=false)",
+      sc.coverage === "2/2", sc.coverage);
+    check("§26: pre-flip channels array contains no \"desc\" key", !sc.channels.some(c=>c.k==="desc"), sc.channels);
+  }
+
+  // importSessions maps gain_m/descent_m
+  check("§26: importSessions source maps gain_m and descent_m fallbacks", /gain_m/.test(code) && /descent_m/.test(code));
+
+  // syncICU desc nullable, refresh-on-sync (not RUN_FILL_ONLY)
+  check("§26: syncICU source derives a nullable desc field from live candidates", /total_descent/.test(code) && /icu_descent/.test(code));
+  check("§26: syncICU desc is NOT in the fill-only list (refresh-on-sync class)", !/RUN_FILL_ONLY\s*=\s*\[[^\]]*"desc"/.test(code));
+
+  // runDayCard renders Gain+Descent rows pre+post-log, no-throw
+  {
+    const savedRuns = App.state.sessions.runs.slice();
+    const savedRunDay = App.runDay;
+    App.state.sessions.runs = [];
+    App.runDay = {w:10, i:5}; // Ph10 longE day, carries desc band
+    let preOut = "";
+    try { preOut = H.runDayCard.call(null, 10); } catch(e){ check("§26: runDayCard pre-log no throw (Gain+Descent)", false, e.message); }
+    check("§26: runDayCard pre-log renders Gain row", /Gain/.test(preOut));
+    check("§26: runDayCard pre-log renders Descent row", /Descent/.test(preOut));
+    const isoOf0 = H.dayISO(10,5);
+    App.state.sessions.runs = [
+      {d:isoOf0, id:"desc1", h:5.0, km:null, run_type:"long", quarantined:false, gain:1600, desc:1550},
+    ];
+    let postOut = "";
+    try { postOut = H.runDayCard.call(null, 10); } catch(e){ check("§26: runDayCard post-log no throw (Gain+Descent)", false, e.message); }
+    check("§26: runDayCard post-log renders Descent row", /Descent/.test(postOut));
+    App.state.sessions.runs = savedRuns; App.runDay = savedRunDay;
+  }
 }
 
 // ── Summary ─────────────────────────────────────────────────────────────
